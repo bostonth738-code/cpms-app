@@ -103,13 +103,13 @@ const INIT={
     {id:6,houseId:3,date:"2025-01-10",dueDate:"2025-01-15",amount:1200000,status:"paid",method:"transfer",paidDate:"2025-01-10",milestone:"Completion"},
   ],
   team:[
-    {id:1,role:"owner",name:"นายณญาน์ สุวรรณ",email:"owner@cpms.com",phone:"089-001-0001",status:"active"},
-    {id:2,role:"engineer",name:"วศ.ประสิทธิ์ บ้านบิน",email:"engineer@cpms.com",phone:"089-002-0002",status:"active"},
-    {id:3,role:"foreman",name:"นายวิชัย ก่อสร้าง",email:"foreman1@cpms.com",phone:"089-003-0003",status:"active"},
-    {id:4,role:"foreman",name:"นายสุรชัย บ้านดี",email:"foreman2@cpms.com",phone:"089-003-0004",status:"active"},
-    {id:5,role:"purchasing",name:"นางสุรีย์พร จัดซื้อ",email:"purchasing@cpms.com",phone:"089-004-0004",status:"active"},
-    {id:6,role:"marketing",name:"นางสิรินรา ตลาด",email:"marketing@cpms.com",phone:"089-005-0005",status:"active"},
-    {id:7,role:"owner",name:"นายธีรศักดิ์ ลงทุน",email:"investor@cpms.com",phone:"089-006-0006",status:"inactive"},
+    {id:1,role:"owner",name:"นายณญาน์ สุวรรณ",email:"owner@thecrown.com",phone:"089-001-0001",status:"active"},
+    {id:2,role:"engineer",name:"วศ.ประสิทธิ์ บ้านบิน",email:"engineer@thecrown.com",phone:"089-002-0002",status:"active"},
+    {id:3,role:"foreman",name:"นายวิชัย ก่อสร้าง",email:"foreman1@thecrown.com",phone:"089-003-0003",status:"active"},
+    {id:4,role:"foreman",name:"นายสุรชัย บ้านดี",email:"foreman2@thecrown.com",phone:"089-003-0004",status:"active"},
+    {id:5,role:"purchasing",name:"นางสุรีย์พร จัดซื้อ",email:"purchasing@thecrown.com",phone:"089-004-0004",status:"active"},
+    {id:6,role:"marketing",name:"นางสิรินรา ตลาด",email:"marketing@thecrown.com",phone:"089-005-0005",status:"active"},
+    {id:7,role:"owner",name:"นายธีรศักดิ์ ลงทุน",email:"investor@thecrown.com",phone:"089-006-0006",status:"inactive"},
   ],
   notifications:{
     emailOnPayment:true,emailOnDelay:true,emailOnCompletion:true,pushOnOrder:true,pushOnApproval:true,smsAlert:false
@@ -344,7 +344,7 @@ function Sidebar({page,setPage,role,data}) {
     <div style={{width:220,background:C.panel,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,bottom:0,zIndex:100}}>
       <div style={{padding:"16px 14px 13px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:9}}>
         <div style={{width:34,height:34,background:"linear-gradient(135deg,#3b82f6,#8b5cf6)",borderRadius:9,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>🏗️</div>
-        <div><div style={{fontSize:14,fontWeight:700,color:C.text}}>CPMS</div><div style={{fontSize:10,color:C.muted}}>Construction Mgmt</div></div>
+        <div><div style={{fontSize:14,fontWeight:700,color:C.text}}>The Crown</div><div style={{fontSize:10,color:C.muted}}>Management</div></div>
       </div>
       <nav style={{flex:1,padding:"10px 7px",overflowY:"auto"}}>
         <div style={{fontSize:9,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:1.2,padding:"8px 9px 4px"}}>เมนูหลัก</div>
@@ -1302,7 +1302,7 @@ function TimelinePage({data,role,onOpenHouse}) {
         </div>
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:6}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:4}}>
         {filtered.map(house=>{
           const project=data.projects.find(p=>p.id===house.projectId);
           const totalCost=data.boqItems.filter(b=>b.houseId===house.id).reduce((s,i)=>s+i.qty*i.boqPrice,0);
@@ -1312,52 +1312,51 @@ function TimelinePage({data,role,onOpenHouse}) {
             <div 
               key={house.id} 
               onClick={()=>onOpenHouse(house)}
-              style={{background:C.panel,borderLeft:`3px solid ${house.status==="completed"?C.green:house.status==="inprogress"?C.blue:C.muted}`,borderRadius:6,padding:8,cursor:"pointer",transition:"all .2s",border:`1px solid ${C.border}`}}
+              style={{background:C.panel,borderLeft:`2px solid ${house.status==="completed"?C.green:house.status==="inprogress"?C.blue:C.muted}`,borderRadius:4,padding:4,cursor:"pointer",transition:"all .2s",border:`1px solid ${C.border}`}}
               onMouseEnter={e=>e.currentTarget.style.borderColor=C.blue}
               onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}
             >
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"start",marginBottom:6}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:11,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>บ้าน {house.name}</div>
-                  <div style={{fontSize:9,color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{project?.name}</div>
+                  <div style={{fontSize:9,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{house.name}</div>
                 </div>
-                <Tag color={house.status==="completed"?"green":house.status==="inprogress"?"blue":"gray"} style={{fontSize:8,padding:"1px 4px",marginLeft:4,flexShrink:0}}>{ST_LBL[house.status]}</Tag>
+                <Tag color={house.status==="completed"?"green":house.status==="inprogress"?"blue":"gray"} style={{fontSize:7,padding:"0px 3px",marginLeft:2,flexShrink:0}}>{ST_LBL[house.status]}</Tag>
               </div>
               
-              <div style={{marginBottom:6}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:2,fontSize:8}}>
+              <div style={{marginBottom:3}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:1,fontSize:7}}>
                   <span style={{color:C.muted,fontWeight:700}}>ก่อ</span>
                   <span style={{fontWeight:700,color:C.blue}}>{house.pct}%</span>
                 </div>
-                <PBar pct={house.pct} color={C.blue} h={4}/>
+                <PBar pct={house.pct} color={C.blue} h={3}/>
               </div>
 
-              <div style={{display:"grid",gridTemplateColumns:role==="owner"?"1fr 1fr":"1fr",gap:4,fontSize:8}}>
-                <div style={{background:"#0d1117",borderRadius:3,padding:"3px 4px"}}>
-                  <div style={{color:C.muted,fontWeight:700,fontSize:7}}>เฟส</div>
-                  <div style={{color:C.text,fontWeight:600,fontSize:9,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{house.phase}</div>
+              <div style={{display:"flex",gap:2,fontSize:7}}>
+                <div style={{flex:1,background:"#0d1117",borderRadius:2,padding:"2px 3px"}}>
+                  <div style={{color:C.muted,fontWeight:700,fontSize:6}}>เฟส</div>
+                  <div style={{color:C.text,fontWeight:600,fontSize:7,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{house.phase}</div>
                 </div>
-                <div style={{background:"#0d1117",borderRadius:3,padding:"3px 4px",textAlign:"center"}}>
-                  <div style={{color:C.muted,fontWeight:700,fontSize:7}}>วัน</div>
-                  <div style={{color:daysLeft(house.start,house.days)<0?C.red:C.text,fontWeight:600,fontSize:9}}>
+                <div style={{width:32,background:"#0d1117",borderRadius:2,padding:"2px 3px",textAlign:"center"}}>
+                  <div style={{color:C.muted,fontWeight:700,fontSize:6}}>วัน</div>
+                  <div style={{color:daysLeft(house.start,house.days)<0?C.red:C.text,fontWeight:600,fontSize:7}}>
                     {daysLeft(house.start,house.days)<0?`-${Math.abs(daysLeft(house.start,house.days))}`:`${daysLeft(house.start,house.days)}`}
                   </div>
                 </div>
               </div>
 
               {role==="owner"&&(
-                <div style={{marginTop:6,paddingTop:6,borderTop:`1px solid ${C.border}`,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:3,fontSize:8,textAlign:"center"}}>
-                  <div>
-                    <div style={{color:C.muted,fontWeight:700,fontSize:7,marginBottom:1}}>งบ</div>
-                    <div style={{color:C.blue,fontWeight:700,fontSize:9}}>฿{fmtMoney(totalCost/1000)}K</div>
+                <div style={{marginTop:3,paddingTop:3,borderTop:`1px solid ${C.border}`,display:"flex",gap:2,fontSize:7,textAlign:"center"}}>
+                  <div style={{flex:1}}>
+                    <div style={{color:C.muted,fontWeight:700,fontSize:6}}>งบ</div>
+                    <div style={{color:C.blue,fontWeight:700,fontSize:7}}>฿{fmtMoney(totalCost/1000)}K</div>
                   </div>
-                  <div>
-                    <div style={{color:C.muted,fontWeight:700,fontSize:7,marginBottom:1}}>ใช้</div>
-                    <div style={{color:isOver?C.red:C.text,fontWeight:700,fontSize:9}}>฿{fmtMoney(actualCost/1000)}K</div>
+                  <div style={{flex:1}}>
+                    <div style={{color:C.muted,fontWeight:700,fontSize:6}}>ใช้</div>
+                    <div style={{color:isOver?C.red:C.text,fontWeight:700,fontSize:7}}>฿{fmtMoney(actualCost/1000)}K</div>
                   </div>
-                  <div>
-                    <div style={{color:C.muted,fontWeight:700,fontSize:7,marginBottom:1}}>Δ</div>
-                    <div style={{color:isOver?C.red:C.green,fontWeight:700,fontSize:9}}>{isOver?"+":""}฿{fmtMoney(Math.abs(totalCost-actualCost)/1000)}K</div>
+                  <div style={{flex:1}}>
+                    <div style={{color:C.muted,fontWeight:700,fontSize:6}}>Δ</div>
+                    <div style={{color:isOver?C.red:C.green,fontWeight:700,fontSize:7}}>{isOver?"+":""}฿{fmtMoney(Math.abs(totalCost-actualCost)/1000)}K</div>
                   </div>
                 </div>
               )}
@@ -1977,8 +1976,8 @@ function SettingsPage({data,setData}) {
 // ═══════════════════════════════════════════════════════════════
 
 // localStorage helpers
-const STORAGE_KEY="cpms_data";
-const STORAGE_ROLE="cpms_role";
+const STORAGE_KEY="thecrown_data";
+const STORAGE_ROLE="thecrown_role";
 function loadData(){
   try{
     const raw=localStorage.getItem(STORAGE_KEY);

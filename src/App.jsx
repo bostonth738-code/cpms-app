@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 // ═══════════════════════════════════════════════════════════════
 // PART 1: Constants, Colors & Utility Functions
@@ -21,6 +23,10 @@ const fmtDate=d=>{if(!d)return"—";const dt=new Date(d);return`${dt.getDate()}/
 const fmtMoney=n=>(n||0).toLocaleString("th-TH");
 const daysLeft=(s,t)=>Math.ceil((new Date(addDays(s,t))-new Date())/86400000);
 const uid=()=>Date.now()+Math.random();
+const getDayName=d=>{if(!d)return"";const dt=new Date(d+"T00:00:00");const days=["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];return days[dt.getDay()];};
+const fmtDateWithDay=d=>{if(!d)return"—";const day=getDayName(d);const dt=new Date(d);return`${day} ${dt.getDate()}/${dt.getMonth()+1}/${dt.getFullYear()+543}`;};
+const STATUS_ICONS={notstarted:"😴",inprogress:"⏳",completed:"✅",cancelled:"❌"};
+const getStatusColor=s=>({notstarted:C.muted,inprogress:C.orange,completed:C.green,cancelled:C.red}[s]||C.muted);
 
 // Export functions
 const exp2CSV=(headers,rows)=>{const csv=[headers.join(","),...rows.map(r=>r.map(c=>`"${c}"`).join(","))].join("\n");const blob=new Blob(["\uFEFF"+csv],{type:"text/csv"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`report_${Date.now()}.csv`;a.click();};
@@ -103,14 +109,15 @@ const INIT={
     {id:6,houseId:3,date:"2025-01-10",dueDate:"2025-01-15",amount:1200000,status:"paid",method:"transfer",paidDate:"2025-01-10",milestone:"Completion"},
   ],
   team:[
-    {id:1,role:"owner",name:"นายณญาน์ สุวรรณ",email:"owner@thecrown.com",phone:"089-001-0001",status:"active"},
-    {id:2,role:"engineer",name:"วศ.ประสิทธิ์ บ้านบิน",email:"engineer@thecrown.com",phone:"089-002-0002",status:"active"},
-    {id:3,role:"foreman",name:"นายวิชัย ก่อสร้าง",email:"foreman1@thecrown.com",phone:"089-003-0003",status:"active"},
-    {id:4,role:"foreman",name:"นายสุรชัย บ้านดี",email:"foreman2@thecrown.com",phone:"089-003-0004",status:"active"},
-    {id:5,role:"purchasing",name:"นางสุรีย์พร จัดซื้อ",email:"purchasing@thecrown.com",phone:"089-004-0004",status:"active"},
-    {id:6,role:"marketing",name:"นางสิรินรา ตลาด",email:"marketing@thecrown.com",phone:"089-005-0005",status:"active"},
-    {id:7,role:"owner",name:"นายธีรศักดิ์ ลงทุน",email:"investor@thecrown.com",phone:"089-006-0006",status:"inactive"},
+    {id:1,role:"owner",name:"นายณญาน์ สุวรรณ",email:"owner@thecrown.com",phone:"089-001-0001",status:"active",username:"owner",password:"1234",avatar:"",location:{lat:null,lng:null,address:"",updatedAt:""}},
+    {id:2,role:"engineer",name:"วศ.ประสิทธิ์ บ้านบิน",email:"engineer@thecrown.com",phone:"089-002-0002",status:"active",username:"engineer",password:"1234",avatar:"",location:{lat:null,lng:null,address:"",updatedAt:""}},
+    {id:3,role:"foreman",name:"นายวิชัย ก่อสร้าง",email:"foreman@thecrown.com",phone:"089-003-0003",status:"active",username:"foreman",password:"1234",avatar:"",location:{lat:null,lng:null,address:"",updatedAt:""}},
+    {id:5,role:"purchasing",name:"นางสุรีย์พร จัดซื้อ",email:"purchasing@thecrown.com",phone:"089-004-0004",status:"active",username:"purchasing",password:"1234",avatar:"",location:{lat:null,lng:null,address:"",updatedAt:""}},
+    {id:6,role:"marketing",name:"นางสิรินรา ตลาด",email:"marketing@thecrown.com",phone:"089-005-0005",status:"active",username:"marketing",password:"1234",avatar:"",location:{lat:null,lng:null,address:"",updatedAt:""}},
   ],
+  employeeLevels:{
+    2:3,3:2,5:2,6:1,
+  },
   notifications:{
     emailOnPayment:true,emailOnDelay:true,emailOnCompletion:true,pushOnOrder:true,pushOnApproval:true,smsAlert:false
   },
@@ -124,6 +131,14 @@ const INIT={
     {id:uid(),houseId:1,phaseId:1,role:"foreman",sender:"นายวิชัย",text:"ยืนยันผลการตรวจสอบ ผ่านทุกด้านครับ จะเริ่มเทคอนกรีตพื้น",time:"10:15",date:"2025-04-02",file:null},
     {id:uid(),houseId:1,phaseId:2,role:"foreman",sender:"นายวิชัย",text:"โครงสร้างชั้น 1 ประมาณเสร็จ 80% แล้ว",time:"14:30",date:"2025-04-03",file:null},
     {id:uid(),houseId:1,phaseId:2,role:"engineer",sender:"วศ.ประสิทธิ์",text:"ขอดูภาพการตรวจสอบด้วยครับ",time:"15:00",date:"2025-04-03",file:null},
+  ],
+  tracking:[
+    {id:uid(),taskName:"หาราคา supplier เรือนมุก",assignedTo:3,assignedBy:1,level:2,deadline:"2025-04-20",status:"inprogress",remarks:"รอข้อมูลจาก 3 ร้าน",jobDetails:{what:"ตรวจสอบราคาปูนซีเมนต์จาก 3 ร้านค้า",why:"เพื่อวัดราคาที่แข่งขันกันได้",when:"จันทร์ 21/4/2568",how:["ติดต่อ supplier ทั้ง 3 แห่ง","ขอใบเสนอราคาแบบส่วนตัว","เปรียบเทียบราคาและส่งสรุปให้เจ้าของ"],obstacles:"ร้านที่ 2 ยังไม่ออกราคา"},createdDate:"2025-04-05"},
+    {id:uid(),taskName:"ตรวจสอบคุณภาพวัสดุวัฒนา",assignedTo:2,assignedBy:1,level:3,deadline:"2025-04-18",status:"notstarted",remarks:"",jobDetails:{what:"",why:"",when:"",how:[],obstacles:""},createdDate:"2025-04-06"},
+    {id:uid(),taskName:"ติดตามการก่อสร้างบ้าน A-01",assignedTo:3,assignedBy:1,level:2,deadline:"2025-04-22",status:"inprogress",remarks:"ความคืบหน้า 65%",jobDetails:{what:"ตรวจสอบความคืบหน้างานก่อสร้าง",why:"เพื่อให้ทราบสถานะตามแผนการก่อสร้าง",when:"เสาร์ 22/4/2568",how:["ไปตรวจสอบหน้างาน","ปรึกษากับหัวหน้าทีม","รายงานผลให้เจ้าของทราบ"],obstacles:""},createdDate:"2025-04-02"},
+    {id:uid(),taskName:"เตรียมเอกสารสำหรับลูกค้า",assignedTo:6,assignedBy:1,level:1,deadline:"2025-04-15",status:"completed",completedDate:"2025-04-15",remarks:"ส่งให้ลูกค้าแล้ว",jobDetails:{what:"",why:"",when:"",how:[],obstacles:""},createdDate:"2025-03-30"},
+    {id:uid(),taskName:"อนุมัติคำสั่งซื้อกระเบื้อง",assignedTo:2,assignedBy:1,level:3,deadline:"2025-04-17",status:"inprogress",remarks:"รอใบเสนอราคา",jobDetails:{what:"",why:"",when:"",how:[],obstacles:""},createdDate:"2025-04-06"},
+    {id:uid(),taskName:"ประชุมทีมโฟร์แมน",assignedTo:4,assignedBy:1,level:1,deadline:"2025-04-24",status:"notstarted",remarks:"",jobDetails:{what:"",why:"",when:"",how:[],obstacles:""},createdDate:"2025-04-07"},
   ],
   notificationViewed:{},
   messageViewed:{},
@@ -217,8 +232,15 @@ function Mdl({title,onClose,children,footer,size="md"}) {
 
 function RoleSwitcher({role,setRole}) {
   const [open,setOpen]=useState(false);
+  const ref=useRef(null);
+  useEffect(()=>{
+    if(!open)return;
+    const handler=(e)=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
+    document.addEventListener("mousedown",handler);
+    return()=>document.removeEventListener("mousedown",handler);
+  },[open]);
   return (
-    <div style={{position:"relative"}}>
+    <div ref={ref} style={{position:"relative"}}>
       <button onClick={()=>setOpen(o=>!o)} style={{display:"flex",alignItems:"center",gap:7,padding:"5px 12px",background:C.panel,border:`1px solid ${C.border2}`,borderRadius:8,color:C.text,fontSize:12,fontWeight:600,cursor:"pointer"}}>
         <span style={{width:8,height:8,borderRadius:"50%",background:ROLE_COL[role],flexShrink:0}}/>{ROLE_LBL[role]} ▾
       </button>
@@ -237,6 +259,13 @@ function RoleSwitcher({role,setRole}) {
 
 function Notifs({data,setData,role,onOpenHouse,setPage,onScrollToPhase}) {
   const [open,setOpen]=useState(false);
+  const ref=useRef(null);
+  useEffect(()=>{
+    if(!open)return;
+    const handler=(e)=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
+    document.addEventListener("mousedown",handler);
+    return()=>document.removeEventListener("mousedown",handler);
+  },[open]);
   // เช็คงานรอตรวจ
   const waitingReviewItems=data.houses.flatMap(h=>{
     const pp=data.phaseProgress[h.id]||{};
@@ -307,7 +336,7 @@ function Notifs({data,setData,role,onOpenHouse,setPage,onScrollToPhase}) {
   };
   
   return (
-    <div style={{position:"relative"}}>
+    <div ref={ref} style={{position:"relative"}}>
       <button onClick={()=>setOpen(o=>!o)} style={{position:"relative",width:36,height:36,borderRadius:8,border:`1px solid ${C.border2}`,background:"none",color:C.muted,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s"}}>
         🔔{unviewedCount>0&&<span style={{position:"absolute",top:-4,right:-4,background:C.red,color:"#fff",fontSize:9,fontWeight:700,width:16,height:16,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",animation:"pulse 1s infinite"}}>{unviewedCount}</span>}
       </button>
@@ -330,14 +359,18 @@ function Notifs({data,setData,role,onOpenHouse,setPage,onScrollToPhase}) {
   );
 }
 
-function Sidebar({page,setPage,role,data}) {
+function Sidebar({page,setPage,role,data,authedUserId,isMobileMode,onLogout,onChangePw,isOwner,unviewedNotifs,onOpenNotif}) {
+  const authedMember=data.team.find(m=>m.id===authedUserId);
   const pending=data.requests.filter(r=>r.status==="pending").length;
+  const pendingMembers=data.team.filter(t=>t.status==="pending").length;
+  const pendingPwChanges=data.team.filter(t=>t.pendingPassword).length;
+  const settingsBadge=pendingMembers+pendingPwChanges;
   const navByRole={
-    owner:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"Dashboard"},{id:"finance",icon:"💹",label:"Finance"},{id:"analytics",icon:"📊",label:"Analytics"},{id:"team",icon:"👥",label:"Team"},{id:"marketing",icon:"📢",label:"การตลาด"},{id:"settings",icon:"⚙️",label:"ตั้งค่า"}],
-    engineer:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"บ้านที่ดูแล"},{id:"analytics",icon:"📊",label:"Analytics"},{id:"settings",icon:"⚙️",label:"ตั้งค่า"}],
-    foreman:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"บ้านที่ดูแล"}],
-    purchasing:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"ภาพรวม"}],
-    marketing:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"analytics",icon:"📊",label:"Analytics"},{id:"marketing",icon:"📢",label:"การตลาด"}],
+    owner:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"Dashboard"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"finance",icon:"💹",label:"Finance"},{id:"analytics",icon:"📊",label:"Analytics"},{id:"team",icon:"👥",label:"Team"},{id:"marketing",icon:"📢",label:"การตลาด"},{id:"settings",icon:"⚙️",label:"ตั้งค่า",badge:settingsBadge}],
+    engineer:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"บ้านที่ดูแล"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"analytics",icon:"📊",label:"Analytics"},{id:"team",icon:"👥",label:"ทีมงาน"},{id:"settings",icon:"⚙️",label:"ตั้งค่า"}],
+    foreman:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"บ้านที่ดูแล"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"team",icon:"👥",label:"ทีมงาน"}],
+    purchasing:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"ภาพรวม"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"team",icon:"👥",label:"ทีมงาน"}],
+    marketing:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"analytics",icon:"📊",label:"Analytics"},{id:"team",icon:"👥",label:"ทีมงาน"},{id:"marketing",icon:"📢",label:"การตลาด"}],
   };
   const items=navByRole[role]||navByRole.owner;
   return (
@@ -356,13 +389,26 @@ function Sidebar({page,setPage,role,data}) {
         ))}
       </nav>
       <div style={{padding:"10px 7px",borderTop:`1px solid ${C.border}`}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 9px",background:"#0d1117",borderRadius:8}}>
-          <span style={{width:8,height:8,borderRadius:"50%",background:ROLE_COL[role],flexShrink:0}}/>
+        <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 9px",background:"#0d1117",borderRadius:8,marginBottom:isMobileMode?8:0}}>
+          <Avatar member={authedMember} size={28} fontSize={12}/>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:12,fontWeight:600,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>ผู้ใช้ Demo</div>
+            <div style={{fontSize:12,fontWeight:600,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{authedMember?.name||"—"}</div>
             <div style={{fontSize:10,color:C.muted}}>{ROLE_LBL[role]}</div>
           </div>
         </div>
+        {isMobileMode&&(
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {unviewedNotifs>0&&<button onClick={onOpenNotif} style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"9px",borderRadius:8,border:`1px solid ${C.border2}`,background:"none",color:C.text,fontSize:13,cursor:"pointer"}}>
+              <span>🔔</span><span style={{flex:1,textAlign:"left"}}>การแจ้งเตือน</span><span style={{background:C.red,color:"#fff",fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:10}}>{unviewedNotifs}</span>
+            </button>}
+            {!isOwner&&<button onClick={onChangePw} style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"9px",borderRadius:8,border:`1px solid ${C.border2}`,background:"none",color:C.muted,fontSize:13,cursor:"pointer"}}>
+              <span>🔑</span><span>ขอเปลี่ยนรหัสผ่าน</span>
+            </button>}
+            <button onClick={onLogout} style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"9px",borderRadius:8,border:`1px solid ${C.red}44`,background:`${C.red}11`,color:"#fca5a5",fontSize:13,cursor:"pointer"}}>
+              <span>🔓</span><span>ออกจากระบบ</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -376,7 +422,7 @@ function Sidebar({page,setPage,role,data}) {
 // PART 4: Dashboard Page Component
 // ═══════════════════════════════════════════════════════════════
 
-function DashPage({data,setData,role,onOpenHouse}) {
+function DashPage({data,setData,role,onOpenHouse,isMobileMode}) {
   const [expanded,setExpanded]=useState({1:true,2:true});
   const [projMdl,setProjMdl]=useState(false);
   const [houseMdl,setHouseMdl]=useState(null);
@@ -389,11 +435,11 @@ function DashPage({data,setData,role,onOpenHouse}) {
   const overC=data.houses.filter(h=>h.status==="completed"&&h.actual>h.boq).length;
 
   const KCard=({icon,label,val,sub,warn})=>(
-    <Card style={{padding:15}}>
-      <div style={{fontSize:20,marginBottom:5}}>{icon}</div>
-      <div style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.5,marginBottom:5}}>{label}</div>
-      <div style={{fontSize:20,fontWeight:800,color:warn?C.red:C.text}}>{val}</div>
-      {sub&&<div style={{fontSize:11,color:C.muted,marginTop:3}}>{sub}</div>}
+    <Card style={{padding:isMobileMode?12:15}}>
+      <div style={{fontSize:isMobileMode?16:20,marginBottom:5}}>{icon}</div>
+      <div style={{fontSize:isMobileMode?9:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.5,marginBottom:5}}>{label}</div>
+      <div style={{fontSize:isMobileMode?16:20,fontWeight:800,color:warn?C.red:C.text}}>{val}</div>
+      {sub&&<div style={{fontSize:isMobileMode?10:11,color:C.muted,marginTop:3}}>{sub}</div>}
     </Card>
   );
 
@@ -447,33 +493,33 @@ function DashPage({data,setData,role,onOpenHouse}) {
   function delHouse(id){if(!window.confirm("ลบบ้านหลังนี้?"))return;setData(d=>({...d,houses:d.houses.filter(h=>h.id!==id)}));}
 
   return (
-    <div style={{padding:24}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:22}}>
-        <div><div style={{fontSize:22,fontWeight:700,color:C.text}}>Dashboard ภาพรวม</div><div style={{fontSize:13,color:C.muted,marginTop:2}}>ทุกโครงการ ทุกบ้าน Real-Time</div></div>
-        {["owner","engineer"].includes(role)&&<Btn onClick={()=>setProjMdl(true)}>+ สร้างโครงการใหม่</Btn>}
+    <div style={{padding:isMobileMode?12:24}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:isMobileMode?16:22,flexWrap:isMobileMode?"wrap":"nowrap",gap:isMobileMode?10:0}}>
+        <div><div style={{fontSize:isMobileMode?18:22,fontWeight:700,color:C.text}}>Dashboard ภาพรวม</div><div style={{fontSize:isMobileMode?11:13,color:C.muted,marginTop:2}}>ทุกโครงการ ทุกบ้าน Real-Time</div></div>
+        {["owner","engineer"].includes(role)&&<Btn onClick={()=>setProjMdl(true)} size={isMobileMode?"sm":"md"}>+ สร้าง</Btn>}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:12,marginBottom:24}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"repeat(auto-fit,minmax(200px,1fr))",gap:isMobileMode?8:12,marginBottom:isMobileMode?16:24}}>
         <KCard icon="📦" label="โครงการ" val={data.projects.length} sub="Active"/>
         <KCard icon="🏠" label="บ้านทั้งหมด" val={data.houses.length} sub={`${data.houses.filter(h=>h.status==="inprogress").length} กำลังก่อสร้าง`}/>
         {["owner","engineer","purchasing"].includes(role)&&<KCard icon="💰" label="ใช้จ่ายจริงรวม" val={`฿${fmtMoney(totalAct)}`} sub="ทุกโครงการ"/>}
         {["owner","engineer","purchasing"].includes(role)&&<KCard icon="📊" label="งบ BOQ รวม" val={`฿${fmtMoney(totalBOQ)}`} sub="ทุกโครงการ"/>}
         {["owner","engineer","purchasing"].includes(role)&&<KCard icon="⚠️" label="บ้านเกินงบ" val={overC} sub="เสร็จแล้วเกิน BOQ" warn={overC>0}/>}
       </div>
-      <div style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.8,marginBottom:12,display:"flex",alignItems:"center",gap:8}}>โครงการและบ้าน<div style={{flex:1,height:1,background:C.border}}/></div>
+      <div style={{fontSize:isMobileMode?10:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.8,marginBottom:12,display:"flex",alignItems:"center",gap:8}}>โครงการและบ้าน<div style={{flex:1,height:1,background:C.border}}/></div>
       {data.projects.map(proj=>{
         const houses=data.houses.filter(h=>h.projectId===proj.id);
         const open=expanded[proj.id];
         return (
           <Card key={proj.id} style={{marginBottom:14,overflow:"hidden"}}>
-            <div onClick={()=>setExpanded(e=>({...e,[proj.id]:!e[proj.id]}))} style={{display:"flex",alignItems:"center",gap:10,padding:"12px 15px",cursor:"pointer",borderBottom:open?`1px solid ${C.border}`:"none"}}>
+            <div onClick={()=>setExpanded(e=>({...e,[proj.id]:!e[proj.id]}))} style={{display:"flex",alignItems:"center",gap:10,padding:isMobileMode?"10px 12px":"12px 15px",cursor:"pointer",borderBottom:open?`1px solid ${C.border}`:"none"}}>
               <span style={{color:C.muted,fontSize:11,display:"inline-block",transform:open?"rotate(90deg)":"rotate(0)",transition:"transform .2s"}}>▶</span>
-              <span style={{fontWeight:700,color:C.text,fontSize:14,flex:1}}>{proj.name}</span>
-              <span style={{fontSize:11,color:C.muted}}>{proj.address}</span>
-              <span style={{fontSize:11,color:C.muted,marginLeft:10}}>{houses.length} หลัง</span>
-              {["owner","engineer"].includes(role)&&<Btn size="sm" variant="ghost" onClick={e=>{e.stopPropagation();setHouseMdl(proj.id);}}>+ เพิ่มบ้าน</Btn>}
+              <span style={{fontWeight:700,color:C.text,fontSize:isMobileMode?12:14,flex:1}}>{proj.name}</span>
+              {!isMobileMode&&<span style={{fontSize:11,color:C.muted}}>{proj.address}</span>}
+              <span style={{fontSize:isMobileMode?10:11,color:C.muted,marginLeft:isMobileMode?0:10}}>{houses.length} หลัง</span>
+              {["owner","engineer"].includes(role)&&<Btn size="sm" variant="ghost" onClick={e=>{e.stopPropagation();setHouseMdl(proj.id);}}>+ {isMobileMode?"บ้าน":"เพิ่มบ้าน"}</Btn>}
             </div>
             {open&&(
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(360px,1fr))",gap:10,padding:12}}>
+              <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr 1fr":"repeat(auto-fill,minmax(280px,1fr))",gap:isMobileMode?8:10,padding:isMobileMode?10:12}}>
                 {houses.length===0&&<div style={{padding:"14px",color:C.muted,fontSize:13}}>ยังไม่มีบ้านในโครงการนี้</div>}
                 {houses.map(h=>{
                   const isOver=h.status==="completed"&&h.actual>h.boq;
@@ -482,16 +528,16 @@ function DashPage({data,setData,role,onOpenHouse}) {
                   const remain=h.boq-h.actual;
                   const showFinance=["owner","engineer","purchasing"].includes(role);
                   return (
-                    <div key={h.id} onClick={()=>onOpenHouse(h)} style={{background:"#0d1117",border:`1px solid ${isOver?C.red:C.border}`,borderRadius:10,padding:13,cursor:"pointer",transition:"border-color .15s"}}
-                      onMouseEnter={e=>{if(!isOver)e.currentTarget.style.borderColor=C.blue;}} onMouseLeave={e=>{if(!isOver)e.currentTarget.style.borderColor=C.border;}}>
+                    <div key={h.id} onClick={()=>onOpenHouse(h)} style={{background:"#0d1117",border:`1px solid ${isOver?C.red:C.border}`,borderRadius:10,padding:isMobileMode?10:13,cursor:"pointer",transition:"border-color .15s"}}
+                      onMouseEnter={e=>{if(!isOver&&!isMobileMode)e.currentTarget.style.borderColor=C.blue;}} onMouseLeave={e=>{if(!isOver&&!isMobileMode)e.currentTarget.style.borderColor=C.border;}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
                         <div>
-                          <div style={{fontWeight:700,color:C.text,fontSize:13}}>บ้านเลขที่ {h.name}</div>
-                          <div style={{fontSize:11,color:C.muted,marginTop:2}}>{h.customer||"— ยังไม่มีลูกค้า"}</div>
+                          <div style={{fontWeight:700,color:C.text,fontSize:isMobileMode?12:13}}>บ้านเลขที่ {h.name}</div>
+                          <div style={{fontSize:isMobileMode?10:11,color:C.muted,marginTop:2}}>{h.customer||"— ยังไม่มีลูกค้า"}</div>
                         </div>
                         <div style={{display:"flex",alignItems:"center",gap:6}}>
                           <Tag color={h.status==="completed"?"green":h.status==="inprogress"?"blue":h.status==="delayed"?"red":"gray"}>{ST_LBL[h.status]}</Tag>
-                          {["owner","engineer"].includes(role)&&(
+                          {["owner","engineer"].includes(role)&&!isMobileMode&&(
                             <div onClick={e=>e.stopPropagation()} style={{display:"flex",gap:3}}>
                               <button title="แก้ไข" onClick={()=>setEditHouse(h)} style={{width:25,height:25,borderRadius:6,border:`1px solid ${C.border2}`,background:"none",color:C.muted,cursor:"pointer",fontSize:12}}>✏️</button>
                               <button title="Copy" onClick={()=>copyHouse(h)} style={{width:25,height:25,borderRadius:6,border:`1px solid ${C.border2}`,background:"none",color:C.muted,cursor:"pointer",fontSize:12}}>⧉</button>
@@ -500,7 +546,7 @@ function DashPage({data,setData,role,onOpenHouse}) {
                           )}
                         </div>
                       </div>
-                      {showFinance&&<div style={{display:"flex",gap:1,marginBottom:10,borderRadius:8,overflow:"hidden",border:`1px solid ${C.border}`}}>
+                      {showFinance&&!isMobileMode&&<div style={{display:"flex",gap:1,marginBottom:10,borderRadius:8,overflow:"hidden",border:`1px solid ${C.border}`}}>
                         {[["งบ BOQ",`฿${fmtMoney(h.boq)}`,C.text],["ใช้ไปแล้ว",(isOver?"⚠️ ":"")+`฿${fmtMoney(h.actual)}`,isOver?C.red:isNear?C.orange:C.text],["คงเหลือ",(isOver?"เกิน ":"")+`฿${fmtMoney(Math.abs(remain))}`,isOver?C.red:C.green]].map(([l,v,col],i)=>(
                           <div key={i} style={{flex:1,padding:"7px 8px",background:C.panel,textAlign:"center"}}>
                             <div style={{fontSize:9,color:C.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:.3}}>{l}</div>
@@ -510,14 +556,14 @@ function DashPage({data,setData,role,onOpenHouse}) {
                       </div>}
                       <div style={{marginBottom:8}}>
                         <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                          <span style={{fontSize:11,fontWeight:700,color:C.blue}}>{h.pct}%</span>
-                          <span style={{fontSize:11,color:C.muted}}>{h.phase}</span>
+                          <span style={{fontSize:isMobileMode?10:11,fontWeight:700,color:C.blue}}>{h.pct}%</span>
+                          <span style={{fontSize:isMobileMode?10:11,color:C.muted}}>{isMobileMode?h.phase.substring(0,10):h.phase}</span>
                         </div>
                         <PBar pct={h.pct} color={h.pct>=100?C.green:C.blue}/>
                       </div>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <span style={{fontSize:11,color:C.muted}}>เริ่ม {fmtDate(h.start)} → เสร็จ {fmtDate(addDays(h.start,h.days))}</span>
-                        {h.status!=="completed"&&h.status!=="notstarted"&&<span style={{fontSize:11,color:dl<0?C.red:dl<30?C.orange:C.muted}}>{dl<0?`เกิน ${Math.abs(dl)} วัน`:`เหลือ ${dl} วัน`}</span>}
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:4,fontSize:isMobileMode?10:11}}>
+                        <span style={{color:C.muted}}>เริ่ม {fmtDate(h.start)} → เสร็จ {fmtDate(addDays(h.start,h.days))}</span>
+                        {h.status!=="completed"&&h.status!=="notstarted"&&<span style={{color:dl<0?C.red:dl<30?C.orange:C.muted}}>{dl<0?`เกิน ${Math.abs(dl)} วัน`:`เหลือ ${dl} วัน`}</span>}
                       </div>
                     </div>
                   );
@@ -530,7 +576,7 @@ function DashPage({data,setData,role,onOpenHouse}) {
       {projMdl&&<Mdl title="🏗️ สร้างโครงการใหม่" onClose={()=>setProjMdl(false)} footer={<><Btn variant="ghost" onClick={()=>setProjMdl(false)}>ยกเลิก</Btn><Btn onClick={addProj} disabled={!pf.name}>✓ สร้าง</Btn></>}><FG label="ชื่อโครงการ *"><FIn value={pf.name} onChange={e=>setPf(p=>({...p,name:e.target.value}))} placeholder="เช่น The Greenery Phase 3"/></FG><FG label="ที่อยู่"><FIn value={pf.address} onChange={e=>setPf(p=>({...p,address:e.target.value}))} placeholder="ที่อยู่โครงการ..."/></FG></Mdl>}
       {editHouse&&(
         <Mdl title={"✏️ แก้ไขบ้านหลังที่ "+editHouse.name} onClose={()=>setEditHouse(null)} footer={<><Btn variant="ghost" onClick={()=>setEditHouse(null)}>ยกเลิก</Btn><Btn onClick={()=>{setData(d=>({...d,houses:d.houses.map(h=>h.id===editHouse.id?{...h,name:editHouse.name}:h)}));setEditHouse(null);}}>✓ บันทึก</Btn></>}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
             <FG label="โครงการ"><span style={{fontSize:13,color:C.text,padding:"8px 0"}}>{data.projects.find(p=>p.id===editHouse.projectId)?.name}</span></FG>
             <FG label="เลขที่/ชื่อบ้าน *"><FIn value={editHouse.name} onChange={e=>setEditHouse(h=>({...h,name:e.target.value}))}/></FG>
             <div style={{gridColumn:"1/-1",fontSize:12,color:C.muted,padding:"8px 0",borderTop:`1px solid ${C.border}`,marginTop:4,paddingTop:12}}>
@@ -541,9 +587,9 @@ function DashPage({data,setData,role,onOpenHouse}) {
         </Mdl>
       )}
       {houseMdl&&(
-        <Mdl title="🏠 เพิ่มบ้านใหม่" onClose={()=>setHouseMdl(null)} size="lg" footer={<><Btn variant="ghost" onClick={()=>setHouseMdl(null)}>ยกเลิก</Btn><Btn onClick={addHouse} disabled={!hf.name||!hf.start}>🏠 สร้างบ้าน</Btn></>}>
+        <Mdl title="🏠 เพิ่มบ้านใหม่" onClose={()=>setHouseMdl(null)} size={isMobileMode?"sm":"lg"} footer={<><Btn variant="ghost" onClick={()=>setHouseMdl(null)}>ยกเลิก</Btn><Btn onClick={addHouse} disabled={!hf.name||!hf.start}>🏠 สร้างบ้าน</Btn></>}>
           <Alrt type="info">ระบบจะ Copy BOQ จาก Template ที่เลือก</Alrt>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
             <FG label="โครงการ"><span style={{fontSize:13,color:C.text,padding:"8px 0",fontWeight:700}}>{data.projects.find(p=>p.id===houseMdl)?.name}</span></FG>
             <FG label="เลขที่/ชื่อบ้าน *"><FIn value={hf.name} onChange={e=>setHf(h=>({...h,name:e.target.value}))} placeholder="เช่น A-07"/></FG>
             <FG label="เทมเพลท"><FSel value={hf.templateId} onChange={e=>{const t=data.templates.find(t=>t.id===+e.target.value);setHf(h=>({...h,templateId:+e.target.value,boq:t?.boqBudget||h.boq,days:t?.defaultDays||h.days}));}}>{data.templates.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</FSel></FG>
@@ -563,8 +609,442 @@ function DashPage({data,setData,role,onOpenHouse}) {
 // ═══════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════
+// PART 4B: Image Picker + Crop Preview Modal
+// ═══════════════════════════════════════════════════════════════
+
+function ImagePickerModal({onSend,onClose}){
+  const [imgs,setImgs]=useState([]);
+  const fileInputRef=useRef(null);
+
+  function addFiles(files){
+    const newImgs=Array.from(files).filter(f=>f.type.startsWith("image/")).map(file=>({id:uid(),file,url:URL.createObjectURL(file),caption:""}));
+    setImgs(prev=>[...prev,...newImgs]);
+  }
+  function removeImg(id){setImgs(prev=>prev.filter(i=>i.id!==id));}
+  function updateCaption(id,cap){setImgs(prev=>prev.map(i=>i.id===id?{...i,caption:cap}:i));}
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:1080,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:12}}>
+      <div style={{width:"100%",maxWidth:560,maxHeight:"92vh",display:"flex",flexDirection:"column",background:C.panel,borderRadius:14,border:`1px solid ${C.border}`,overflow:"hidden"}} onClick={e=>e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",background:"#060d1a",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
+          <span style={{fontSize:13,fontWeight:700,color:C.text,flex:1}}>📷 เลือกรูปภาพ</span>
+          <span style={{fontSize:11,color:C.muted}}>{imgs.length} รูป</span>
+          <button onClick={onClose} style={{width:28,height:28,borderRadius:8,background:"none",border:`1px solid ${C.border2}`,color:C.muted,cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit"}}>✕</button>
+        </div>
+
+        {/* Image preview grid */}
+        <div style={{flex:1,overflowY:"auto",padding:12,display:"flex",flexWrap:"wrap",gap:10,alignContent:"flex-start",minHeight:120}}>
+          {imgs.length===0&&(
+            <div style={{width:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10,padding:32,color:C.muted}}>
+              <span style={{fontSize:36}}>🖼️</span>
+              <span style={{fontSize:12}}>กดปุ่มด้านล่างเพื่อเลือกรูป</span>
+            </div>
+          )}
+          {imgs.map(img=>(
+            <div key={img.id} style={{width:130,display:"flex",flexDirection:"column",gap:4}}>
+              <div style={{position:"relative",width:130,height:100,borderRadius:8,overflow:"hidden",border:`1px solid ${C.border2}`}}>
+                <img src={img.url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                <button onClick={()=>removeImg(img.id)} style={{position:"absolute",top:4,right:4,width:20,height:20,borderRadius:"50%",background:"rgba(0,0,0,0.8)",border:"none",color:"#fff",cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit"}}>✕</button>
+              </div>
+              <input value={img.caption} onChange={e=>updateCaption(img.id,e.target.value)}
+                placeholder="คำบรรยาย..."
+                style={{width:"100%",background:"#0d1117",border:`1px solid ${C.border2}`,borderRadius:6,color:C.text,fontSize:11,padding:"5px 8px",outline:"none",fontFamily:"inherit"}}/>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div style={{display:"flex",gap:8,padding:"10px 14px",borderTop:`1px solid ${C.border}`,flexShrink:0,background:"#060d1a"}}>
+          <label style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"9px",borderRadius:8,border:`1px dashed ${C.border2}`,cursor:"pointer",color:C.muted,fontSize:12}}>
+            📁 เลือกรูปภาพ (หลายรูปได้)
+            <input ref={fileInputRef} type="file" accept="image/*" multiple style={{display:"none"}} onChange={e=>addFiles(e.target.files)}/>
+          </label>
+          <button onClick={()=>{if(imgs.length>0)onSend(imgs);}} disabled={imgs.length===0}
+            style={{padding:"9px 22px",borderRadius:8,background:imgs.length>0?C.blue:"#1e293b",border:"none",color:imgs.length>0?"#fff":C.muted,cursor:imgs.length>0?"pointer":"not-allowed",fontSize:13,fontWeight:700,fontFamily:"inherit",whiteSpace:"nowrap"}}>
+            ส่ง {imgs.length>0?`(${imgs.length} รูป)`:""}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 // PART 5: House Detail Page & Modals
 // ═══════════════════════════════════════════════════════════════
+
+function generateConstructionReport(house,data){
+  const rp=(!Array.isArray(house.reportPhotos)&&house.reportPhotos)||{};
+  const phases=data.phases;
+  const phasesWithPhotos=phases.filter(ph=>(rp[ph.id]||[]).length>0);
+  const totalPhotos=phasesWithPhotos.reduce((s,ph)=>s+(rp[ph.id]||[]).length,0);
+  if(totalPhotos===0){alert("ยังไม่มีรูปภาพในเล่ม กรุณาเลือกรูปก่อน");return null;}
+  const thM=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+  const now=new Date();
+  const reportDate=`${now.getDate()} ${thM[now.getMonth()]} ${now.getFullYear()+543}`;
+  const phaseSectionsHtml=phasesWithPhotos.map(ph=>{
+    const photos=rp[ph.id]||[];
+    const gc=photos.length===1?"g1":photos.length===2?"g2":photos.length===3?"g3":"g4";
+    const photosHtml=photos.map(p=>`<div class="photo-card"><img class="photo-img" src="${p.base64}" alt=""/><div class="photo-cap-wrap"><div class="photo-cap">${p.caption||""}</div><div class="photo-meta">${p.addedBy||""}${p.addedBy&&p.addedAt?" &bull; ":""}${p.addedAt||""}</div></div></div>`).join("");
+    return `<div class="phase-block"><div class="phase-banner"><div class="phase-num">หมวดที่ ${ph.order}</div><div class="phase-name">${ph.name}</div><div class="phase-cnt">${photos.length} รูป</div></div><div class="photo-grid ${gc}">${photosHtml}</div></div>`;
+  }).join("");
+  const html=`<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>รูปเล่มงานก่อสร้าง — ${house.name}</title><style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans Thai',sans-serif;background:#dde3ea;color:#1e293b;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.page{width:210mm;margin:20px auto;background:#fff;box-shadow:0 6px 40px rgba(0,0,0,.15);overflow:hidden}
+.cv-hero{background:linear-gradient(145deg,#0c1f3d 0%,#1a3a8f 45%,#1d4ed8 75%,#2563eb 100%);padding:60px 52px 90px;position:relative;overflow:hidden;clip-path:polygon(0 0,100% 0,100% 87%,0 100%)}
+.cv-hero::before{content:'';position:absolute;top:-50px;right:-50px;width:260px;height:260px;background:rgba(255,255,255,.05);border-radius:50%}
+.cv-badge{position:relative;display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:5px 18px;font-size:10px;font-weight:700;letter-spacing:2.5px;color:rgba(255,255,255,.92);text-transform:uppercase;margin-bottom:26px}
+.cv-title{position:relative;font-size:40px;font-weight:800;color:#fff;line-height:1.18;margin-bottom:10px;text-shadow:0 2px 12px rgba(0,0,0,.2)}
+.cv-sub{position:relative;font-size:16px;font-weight:400;color:rgba(255,255,255,.72)}
+.cv-body{padding:38px 52px 30px}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden}
+.ic{padding:16px 22px;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0}
+.ic:nth-child(2n){border-right:none}.ic:nth-last-child(-n+2){border-bottom:none}.ic.full{grid-column:1/-1;border-right:none}
+.ilb{font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:4px}
+.iv{font-size:14px;font-weight:700;color:#1e293b}.iv.blue{color:#2563eb}
+.pbar-bg{height:6px;background:#e2e8f0;border-radius:99px;overflow:hidden;margin-top:7px}
+.pbar-fill{height:100%;background:linear-gradient(90deg,#2563eb,#7c3aed);border-radius:99px}
+.cv-foot{display:flex;justify-content:space-between;align-items:center;padding:14px 52px 22px;border-top:1px solid #f1f5f9;font-size:10px;color:#94a3b8}
+.cv-foot strong{color:#64748b}
+.photos-wrap{padding:32px 44px 20px}
+.phase-block{margin-bottom:38px;page-break-inside:avoid}
+.phase-banner{display:flex;align-items:stretch;margin-bottom:20px;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(14,30,80,.18)}
+.phase-num{background:linear-gradient(180deg,#0c1f3d,#0f2a55);color:#fff;font-size:11px;font-weight:800;padding:14px 20px;white-space:nowrap;display:flex;align-items:center;letter-spacing:.5px}
+.phase-name{flex:1;background:linear-gradient(135deg,#0f2744,#1e40af);color:#fff;font-size:16px;font-weight:700;padding:12px 20px;display:flex;align-items:center}
+.phase-cnt{background:rgba(30,64,175,.7);color:rgba(255,255,255,.8);font-size:11px;font-weight:600;padding:14px 20px;white-space:nowrap;display:flex;align-items:center}
+.photo-grid{display:grid;gap:16px}
+.g1{grid-template-columns:1fr;max-width:62%;margin:0 auto}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:1fr 1fr 1fr}
+.g4{grid-template-columns:1fr 1fr 1fr 1fr}
+.photo-card{border-radius:10px;overflow:hidden;border:1px solid #dde4ef;background:#fff;box-shadow:0 3px 12px rgba(0,0,0,.08)}
+.photo-img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.photo-cap-wrap{padding:11px 14px 13px}
+.photo-cap{font-size:12px;font-weight:700;color:#1e293b;margin-bottom:4px;min-height:15px;line-height:1.35}
+.photo-meta{font-size:9px;color:#94a3b8}
+.rpt-foot{display:flex;justify-content:space-between;align-items:center;padding:14px 44px;border-top:2px solid #f0f4f8;font-size:9.5px;color:#94a3b8;background:linear-gradient(90deg,#f8fafc,#f0f4f8)}
+.rpt-foot strong{color:#64748b}
+@media print{body{background:#fff}.page{margin:0;box-shadow:none;width:auto}@page{size:A4;margin:10mm}.phase-block{page-break-inside:avoid}}
+</style></head><body>
+<div class="page">
+<div class="cv-hero"><div class="cv-badge">📋 รูปเล่มงานก่อสร้าง</div><div class="cv-title">บ้านเลขที่ ${house.name}</div><div class="cv-sub">${house.customer||"รายงานความคืบหน้าการก่อสร้าง"}</div></div>
+<div class="cv-body"><div class="info-grid"><div class="ic"><div class="ilb">บ้านเลขที่</div><div class="iv blue">${house.name}</div></div><div class="ic"><div class="ilb">ชื่อลูกค้า</div><div class="iv">${house.customer||"—"}</div></div><div class="ic"><div class="ilb">วิศวกรควบคุมงาน</div><div class="iv">${house.engineer||"—"}</div></div><div class="ic"><div class="ilb">โฟร์แมน</div><div class="iv">${house.foreman||"—"}</div></div><div class="ic"><div class="ilb">วันเริ่มก่อสร้าง</div><div class="iv">${house.start||"—"}</div></div><div class="ic"><div class="ilb">ความคืบหน้ารวม</div><div class="iv blue">${house.pct||0}%</div><div class="pbar-bg"><div class="pbar-fill" style="width:${Math.min(house.pct||0,100)}%"></div></div></div><div class="ic full"><div class="ilb">รูปภาพในเล่ม</div><div class="iv">${totalPhotos} รูป จาก ${phasesWithPhotos.length} หมวดงาน</div></div></div></div>
+<div class="cv-foot"><span>📋 CPMS Construction Management</span><strong>วันที่จัดทำ: ${reportDate}</strong></div>
+<div class="photos-wrap">${phaseSectionsHtml}</div>
+<div class="rpt-foot"><span>รูปเล่มงานก่อสร้าง — บ้านเลขที่ ${house.name}</span><strong>${totalPhotos} รูป | วันที่ ${reportDate}</strong></div>
+</div></body></html>`;
+  return html;
+}
+
+const MAX_REPORT_PHOTOS=4;
+
+function PhotoReportModal({house,data,setData,role,onClose,isMobileMode}){
+  const [editCaption,setEditCaption]=useState(null);
+  const [previewImg,setPreviewImg]=useState(null);
+  const [expandedPhases,setExpandedPhases]=useState({});
+  const [slotPickerPhase,setSlotPickerPhase]=useState(null);
+  const [reportHtml,setReportHtml]=useState(null);
+  const canEdit=["owner","engineer","foreman"].includes(role);
+
+  const rp=(!Array.isArray(house.reportPhotos)&&house.reportPhotos)||{};
+  const totalCount=Object.values(rp).reduce((s,arr)=>s+arr.length,0);
+
+  const getChatImgs=(phaseId)=>data.phaseMessages.filter(
+    m=>m.houseId===house.id&&m.phaseId===phaseId&&m.file?.type?.startsWith("image/")&&typeof m.file.data==="string"
+  );
+  const isInReport=(phaseId,msgId)=>(rp[phaseId]||[]).some(p=>p.fromMsgId===msgId);
+  const toggleExpand=(phaseId)=>setExpandedPhases(ex=>({...ex,[phaseId]:!ex[phaseId]}));
+
+  // group msgs by date, sorted newest first within date, dates sorted newest first
+  const groupByDate=(msgs)=>{
+    const groups={};
+    msgs.forEach(m=>{const d=m.date||"ไม่ทราบวันที่";if(!groups[d])groups[d]=[];groups[d].push(m);});
+    return Object.entries(groups).sort(([a],[b])=>b.localeCompare(a));
+  };
+
+  const fmtThaiDate=(iso)=>{
+    if(!iso||iso==="ไม่ทราบวันที่")return iso;
+    try{const d=new Date(iso);const thM=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];return`${d.getDate()} ${thM[d.getMonth()]} ${d.getFullYear()+543}`;}catch{return iso;}
+  };
+
+  const toggleChatImg=(phaseId,msg,fromPicker=false)=>{
+    if(!canEdit)return;
+    const cur=(rp[phaseId]||[]);
+    if(isInReport(phaseId,msg.id)){
+      setData(d=>({...d,houses:d.houses.map(h=>h.id===house.id?{...h,reportPhotos:{...((!Array.isArray(h.reportPhotos)&&h.reportPhotos)||{}),[phaseId]:cur.filter(p=>p.fromMsgId!==msg.id)}}:h)}));
+    }else{
+      if(cur.length>=MAX_REPORT_PHOTOS)return;
+      const caption=(msg.text&&!msg.text.startsWith("📎"))?msg.text:msg.file.name.replace(/\.[^/.]+$/,"");
+      const photo={id:uid(),fromMsgId:msg.id,base64:msg.file.data,caption,addedBy:msg.sender,addedAt:msg.date};
+      setData(d=>({...d,houses:d.houses.map(h=>h.id===house.id?{...h,reportPhotos:{...((!Array.isArray(h.reportPhotos)&&h.reportPhotos)||{}),[phaseId]:[...cur,photo]}}:h)}));
+      // ปิด picker อัตโนมัติเมื่อเลือกครบ 4 รูป
+      if(fromPicker&&cur.length+1>=MAX_REPORT_PHOTOS)setSlotPickerPhase(null);
+    }
+  };
+
+  const handleFilesForPhase=(phaseId,files)=>{
+    Array.from(files).forEach(file=>{
+      if(!file.type.startsWith("image/"))return;
+      const reader=new FileReader();
+      reader.onload=e=>{
+        setData(d=>{
+          const h2=d.houses.find(h=>h.id===house.id);
+          const cur2=((!Array.isArray(h2.reportPhotos)&&h2.reportPhotos)||{})[phaseId]||[];
+          if(cur2.length>=MAX_REPORT_PHOTOS)return d;
+          const photo={id:uid(),base64:e.target.result,caption:file.name.replace(/\.[^/.]+$/,"").replace(/_/g," "),addedBy:ROLE_LBL[role],addedAt:new Date().toISOString().slice(0,10)};
+          return{...d,houses:d.houses.map(h=>h.id===house.id?{...h,reportPhotos:{...((!Array.isArray(h.reportPhotos)&&h.reportPhotos)||{}),[phaseId]:[...cur2,photo]}}:h)};
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removePhoto=(phaseId,photoId)=>setData(d=>({...d,houses:d.houses.map(h=>h.id===house.id?{...h,reportPhotos:{...((!Array.isArray(h.reportPhotos)&&h.reportPhotos)||{}),[phaseId]:(((!Array.isArray(h.reportPhotos)&&h.reportPhotos)||{})[phaseId]||[]).filter(p=>p.id!==photoId)}}:h)}));
+  const saveCaption=(phaseId,photoId,caption)=>setData(d=>({...d,houses:d.houses.map(h=>h.id===house.id?{...h,reportPhotos:{...((!Array.isArray(h.reportPhotos)&&h.reportPhotos)||{}),[phaseId]:(((!Array.isArray(h.reportPhotos)&&h.reportPhotos)||{})[phaseId]||[]).map(p=>p.id===photoId?{...p,caption}:p)}}:h)}));
+
+  const SLOT_SIZE=isMobileMode?84:108;
+
+  return(
+    <>
+    <Mdl title="📸 รูปเล่มงานก่อสร้าง" onClose={onClose} size="xl"
+      footer={<>
+        <Btn variant="ghost" onClick={onClose}>ปิด</Btn>
+        {totalCount>0&&<Btn onClick={()=>{const h=generateConstructionReport(house,data);if(h)setReportHtml(h);}}>📄 ดูรายงาน / บันทึก PDF ({totalCount} รูป)</Btn>}
+      </>}
+    >
+      {/* Summary bar */}
+      <div style={{background:"#0a1120",borderRadius:8,padding:"10px 14px",marginBottom:14,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+        <span style={{fontSize:11,fontWeight:700,color:C.text}}>รูปที่เลือก:</span>
+        {data.phases.map(ph=>{const cnt=(rp[ph.id]||[]).length;return cnt>0?<span key={ph.id} style={{background:`${C.green}22`,color:C.green,borderRadius:20,padding:"2px 10px",fontSize:10,fontWeight:700,border:`1px solid ${C.green}44`}}>หมวด {ph.order} ({cnt}/4)</span>:null;})}
+        {totalCount===0&&<span style={{fontSize:11,color:C.muted}}>ยังไม่ได้เลือกรูป</span>}
+        {totalCount>0&&<span style={{fontSize:11,color:C.muted,marginLeft:"auto"}}>{totalCount} รูป รวมทั้งหมด</span>}
+      </div>
+
+      {/* Phase sections */}
+      {data.phases.map(phase=>{
+        const chatImgs=getChatImgs(phase.id);
+        const selected=rp[phase.id]||[];
+        const full=selected.length>=MAX_REPORT_PHOTOS;
+        const hasChatImgs=chatImgs.length>0;
+        const isExpanded=expandedPhases[phase.id]!==false&&(hasChatImgs||selected.length>0||canEdit);
+        const autoCollapse=!hasChatImgs&&selected.length===0;
+        const expanded=autoCollapse?!!expandedPhases[phase.id]:isExpanded;
+
+        return(
+          <div key={phase.id} style={{marginBottom:10,borderRadius:10,border:`1px solid ${selected.length>0?C.green+"55":C.border}`,overflow:"hidden",transition:"border-color 0.2s"}}>
+            {/* Phase header */}
+            <div onClick={()=>toggleExpand(phase.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",background:"#060d1a",cursor:"pointer",userSelect:"none"}}>
+              <span style={{background:selected.length>0?`${C.green}22`:`${C.blue}22`,color:selected.length>0?C.green:C.blue,borderRadius:20,padding:"2px 10px",fontSize:10,fontWeight:700,flexShrink:0,border:`1px solid ${selected.length>0?C.green+"44":C.blue+"44"}`}}>หมวด {phase.order}</span>
+              <span style={{fontWeight:700,color:C.text,fontSize:12,flex:1}}>{phase.name}</span>
+              {hasChatImgs&&<span style={{fontSize:10,color:C.orange,fontWeight:600,flexShrink:0}}>📷 {chatImgs.length} รูปในงาน</span>}
+              <span style={{fontSize:11,fontWeight:700,color:selected.length>0?C.green:C.muted,flexShrink:0}}>{selected.length}/{MAX_REPORT_PHOTOS}</span>
+              <span style={{fontSize:11,color:C.muted,transition:"transform 0.25s",transform:expanded?"rotate(180deg)":"rotate(0deg)",display:"inline-block",flexShrink:0}}>▾</span>
+            </div>
+
+            {/* Expandable body */}
+            {expanded&&(
+              <div style={{padding:"12px 14px",background:"#0d1117"}}>
+                {/* 4-slot grid */}
+                <div style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:0.5,marginBottom:8}}>
+                  ✅ รูปที่จะลงเล่ม ({selected.length}/{MAX_REPORT_PHOTOS})
+                  {canEdit&&selected.length<MAX_REPORT_PHOTOS&&<span style={{color:C.blue,fontWeight:400,textTransform:"none",letterSpacing:0,marginLeft:6}}>— คลิกช่องว่างเพื่อเลือกรูป</span>}
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+                  {selected.map(photo=>(
+                    <div key={photo.id} style={{borderRadius:8,overflow:"hidden",border:`2px solid ${C.green}55`,background:C.panel}}>
+                      <div style={{position:"relative"}}>
+                        <img src={photo.base64} style={{width:"100%",aspectRatio:"4/3",objectFit:"cover",display:"block"}}/>
+                        {canEdit&&<button onClick={()=>removePhoto(phase.id,photo.id)} style={{position:"absolute",top:4,right:4,width:20,height:20,borderRadius:"50%",background:"rgba(0,0,0,0.85)",border:"none",color:"#fff",cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>✕</button>}
+                        <button onClick={()=>setPreviewImg({src:photo.base64,caption:photo.caption,sender:photo.addedBy,date:photo.addedAt,time:""})} style={{position:"absolute",top:4,left:4,width:20,height:20,borderRadius:4,background:"rgba(0,0,0,0.7)",border:"none",color:"#fff",cursor:"pointer",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center"}}>⛶</button>
+                      </div>
+                      <div style={{padding:"5px 7px"}}>
+                        {editCaption?.phaseId===phase.id&&editCaption?.photoId===photo.id?(
+                          <input value={editCaption.caption} onChange={e=>setEditCaption(ec=>({...ec,caption:e.target.value}))} onBlur={()=>{saveCaption(phase.id,photo.id,editCaption.caption);setEditCaption(null);}} onKeyDown={e=>{if(e.key==="Enter")e.target.blur();if(e.key==="Escape")setEditCaption(null);}} style={{width:"100%",background:"transparent",border:"none",borderBottom:`1px solid ${C.blue}`,color:C.text,fontSize:10,outline:"none",padding:"1px 0"}} autoFocus/>
+                        ):(
+                          <div onClick={()=>canEdit&&setEditCaption({phaseId:phase.id,photoId:photo.id,caption:photo.caption||""})} style={{fontSize:10,color:photo.caption?C.text:C.muted,cursor:canEdit?"text":"default",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontStyle:photo.caption?"normal":"italic",minHeight:14}} title={photo.caption||"คลิกเพื่อใส่คำบรรยาย"}>{photo.caption||"+ คำบรรยาย"}</div>
+                        )}
+                        <div style={{fontSize:8,color:C.muted,marginTop:2}}>{photo.addedBy}</div>
+                      </div>
+                    </div>
+                  ))}
+                  {/* Empty slots — เปิด Picker แทน OS file picker */}
+                  {canEdit&&Array.from({length:MAX_REPORT_PHOTOS-selected.length}).map((_,i)=>(
+                    <div key={`e${i}`} onClick={()=>setSlotPickerPhase(phase.id)}
+                      style={{borderRadius:8,border:`2px dashed ${hasChatImgs?C.orange:C.border2}`,aspectRatio:"4/3",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",color:hasChatImgs?C.orange:C.muted,gap:3,transition:"all 0.15s",background:"transparent"}}
+                      onMouseOver={e=>{e.currentTarget.style.borderColor=C.blue;e.currentTarget.style.background=`${C.blue}11`;e.currentTarget.style.color=C.blue;}}
+                      onMouseOut={e=>{e.currentTarget.style.borderColor=hasChatImgs?C.orange:C.border2;e.currentTarget.style.background="transparent";e.currentTarget.style.color=hasChatImgs?C.orange:C.muted;}}>
+                      <span style={{fontSize:18}}>📷</span>
+                      <span style={{fontSize:9,textAlign:"center",lineHeight:1.3,fontWeight:hasChatImgs?700:400}}>{hasChatImgs?"เลือกรูป\nในงาน":"เลือก\nรูปภาพ"}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </Mdl>
+
+    {/* ── Slot Picker Sheet ── */}
+    {slotPickerPhase&&(()=>{
+      const pp=data.phases.find(p=>p.id===slotPickerPhase);
+      const pChatImgs=getChatImgs(slotPickerPhase);
+      const pSelected=rp[slotPickerPhase]||[];
+      const pFull=pSelected.length>=MAX_REPORT_PHOTOS;
+      const PSIZE=isMobileMode?84:100;
+      return(
+        <div onMouseDown={()=>setSlotPickerPhase(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",zIndex:1050,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+          <div onMouseDown={e=>e.stopPropagation()} style={{width:"100%",maxWidth:900,maxHeight:"82vh",display:"flex",flexDirection:"column",background:C.panel,borderRadius:"16px 16px 0 0",border:`1px solid ${C.border}`,overflow:"hidden"}}>
+            {/* Picker header */}
+            <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 18px",background:"#060d1a",flexShrink:0,borderBottom:`1px solid ${C.border}`}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:700,color:C.text}}>เลือกรูปสำหรับเล่มรายงาน</div>
+                <div style={{fontSize:10,color:C.muted,marginTop:2}}>หมวด {pp?.order}: {pp?.name}</div>
+              </div>
+              <span style={{background:pSelected.length>=MAX_REPORT_PHOTOS?`${C.green}22`:`${C.blue}22`,color:pSelected.length>=MAX_REPORT_PHOTOS?C.green:C.blue,borderRadius:20,padding:"3px 12px",fontSize:11,fontWeight:700,border:`1px solid ${pSelected.length>=MAX_REPORT_PHOTOS?C.green+"44":C.blue+"44"}`}}>
+                {pSelected.length}/{MAX_REPORT_PHOTOS} รูป
+              </span>
+              <button onClick={()=>setSlotPickerPhase(null)} style={{width:28,height:28,borderRadius:8,background:"none",border:`1px solid ${C.border2}`,color:C.muted,cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+            </div>
+
+            {/* Selected preview strip */}
+            {pSelected.length>0&&(
+              <div style={{display:"flex",gap:6,padding:"10px 18px",background:"#0a1120",flexShrink:0,overflowX:"auto",borderBottom:`1px solid ${C.border}`}}>
+                {pSelected.map(ph=>(
+                  <div key={ph.id} style={{position:"relative",flexShrink:0,width:52,height:52,borderRadius:6,overflow:"hidden",border:`2px solid ${C.green}77`}}>
+                    <img src={ph.base64} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                    <button onClick={()=>removePhoto(slotPickerPhase,ph.id)} style={{position:"absolute",top:1,right:1,width:16,height:16,borderRadius:"50%",background:"rgba(0,0,0,0.85)",border:"none",color:"#fff",cursor:"pointer",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+                  </div>
+                ))}
+                <div style={{flexShrink:0,width:52,height:52,borderRadius:6,border:`2px dashed ${C.border2}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:C.muted,lineHeight:1.2,textAlign:"center"}}>
+                  {MAX_REPORT_PHOTOS-pSelected.length}<br/>ว่าง
+                </div>
+              </div>
+            )}
+
+            {/* Chat images grouped by date — scrollable */}
+            <div style={{flex:1,overflowY:"auto",padding:"14px 18px"}}>
+              {pChatImgs.length>0?(
+                <>
+                  <div style={{fontSize:10,fontWeight:700,color:C.orange,marginBottom:12,textTransform:"uppercase",letterSpacing:0.5}}>
+                    📷 รูปจากการรายงานในหมวดนี้ ({pChatImgs.length} รูป) — คลิกเพื่อเลือก
+                  </div>
+                  {groupByDate(pChatImgs).map(([date,msgs])=>(
+                    <div key={date} style={{marginBottom:16}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                        <div style={{height:1,flex:1,background:C.border}}/>
+                        <span style={{fontSize:10,fontWeight:700,color:C.blue,background:`${C.blue}18`,border:`1px solid ${C.blue}33`,borderRadius:20,padding:"2px 12px",whiteSpace:"nowrap"}}>
+                          📅 {fmtThaiDate(date)} • {msgs.length} รูป
+                        </span>
+                        <div style={{height:1,flex:1,background:C.border}}/>
+                      </div>
+                      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                        {msgs.map(msg=>{
+                          const sel=isInReport(slotPickerPhase,msg.id);
+                          const blocked=!sel&&pFull;
+                          const caption=(msg.text&&!msg.text.startsWith("📎"))?msg.text:"";
+                          return(
+                            <div key={msg.id} style={{flexShrink:0,width:PSIZE}}>
+                              <div onClick={()=>!blocked&&toggleChatImg(slotPickerPhase,msg,true)}
+                                style={{width:PSIZE,height:PSIZE,borderRadius:8,overflow:"hidden",border:`2px solid ${sel?C.green:blocked?"#2a3040":C.border2}`,cursor:blocked?"not-allowed":"pointer",opacity:blocked?0.3:1,position:"relative",transition:"border-color 0.15s,transform 0.1s",transform:sel?"scale(0.95)":"scale(1)"}}>
+                                <img src={msg.file.data} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+                                {sel&&<div style={{position:"absolute",inset:0,background:"rgba(34,197,94,0.32)",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:28,filter:"drop-shadow(0 1px 4px rgba(0,0,0,0.9))"}}>✓</span></div>}
+                                {blocked&&<div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:20}}>🔒</span></div>}
+                                <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.85))",padding:"10px 5px 4px",pointerEvents:"none"}}>
+                                  <div style={{fontSize:9,color:"#fff",fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{msg.sender}</div>
+                                  <div style={{fontSize:8,color:"rgba(255,255,255,0.7)"}}>{msg.time}</div>
+                                </div>
+                                <button onClick={e=>{e.stopPropagation();setPreviewImg({src:msg.file.data,caption,sender:msg.sender,date,time:msg.time});}} style={{position:"absolute",top:3,left:3,width:20,height:20,borderRadius:4,background:"rgba(0,0,0,0.7)",border:"none",color:"#fff",cursor:"pointer",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center"}} title="ดูรูปขนาดเต็ม">⛶</button>
+                              </div>
+                              {caption&&<div style={{fontSize:9,color:C.muted,marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:PSIZE}} title={caption}>{caption}</div>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              ):(
+                <div style={{textAlign:"center",padding:"32px 0",color:C.muted}}>
+                  <div style={{fontSize:32,marginBottom:8}}>📭</div>
+                  <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:4}}>ยังไม่มีรูปรายงานในหมวดนี้</div>
+                  <div style={{fontSize:11}}>โฟแมน/วิศวกรส่งรูปผ่านกล่องข้อความหมวดนี้ก่อน</div>
+                  <div style={{fontSize:11,marginTop:4}}>หรืออัปโหลดจากเครื่องด้านล่าง</div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer: upload from device fallback */}
+            <div style={{padding:"12px 18px",borderTop:`1px solid ${C.border}`,flexShrink:0,background:"#060d1a"}}>
+              <label style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"10px 0",borderRadius:8,border:`1px dashed ${C.border2}`,cursor:"pointer",color:C.muted,fontSize:11,transition:"all 0.15s"}} onMouseOver={e=>{e.currentTarget.style.borderColor=C.blue;e.currentTarget.style.color=C.blue;e.currentTarget.style.background=`${C.blue}0a`;}} onMouseOut={e=>{e.currentTarget.style.borderColor=C.border2;e.currentTarget.style.color=C.muted;e.currentTarget.style.background="none";}}>
+                <span style={{fontSize:16}}>📁</span>
+                <span>อัปโหลดจากเครื่อง{pChatImgs.length>0?" (สำรองเผื่อรูปไม่สวย)":""}</span>
+                <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={ev=>{handleFilesForPhase(slotPickerPhase,ev.target.files);setSlotPickerPhase(null);ev.target.value="";}}/>
+              </label>
+            </div>
+          </div>
+        </div>
+      );
+    })()}
+
+    {/* Full-size preview overlay */}
+    {previewImg&&(
+      <div onMouseDown={()=>setPreviewImg(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:1100,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div onMouseDown={e=>e.stopPropagation()} style={{maxWidth:"min(90vw,700px)",width:"100%",borderRadius:12,overflow:"hidden",background:"#0d1117",border:`1px solid ${C.border}`}}>
+          <img src={previewImg.src} style={{width:"100%",maxHeight:"65vh",objectFit:"contain",display:"block",background:"#000"}}/>
+          <div style={{padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:700,color:C.text}}>{previewImg.caption||"(ไม่มีคำบรรยาย)"}</div>
+              <div style={{fontSize:11,color:C.muted,marginTop:3}}>{previewImg.sender} • {previewImg.date}{previewImg.time?" • "+previewImg.time:""}</div>
+            </div>
+            <button onClick={()=>setPreviewImg(null)} style={{padding:"7px 16px",borderRadius:8,border:`1px solid ${C.border2}`,background:"none",color:C.muted,cursor:"pointer",fontSize:12}}>ปิด</button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* ── Report Preview ── */}
+    {reportHtml&&(
+      <div id="cpms-report-overlay" style={{position:"fixed",inset:0,zIndex:1200,background:"#fff",overflowY:"auto"}}>
+        {/* Toolbar */}
+        <div style={{position:"sticky",top:0,zIndex:10,display:"flex",gap:10,padding:"10px 16px",background:"#020817",alignItems:"center",borderBottom:"1px solid #334155"}}>
+          <button id="cpms-pdf-btn" onClick={async()=>{
+            const btn=document.getElementById("cpms-pdf-btn");
+            const oldText=btn.textContent;
+            btn.textContent="⏳ กำลังสร้าง PDF...";
+            btn.disabled=true;
+            try{
+              const el=document.getElementById("cpms-report-content");
+              const canvas=await html2canvas(el,{scale:2,useCORS:true,allowTaint:true,logging:false,windowWidth:900});
+              const imgData=canvas.toDataURL("image/jpeg",0.92);
+              const pdf=new jsPDF("p","mm","a4");
+              const pw=pdf.internal.pageSize.getWidth();
+              const ph=pdf.internal.pageSize.getHeight();
+              const iw=pw;
+              const ih=(canvas.height*iw)/canvas.width;
+              let pos=0;
+              pdf.addImage(imgData,"JPEG",0,pos,iw,ih);
+              let left=ih-ph;
+              while(left>0){pdf.addPage();pos-=ph;pdf.addImage(imgData,"JPEG",0,pos,iw,ih);left-=ph;}
+              pdf.save(`รูปเล่มงาน_${house.name}.pdf`);
+            }catch(e){alert("เกิดข้อผิดพลาด: "+e.message);}
+            btn.textContent=oldText;
+            btn.disabled=false;
+          }} style={{padding:"10px 22px",borderRadius:10,background:"#2563eb",border:"none",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700,fontFamily:"inherit"}}>💾 บันทึก PDF</button>
+          <span style={{fontSize:11,color:"#64748b",marginLeft:"auto"}}>บ้าน {house.name} | {totalCount} รูป</span>
+          <button onClick={()=>setReportHtml(null)} style={{padding:"8px 16px",borderRadius:8,background:"none",border:"1px solid #334155",color:"#94a3b8",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>✕ ปิด</button>
+        </div>
+        {/* Content */}
+        <div id="cpms-report-content" dangerouslySetInnerHTML={{__html:reportHtml}} />
+      </div>
+    )}
+    </>
+  );
+}
 
 function PhaseCard({phase,house,data,setData,role,pp,boqItems,canEditDur,setEditPhaseNameMdl,editPhaseNameMdl}){
   const phPP=pp[phase.id]||{s:"waiting",dur:phase.days,act:0};
@@ -573,6 +1053,7 @@ function PhaseCard({phase,house,data,setData,role,pp,boqItems,canEditDur,setEdit
   const msgScrollRef=useRef(null);
   const [phaseChatTxt,setPhaseChatTxt]=useState("");
   const [phaseChatFile,setPhaseChatFile]=useState(null);
+  const [showImgPicker,setShowImgPicker]=useState(false);
   const [editDurMdl,setEditDurMdl]=useState(null);
 
   function sendPhaseMsg(){
@@ -592,6 +1073,20 @@ function PhaseCard({phase,house,data,setData,role,pp,boqItems,canEditDur,setEdit
       setPhaseChatTxt("");
       setTimeout(()=>msgScrollRef.current?.scrollIntoView({behavior:"smooth"}),100);
     }
+  }
+
+  // Send multiple cropped images from picker
+  function handlePickerSend(imgs){
+    setShowImgPicker(false);
+    imgs.forEach((imgItem,idx)=>{
+      const reader=new FileReader();
+      reader.onload=()=>{
+        const msgText=imgItem.caption||phaseChatTxt.trim()||(imgs.length>1?`📷 รูป ${idx+1}/${imgs.length}`:`📷 ${imgItem.file.name}`);
+        setData(d=>({...d,phaseMessages:[...d.phaseMessages,{id:uid(),houseId:house.id,phaseId:phase.id,role,sender:ROLE_LBL[role],text:msgText,file:{name:imgItem.file.name,size:imgItem.file.size,type:imgItem.file.type,data:reader.result},time:new Date().toLocaleTimeString("th",{hour:"2-digit",minute:"2-digit"}),date:new Date().toISOString().slice(0,10)}]}));
+        if(idx===imgs.length-1){setPhaseChatTxt("");setTimeout(()=>msgScrollRef.current?.scrollIntoView({behavior:"smooth"}),100);}
+      };
+      reader.readAsDataURL(imgItem.file);
+    });
   }
 
   return (
@@ -620,7 +1115,7 @@ function PhaseCard({phase,house,data,setData,role,pp,boqItems,canEditDur,setEdit
           {phMsgs.length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:"30px 0"}}>ยังไม่มีข้อความในหมวดนี้</div>}
           {phMsgs.map(msg=>(
             <div key={msg.id} id={`msg-${msg.id}`} style={{display:"flex",gap:8,justifyContent:msg.role===role?"flex-end":"flex-start"}}>
-              {msg.role!==role&&<div style={{width:32,height:32,borderRadius:8,background:ROLE_COL[msg.role],display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"#fff",flexShrink:0}}>{(msg.sender||"?")[0]}</div>}
+              {msg.role!==role&&<Avatar member={data.team.find(m=>m.role===msg.role)} size={32} fontSize={12}/>}
               <div style={{maxWidth:"75%",display:"flex",flexDirection:"column",gap:4}}>
                 {msg.role!==role&&<div style={{fontSize:10,color:C.muted}}><span style={{fontWeight:700,color:ROLE_COL[msg.role]}}>{msg.sender}</span> • {ROLE_LBL[msg.role]}</div>}
                 <div style={{background:msg.role===role?C.blue:"#2a3552",borderRadius:8,padding:"8px 12px",wordWrap:"break-word",fontSize:12,color:C.text}}>
@@ -651,7 +1146,7 @@ function PhaseCard({phase,house,data,setData,role,pp,boqItems,canEditDur,setEdit
                 </div>
                 <div style={{fontSize:9,color:C.muted}}>{msg.time} {msg.date}</div>
               </div>
-              {msg.role===role&&<div style={{width:32,height:32,borderRadius:8,background:ROLE_COL[msg.role],display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"#fff",flexShrink:0}}>{(msg.sender||"?")[0]}</div>}
+              {msg.role===role&&<Avatar member={data.team.find(m=>m.role===msg.role)} size={32} fontSize={12}/>}
             </div>
           ))}
         </div>
@@ -662,9 +1157,12 @@ function PhaseCard({phase,house,data,setData,role,pp,boqItems,canEditDur,setEdit
             <FIn value={phaseChatTxt} onChange={e=>setPhaseChatTxt(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendPhaseMsg();}}} placeholder="พิมพ์ข้อความ... (Enter ส่ง)" rows={3} style={{fontSize:14,padding:"14px 16px",borderRadius:12,border:`2px solid ${C.border2}`,boxShadow:`0 4px 12px rgba(0,0,0,0.3)`,transition:"all 0.2s",fontWeight:"500"}}/>
           </div>
           <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-            <label htmlFor={`file-input-${phase.id}`} style={{cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",width:42,height:42,borderRadius:10,border:`2px solid ${C.border2}`,color:phaseChatFile?C.blue:C.muted,fontSize:16,transition:"all 0.2s",boxShadow:`0 2px 8px rgba(0,0,0,0.2)`,background:C.panel}}>
+            {/* 📷 camera — opens multi-image picker with crop */}
+            <button onClick={()=>setShowImgPicker(true)} title="เลือกรูปภาพหลายรูป + ปรับภาพ" style={{cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",width:42,height:42,borderRadius:10,border:`2px solid ${C.border2}`,color:C.muted,fontSize:18,background:C.panel,boxShadow:`0 2px 8px rgba(0,0,0,0.2)`}}>📷</button>
+            {/* 📎 paperclip — opens file picker for non-image files */}
+            <label htmlFor={`file-input-${phase.id}`} title="แนบไฟล์ (PDF, DWG, DOC...)" style={{cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",width:42,height:42,borderRadius:10,border:`2px solid ${C.border2}`,color:phaseChatFile?C.blue:C.muted,fontSize:16,background:C.panel,boxShadow:`0 2px 8px rgba(0,0,0,0.2)`}}>
               📎
-              <input id={`file-input-${phase.id}`} type="file" accept=".pdf,.jpg,.jpeg,.png,.skp,.dwg,.dxf,.doc,.docx,.xls,.xlsx" onChange={e=>{if(e.target.files?.[0])setPhaseChatFile(e.target.files[0]);}} style={{display:"none"}}/>
+              <input id={`file-input-${phase.id}`} type="file" accept=".pdf,.skp,.dwg,.dxf,.doc,.docx,.xls,.xlsx" onChange={e=>{if(e.target.files?.[0])setPhaseChatFile(e.target.files[0]);}} style={{display:"none"}}/>
             </label>
             <Btn size="sm" onClick={sendPhaseMsg} style={{padding:"10px 18px",fontSize:14,borderRadius:10,boxShadow:`0 2px 8px rgba(0,0,0,0.2)`,fontWeight:"600"}}>ส่ง</Btn>
           </div>
@@ -680,6 +1178,9 @@ function PhaseCard({phase,house,data,setData,role,pp,boqItems,canEditDur,setEdit
         {role==="engineer"&&phPP.s==="waiting_review"&&<div style={{display:"flex",gap:4}}><Btn size="sm" onClick={()=>setData(d=>({...d,phaseProgress:{...d.phaseProgress,[house.id]:{...(d.phaseProgress[house.id]||{}),[phase.id]:{...phPP,s:"done"}}}}))} style={{background:"#16a34a",color:"#fff"}}>✓ ตรวจแล้วเสร็จ</Btn><Btn size="sm" variant="danger" onClick={()=>setData(d=>({...d,phaseProgress:{...d.phaseProgress,[house.id]:{...(d.phaseProgress[house.id]||{}),[phase.id]:{...phPP,s:"inprogress"}}}}))} >← ส่งกลับแก้</Btn></div>}
         {["owner","engineer","foreman"].includes(role)&&<Btn size="sm" onClick={()=>document.getElementById(`file-input-${phase.id}`)?.click()} style={{color:"#fff"}}>📌 ไฟล์แนบ</Btn>}
       </div>
+
+      {/* Image Picker Modal */}
+      {showImgPicker&&<ImagePickerModal onSend={handlePickerSend} onClose={()=>setShowImgPicker(false)}/>}
 
       {/* Duration Edit Modal */}
       {editDurMdl&&(
@@ -699,7 +1200,7 @@ function PhaseCard({phase,house,data,setData,role,pp,boqItems,canEditDur,setEdit
   );
 }
 
-function HousePage({houseId,data,setData,role,onBack,onScrollToPhase}) {
+function HousePage({houseId,data,setData,role,onBack,onScrollToPhase,isMobileMode}) {
   // Find house first
   const house=data.houses?.find(h=>h.id===houseId);
   
@@ -720,6 +1221,7 @@ function HousePage({houseId,data,setData,role,onBack,onScrollToPhase}) {
   const [billMdl,setBillMdl]=useState(null);
   const [addBoqMdl,setAddBoqMdl]=useState(false);
   const [editBoq,setEditBoq]=useState(null);
+  const [showPhotoReport,setShowPhotoReport]=useState(false);
   const [editNotesModal,setEditNotesModal]=useState(null);
   const [editPhaseNameMdl,setEditPhaseNameMdl]=useState(null);
   const [nb,setNb]=useState({phaseId:1,name:"",unit:"ถุง",qty:1,boqPrice:0,startDate:"",endDate:"",notes:""});
@@ -835,40 +1337,55 @@ function HousePage({houseId,data,setData,role,onBack,onScrollToPhase}) {
   })();
 
   return (
-    <div style={{padding:24}}>
-      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
-        <Btn variant="ghost" size="sm" onClick={onBack}>← กลับ</Btn>
-        <div style={{flex:1}}><div style={{fontSize:20,fontWeight:700,color:C.text}}>บ้านเลขที่ {house.name}</div><div style={{fontSize:12,color:C.muted,marginTop:2}}>{house.customer||"ยังไม่มีลูกค้า"} · {house.phase}</div></div>
-        <Tag color={house.status==="completed"?"green":house.status==="inprogress"?"blue":"gray"} style={{fontSize:12,padding:"4px 12px"}}>{ST_LBL[house.status]}</Tag>
+    <div style={{padding:isMobileMode?12:24}}>
+      <div style={{display:"flex",alignItems:"center",gap:isMobileMode?8:12,marginBottom:isMobileMode?16:20,flexWrap:isMobileMode?"wrap":"nowrap"}}>
+        <Btn variant="ghost" size="sm" onClick={onBack}>← {isMobileMode?"":"กลับ"}</Btn>
+        <div style={{flex:1,minWidth:0}}><div style={{fontSize:isMobileMode?16:20,fontWeight:700,color:C.text}}>บ้านเลขที่ {house.name}</div><div style={{fontSize:isMobileMode?10:12,color:C.muted,marginTop:2}}>{house.customer||"ยังไม่มีลูกค้า"} · {house.phase}</div></div>
+        <Tag color={house.status==="completed"?"green":house.status==="inprogress"?"blue":"gray"} style={{fontSize:isMobileMode?10:12,padding:"4px 12px"}}>{ST_LBL[house.status]}</Tag>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:22}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr 1fr":"repeat(4,1fr)",gap:isMobileMode?8:12,marginBottom:isMobileMode?16:22}}>
         {[["ความคืบหน้า",`${house.pct}%`,C.blue,true],["วันคงเหลือ",dl<0?`เกิน ${Math.abs(dl)} วัน`:`${dl} วัน`,dl<0?C.red:dl<30?C.orange:C.text,false],canPrice&&["ค่าใช้จ่ายจริง",`฿${fmtMoney(house.actual)}`,isOver?C.red:C.text,false],canPrice&&["เทียบ BOQ",(isOver?"เกิน ":"")+`฿${fmtMoney(Math.abs(house.boq-house.actual))}`,isOver?C.red:C.green,false]].filter(Boolean).map(([l,v,col,showBar],i)=>(
-          <Card key={i} style={{padding:"13px 16px"}}><div style={{fontSize:20,fontWeight:800,color:col}}>{v}</div>{showBar&&<PBar pct={house.pct} color={C.blue} h={4}/>}<div style={{fontSize:11,color:C.muted,marginTop:4}}>{l}</div></Card>
+          <Card key={i} style={{padding:isMobileMode?"10px 12px":"13px 16px"}}><div style={{fontSize:isMobileMode?16:20,fontWeight:800,color:col}}>{v}</div>{showBar&&<PBar pct={house.pct} color={C.blue} h={4}/>}<div style={{fontSize:isMobileMode?10:11,color:C.muted,marginTop:4}}>{l}</div></Card>
         ))}
       </div>
-      <div style={{display:"flex",gap:2,background:"#0d1117",borderRadius:10,padding:3,marginBottom:18,border:`1px solid ${C.border}`,width:"fit-content"}}>
-        {TABS.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{padding:"5px 13px",borderRadius:8,border:"none",background:tab===t.id?C.panel:"transparent",color:tab===t.id?C.blue:C.muted,fontSize:12,fontWeight:600,cursor:"pointer"}}>{t.l}</button>)}
+      <div style={{display:"flex",gap:2,background:"#0d1117",borderRadius:10,padding:3,marginBottom:18,border:`1px solid ${C.border}`,width:"fit-content",overflowX:"auto"}}>
+        {TABS.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{padding:isMobileMode?"4px 10px":"5px 13px",borderRadius:8,border:"none",background:tab===t.id?C.panel:"transparent",color:tab===t.id?C.blue:C.muted,fontSize:isMobileMode?11:12,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}>{isMobileMode?t.l.split(" ")[0]:t.l}</button>)}
       </div>
 
       {tab==="boq"&&(
         <div>
           {data.phases.map((phase)=>(
-            <PhaseCard key={phase.id} phase={phase} house={house} data={data} setData={setData} role={role} pp={pp} boqItems={boqItems} canEditDur={canEdit} setEditPhaseNameMdl={setEditPhaseNameMdl} editPhaseNameMdl={editPhaseNameMdl}/>
+            <PhaseCard key={phase.id} phase={phase} house={house} data={data} setData={setData} role={role} pp={pp} boqItems={boqItems} canEditDur={canEdit} setEditPhaseNameMdl={setEditPhaseNameMdl} editPhaseNameMdl={editPhaseNameMdl} isMobileMode={isMobileMode}/>
           ))}
+          {/* Photo Report Book — below last phase  */}
+          {["owner","engineer","foreman"].includes(role)&&(
+            <div style={{marginTop:8,paddingTop:16,borderTop:`2px dashed ${C.border2}`}}>
+              <button onClick={()=>setShowPhotoReport(true)} style={{width:"100%",padding:"16px 20px",borderRadius:12,border:`1px solid ${C.border2}`,background:"linear-gradient(135deg,#0f1f3d 0%,#162040 100%)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,transition:"all 0.2s",color:C.text}}>
+                <div style={{display:"flex",alignItems:"center",gap:14}}>
+                  <span style={{fontSize:28}}>📸</span>
+                  <div style={{textAlign:"left"}}>
+                    <div style={{fontSize:14,fontWeight:700,color:C.text}}>รูปเล่มงานก่อสร้าง</div>
+                    <div style={{fontSize:11,color:C.muted,marginTop:2}}>{(()=>{const rp=(!Array.isArray(house.reportPhotos)&&house.reportPhotos)||{};const total=Object.values(rp).reduce((s,a)=>s+a.length,0);const phases=Object.keys(rp).filter(k=>(rp[k]||[]).length>0).length;return total>0?`${total} รูป จาก ${phases} หมวด — กดเพื่อดู / พิมพ์ / ดาวน์โหลด`:"เลือกรูปจากแต่ละหมวดเพื่อสร้างเล่มงานให้ลูกค้า";})()}</div>
+                  </div>
+                </div>
+                <span style={{fontSize:13,color:C.blue,fontWeight:600,flexShrink:0}}>{(()=>{const rp=(!Array.isArray(house.reportPhotos)&&house.reportPhotos)||{};return Object.values(rp).some(a=>a.length>0)?"เปิดดู ›":"+ เลือกรูป ›";})()}</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 
       {tab==="gantt"&&(
-        <Card style={{padding:16,overflowX:"auto"}}>
-          <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>Gantt Chart</div>
-          <div style={{fontSize:11,color:C.muted,marginBottom:16}}>{fmtDate(house.start)} — {fmtDate(addDays(house.start,totalDays))} ({totalDays} วัน)</div>
-          <div style={{position:"relative",paddingLeft:160,minWidth:700,minHeight:ganttData.length*36+96}}>
+        <Card style={{padding:isMobileMode?10:16,overflowX:"auto"}}>
+          <div style={{fontSize:isMobileMode?12:14,fontWeight:700,color:C.text,marginBottom:4}}>Gantt Chart</div>
+          <div style={{fontSize:isMobileMode?10:11,color:C.muted,marginBottom:16}}>{fmtDate(house.start)} — {fmtDate(addDays(house.start,totalDays))} ({totalDays} วัน)</div>
+          <div style={{position:"relative",paddingLeft:isMobileMode?100:160,minWidth:isMobileMode?500:700,minHeight:ganttData.length*36+96}}>
             {/* Month header */}
-            <div style={{position:"absolute",top:0,left:160,right:0,height:36,display:"flex",borderBottom:`1px solid ${C.border}`}}>
+            <div style={{position:"absolute",top:0,left:isMobileMode?100:160,right:0,height:36,display:"flex",borderBottom:`1px solid ${C.border}`}}>
               {ganttMonths.months.map((m,i)=>(
                 <div key={i} style={{flex:`0 0 ${m.width}%`,position:"relative",borderLeft:`1px solid ${C.border}`,boxSizing:"border-box"}}>
-                  <div style={{textAlign:"center",fontSize:10,color:C.text,fontWeight:600,lineHeight:"16px",paddingTop:2,whiteSpace:"nowrap"}}>{m.label}</div>
-                  <div style={{textAlign:"center",fontSize:8,color:C.muted,lineHeight:"12px"}}>{m.yearLabel}</div>
+                  <div style={{textAlign:"center",fontSize:isMobileMode?8:10,color:C.text,fontWeight:600,lineHeight:"16px",paddingTop:2,whiteSpace:"nowrap"}}>{m.label}</div>
+                  <div style={{textAlign:"center",fontSize:isMobileMode?7:8,color:C.muted,lineHeight:"12px"}}>{m.yearLabel}</div>
                 </div>
               ))}
             </div>
@@ -989,6 +1506,7 @@ function HousePage({houseId,data,setData,role,onBack,onScrollToPhase}) {
           </div>
         </Mdl>
       )}
+      {showPhotoReport&&<PhotoReportModal house={house} data={data} setData={setData} role={role} onClose={()=>setShowPhotoReport(false)} isMobileMode={isMobileMode}/>}
     </div>
   );
 }
@@ -1147,7 +1665,7 @@ function MarketingPage({data,setData}) {
               return (
                 <tr key={h.id} style={{borderBottom:`1px solid ${C.border}`}} onMouseEnter={e=>e.currentTarget.style.background=C.panel} onMouseLeave={e=>e.currentTarget.style.background=""}>
                   <td style={{padding:"9px 12px"}}><Tag color="blue">{h.name}</Tag><div style={{fontSize:10,color:C.muted,marginTop:2}}>{data.projects.find(p=>p.id===h.projectId)?.name}</div></td>
-                  <td style={{padding:"9px 12px"}}><div style={{fontSize:13,color:C.text}}>{c?.name||<span style={{color:C.muted}}>— ว่าง</span>}</div>{c?.phone&&<div style={{fontSize:11,color:C.muted}}>{c.phone}</div>}</td>
+                  <td style={{padding:"9px 12px"}}><div style={{fontSize:13,color:C.text}}>{c?.name||<span style={{color:C.muted}}>— ว่าง</span>}</div>{c?.phone&&<div style={{fontSize:11}}><a href={`tel:${c.phone}`} onClick={e=>e.stopPropagation()} style={{color:C.blue,textDecoration:"none"}}>📞 {c.phone}</a></div>}</td>
                   <td style={{padding:"9px 12px"}}>{c?<><Tag color={c.type==="cash"?"green":"blue"}>{c.type==="cash"?"💵 ซื้อสด":`🏦 ${c.bank||"กู้ธนาคาร"}`}</Tag>{c.preApproved&&<Tag color="green" style={{marginLeft:4}}>✓ Pre-approved</Tag>}</>:"—"}</td>
                   <td style={{padding:"9px 12px"}}>{c?<span style={{fontSize:13,fontWeight:700,color:PCOL[c.prob]}}>{c.prob}%</span>:"—"}</td>
                   <td style={{padding:"9px 12px",minWidth:110}}><div style={{display:"flex",alignItems:"center",gap:7}}><div style={{flex:1,height:5,background:C.faint,borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${h.pct}%`,background:C.blue,borderRadius:3}}/></div><span style={{fontSize:11,fontWeight:700,color:C.blue}}>{h.pct}%</span></div></td>
@@ -1254,7 +1772,7 @@ function PaymentsPage({data,setData,role}) {
 // PART 7: Timeline Page (Construction Progress for all users)
 // ═══════════════════════════════════════════════════════════════
 
-function TimelinePage({data,role,onOpenHouse}) {
+function TimelinePage({data,role,onOpenHouse,isMobileMode}) {
   const [search,setSearch]=useState("");
   const [statusFilter,setStatusFilter]=useState("all");
   
@@ -1265,44 +1783,45 @@ function TimelinePage({data,role,onOpenHouse}) {
   });
 
   return (
-    <div style={{padding:12}}>
+    <div style={{padding:isMobileMode?8:12}}>
       <div style={{marginBottom:12}}>
-        <div style={{fontSize:16,fontWeight:700,color:C.text}}>📈 ไทม์ไลน์</div>
-        <div style={{fontSize:10,color:C.muted,marginTop:1}}>{filtered.length} หลัง</div>
+        <div style={{fontSize:isMobileMode?14:16,fontWeight:700,color:C.text}}>📈 ไทม์ไลน์</div>
+        <div style={{fontSize:isMobileMode?9:10,color:C.muted,marginTop:1}}>{filtered.length} หลัง</div>
       </div>
 
-      <div style={{display:"flex",gap:8,marginBottom:12,alignItems:"center",flexWrap:"wrap"}}>
-        <div style={{flex:1,minWidth:150}}>
+      <div style={{display:"flex",gap:isMobileMode?6:8,marginBottom:12,alignItems:"center",flexWrap:"wrap"}}>
+        <div style={{flex:1,minWidth:isMobileMode?120:150}}>
           <FIn 
             placeholder="🔍 ค้นหา..." 
             value={search} 
             onChange={e=>setSearch(e.target.value)}
-            style={{fontSize:11,padding:"4px 8px"}}
+            style={{fontSize:isMobileMode?10:11,padding:isMobileMode?"3px 6px":"4px 8px"}}
           />
         </div>
-        <div style={{display:"flex",gap:4}}>
+        <div style={{display:"flex",gap:isMobileMode?2:4,flexWrap:"wrap"}}>
           {[["all","ทั้งหมด"],["inprogress","🔄"],["completed","✓"],["notstarted","⏳"]].map(([val,label])=>(
             <button 
               key={val}
               onClick={()=>setStatusFilter(val)}
               style={{
-                padding:"3px 8px",
+                padding:isMobileMode?"2px 6px":"3px 8px",
                 borderRadius:4,
                 border:`1px solid ${statusFilter===val?C.blue:C.border2}`,
                 background:statusFilter===val?C.blueDim:"transparent",
                 color:statusFilter===val?C.blue:C.muted,
-                fontSize:10,
+                fontSize:isMobileMode?9:10,
                 fontWeight:600,
-                cursor:"pointer"
+                cursor:"pointer",
+                whiteSpace:"nowrap"
               }}
             >
-              {label}
+              {isMobileMode?label.charAt(0):label}
             </button>
           ))}
         </div>
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:4}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"repeat(auto-fill,minmax(120px,1fr))",gap:isMobileMode?8:4}}>
         {filtered.map(house=>{
           const project=data.projects.find(p=>p.id===house.projectId);
           const totalCost=data.boqItems.filter(b=>b.houseId===house.id).reduce((s,i)=>s+i.qty*i.boqPrice,0);
@@ -1389,7 +1908,7 @@ function AnalyticsPage({data}) {
     <div style={{padding:24}}>
       <div style={{fontSize:22,fontWeight:700,color:C.text,marginBottom:20}}>📊 Analytics & Reports</div>
       <div style={{display:"flex",gap:6,marginBottom:16}}>
-        {[["cost","🔍 ต้นทุนตามหมวดงาน"],["progress","📈 ความคืบหน้า"],["team","👥 ทีมงาน"]].map(([v,l])=><Btn key={v} variant={chartType===v?"primary":"ghost"} size="sm" onClick={()=>setChartType(v)}>{l}</Btn>)}
+        {[["cost","🔍 ต้นทุนตามหมวดงาน"],["progress","📈 ความคืบหน้า"]].map(([v,l])=><Btn key={v} variant={chartType===v?"primary":"ghost"} size="sm" onClick={()=>setChartType(v)}>{l}</Btn>)}
       </div>
       
       {chartType==="cost"&&(
@@ -1462,7 +1981,7 @@ function AnalyticsPage({data}) {
             return (
               <Card key={t.id} style={{padding:15}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-                  <div style={{width:40,height:40,borderRadius:8,background:ROLE_COL[t.role],display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>{(t.name||"?")[0]}</div>
+                  <Avatar member={t} size={40} fontSize={18}/>
                   <div>
                     <div style={{fontSize:13,fontWeight:700,color:C.text}}>{t.name}</div>
                     <div style={{fontSize:11,color:ROLE_COL[t.role]}}>{ROLE_LBL[t.role]}</div>
@@ -1472,8 +1991,7 @@ function AnalyticsPage({data}) {
                   </div>
                 </div>
                 <div style={{paddingTop:10,borderTop:`1px solid ${C.border}`,fontSize:12}}>
-                  <div><span style={{color:C.muted}}>📧</span> {t.email}</div>
-                  <div style={{color:C.muted,marginTop:4}}><span style={{color:C.muted}}>📞</span> {t.phone}</div>
+                  {t.phone&&<div style={{marginTop:4}}><a href={`tel:${t.phone}`} style={{color:C.blue,textDecoration:"none",fontSize:12}}>📞 {t.phone}</a></div>}
                   {count>0&&<div style={{marginTop:6,padding:6,background:"#0d1117",borderRadius:6,fontSize:11,color:C.blue,fontWeight:700}}>👷 อยู่ในโครงการ: {count}</div>}
                 </div>
               </Card>
@@ -1737,7 +2255,7 @@ function TeamPage({data,setData,role}) {
         {data.team.map(member=>(
           <Card key={member.id} style={{padding:16}}>
             <div style={{display:"flex",alignItems:"start",marginBottom:12}}>
-              <div style={{width:40,height:40,borderRadius:8,background:ROLE_COL[member.role],display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:700,color:"#fff",flexShrink:0}}>{(member.name||"?")[0]}</div>
+              <Avatar member={member} size={40} fontSize={16}/>
               <div style={{marginLeft:12,flex:1,minWidth:0}}>
                 <div style={{fontSize:13,fontWeight:700,color:C.text}}>{member.name}</div>
                 <div style={{fontSize:11,color:ROLE_COL[member.role],marginTop:2}}>{ROLE_LBL[member.role]}</div>
@@ -1745,8 +2263,7 @@ function TeamPage({data,setData,role}) {
               <Tag color={member.status==="active"?"green":"gray"} style={{fontSize:10}}>{member.status==="active"?"✓":"○"}</Tag>
             </div>
             <div style={{borderTop:`1px solid ${C.border}`,paddingTop:10}}>
-              <div style={{fontSize:11,color:C.muted,marginBottom:6}}>📧 {member.email}</div>
-              <div style={{fontSize:11,color:C.muted,marginBottom:10}}>📞 {member.phone}</div>
+              {member.phone&&<div style={{fontSize:11,marginBottom:10}}><a href={`tel:${member.phone}`} style={{color:C.blue,textDecoration:"none"}}>📞 {member.phone}</a></div>}
               {canManage&&<Btn size="sm" variant="ghost" style={{width:"100%"}} onClick={()=>openEdit(member)}>✏️ Edit</Btn>}
             </div>
           </Card>
@@ -1773,7 +2290,7 @@ function TeamPage({data,setData,role}) {
   );
 }
 
-function SettingsPage({data,setData}) {
+function SettingsPage({data,setData,role}) {
   const [tab,setTab]=useState("projects");
   const [newTpl,setNewTpl]=useState({name:"",boqBudget:1800000,defaultDays:180});
   const [showNew,setShowNew]=useState(false);
@@ -1783,6 +2300,8 @@ function SettingsPage({data,setData}) {
   const [newBoqItem,setNewBoqItem]=useState({phaseId:1,name:"",unit:"",qty:1,boqPrice:0});
   const [showAddBoq,setShowAddBoq]=useState(false);
   const [notif,setNotif]=useState(data.notifications||{emailOnPayment:true,emailOnDelay:true,emailOnCompletion:true,pushOnOrder:true,pushOnApproval:true,smsAlert:false});
+  const [editingName,setEditingName]=useState(null); // {id, value}
+  const [editingPhone,setEditingPhone]=useState(null); // {id, value}
   const [showNewProj,setShowNewProj]=useState(false);
   const [newProj,setNewProj]=useState({name:"",address:""});
   const [selectedProj,setSelectedProj]=useState(null);
@@ -1792,7 +2311,7 @@ function SettingsPage({data,setData}) {
     <div style={{padding:24}}>
       <div style={{marginBottom:20}}><div style={{fontSize:22,fontWeight:700,color:C.text}}>⚙️ ตั้งค่าระบบ</div><div style={{fontSize:13,color:C.muted,marginTop:2}}>จัดการโครงการ เทมเพลท หมวดงาน และการแจ้งเตือน</div></div>
       <div style={{display:"flex",gap:2,background:"#0d1117",borderRadius:10,padding:3,marginBottom:20,border:`1px solid ${C.border}`,width:"fit-content"}}>
-        {[["projects","🏢 โครงการ"],["templates","🏠 เทมเพลทบ้าน"],["phases","📋 15 หมวดงาน"],["notifications","🔔 Notifications"]].map(([id,label])=><button key={id} onClick={()=>setTab(id)} style={{padding:"5px 13px",borderRadius:8,border:"none",background:tab===id?C.panel:"transparent",color:tab===id?C.blue:C.muted,fontSize:12,fontWeight:600,cursor:"pointer"}}>{label}</button>)}
+        {[["projects","🏢 โครงการ"],["templates","🏠 เทมเพลทบ้าน"],["phases","📋 15 หมวดงาน"],["employees","👥 ทีมงาน"],["notifications","🔔 Notifications"]].map(([id,label])=><button key={id} onClick={()=>setTab(id)} style={{padding:"5px 13px",borderRadius:8,border:"none",background:tab===id?C.panel:"transparent",color:tab===id?C.blue:C.muted,fontSize:12,fontWeight:600,cursor:"pointer"}}>{label}</button>)}
       </div>
       {tab==="projects"&&(
         <>
@@ -1963,9 +2482,1259 @@ function SettingsPage({data,setData}) {
           <div style={{display:"flex",justifyContent:"flex-end",marginTop:12}}><Btn variant="ghost" size="sm" onClick={()=>setData(d=>({...d,phases:[...d.phases,{id:uid(),name:"หมวดงานใหม่",days:14,order:d.phases.length+1}]}))}>+ เพิ่มหมวดงาน</Btn></div>
         </>
       )}
+      {tab==="employees"&&(
+        <Card style={{padding:20}}>
+          <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:16}}>👥 จัดการพนักงาน</div>
+          {/* ── Pending Approvals ── */}
+          {data.team.filter(t=>t.status==="pending").length>0&&(
+            <div style={{marginBottom:20}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                <span style={{fontSize:12,fontWeight:700,color:C.orange}}>⏳ รอการอนุมัติ</span>
+                <span style={{background:C.orange,color:"#000",borderRadius:99,padding:"1px 8px",fontSize:11,fontWeight:700}}>{data.team.filter(t=>t.status==="pending").length}</span>
+              </div>
+              <div style={{display:"grid",gap:10}}>
+                {data.team.filter(t=>t.status==="pending").map(member=>(
+                  <div key={member.id} style={{background:`${C.orange}11`,border:`1px solid ${C.orange}44`,borderRadius:12,padding:14}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                      <Avatar member={member} size={40}/>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:13,fontWeight:700,color:C.text}}>{member.name}</div>
+                        <div style={{fontSize:11,color:ROLE_COL[member.role]||C.muted}}>{ROLE_LBL[member.role]} • @{member.username}</div>
+                        {member.phone&&<div style={{fontSize:10,marginTop:1}}><a href={`tel:${member.phone}`} style={{color:C.blue,textDecoration:"none"}}>📞 {member.phone}</a></div>}
+                        {member.registeredAt&&<div style={{fontSize:10,color:C.muted}}>สมัครเมื่อ {new Date(member.registeredAt).toLocaleString("th-TH",{dateStyle:"short",timeStyle:"short"})}</div>}
+                      </div>
+                    </div>
+                    <div style={{display:"flex",gap:8}}>
+                      <button onClick={()=>{
+                        setData(d=>({...d,
+                          team:d.team.map(t=>t.id===member.id?{...t,status:"active"}:t),
+                          employeeLevels:{...d.employeeLevels,[member.id]:d.employeeLevels[member.id]||1}
+                        }));
+                      }} style={{flex:1,padding:"8px",borderRadius:8,border:"none",background:C.green,color:"#000",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                        ✓ อนุมัติ
+                      </button>
+                      <button onClick={()=>{
+                        if(!window.confirm(`ปฏิเสธคำขอของ ${member.name}?`))return;
+                        setData(d=>({...d,team:d.team.filter(t=>t.id!==member.id)}));
+                      }} style={{flex:1,padding:"8px",borderRadius:8,border:`1px solid ${C.red}44`,background:`${C.red}22`,color:"#fca5a5",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                        ✗ ปฏิเสธ
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{height:1,background:C.border,margin:"16px 0"}}/>
+            </div>
+          )}
+          {/* ── Pending Password Changes ── */}
+          {data.team.filter(t=>t.pendingPassword).length>0&&(
+            <div style={{marginBottom:20}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                <span style={{fontSize:12,fontWeight:700,color:C.blue}}>🔑 รอยืนยันเปลี่ยนรหัสผ่าน</span>
+                <span style={{background:C.blue,color:"#000",borderRadius:99,padding:"1px 8px",fontSize:11,fontWeight:700}}>{data.team.filter(t=>t.pendingPassword).length}</span>
+              </div>
+              <div style={{display:"grid",gap:10}}>
+                {data.team.filter(t=>t.pendingPassword).map(member=>(
+                  <div key={member.id} style={{background:`${C.blue}11`,border:`1px solid ${C.blue}44`,borderRadius:12,padding:14}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                      <Avatar member={member} size={40}/>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:13,fontWeight:700,color:C.text}}>{member.name}</div>
+                        <div style={{fontSize:11,color:ROLE_COL[member.role]||C.muted}}>{ROLE_LBL[member.role]} • @{member.username}</div>
+                        {member.pendingPasswordAt&&<div style={{fontSize:10,color:C.muted,marginTop:1}}>ขอเมื่อ {new Date(member.pendingPasswordAt).toLocaleString("th-TH",{dateStyle:"short",timeStyle:"short"})}</div>}
+                        <div style={{fontSize:11,color:C.blue,marginTop:4}}>รหัสใหม่ที่ขอ: <span style={{letterSpacing:2}}>{"•".repeat(member.pendingPassword.length)}</span></div>
+                      </div>
+                    </div>
+                    <div style={{display:"flex",gap:8}}>
+                      <button onClick={()=>{
+                        setData(d=>({...d,team:d.team.map(t=>t.id===member.id?{...t,password:t.pendingPassword,pendingPassword:null,pendingPasswordAt:null}:t)}));
+                      }} style={{flex:1,padding:"8px",borderRadius:8,border:"none",background:C.green,color:"#000",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                        ✓ อนุมัติ
+                      </button>
+                      <button onClick={()=>{
+                        setData(d=>({...d,team:d.team.map(t=>t.id===member.id?{...t,pendingPassword:null,pendingPasswordAt:null}:t)}));
+                      }} style={{flex:1,padding:"8px",borderRadius:8,border:`1px solid ${C.red}44`,background:`${C.red}22`,color:"#fca5a5",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                        ✗ ปฏิเสธ
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{height:1,background:C.border,margin:"16px 0"}}/>
+            </div>
+          )}
+          {/* ── Active Members ── */}
+          <div style={{display:"grid",gap:16}}>
+            {data.team.filter(t=>t.status==="active").map(member=>(
+              <div key={member.id} style={{background:"#0d1117",borderRadius:12,padding:16,border:`1px solid ${C.border}`}}>
+                {/* Row: avatar + name + level */}
+                <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+                  {/* Avatar with upload */}
+                  <div style={{position:"relative",flexShrink:0}}>
+                    <Avatar member={member} size={52} fontSize={20}/>
+                    <label style={{position:"absolute",bottom:-4,right:-4,width:20,height:20,borderRadius:10,background:C.blue,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:11,border:`2px solid ${C.bg}`}} title="เปลี่ยนรูปโปรไฟล์">
+                      📷
+                      <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{
+                        const file=e.target.files[0];
+                        if(!file)return;
+                        if(file.size>2*1024*1024){alert("ไฟล์ใหญ่เกิน 2MB");return;}
+                        const reader=new FileReader();
+                        reader.onloadend=()=>setData(d=>({...d,team:d.team.map(t=>t.id===member.id?{...t,avatar:reader.result}:t)}));
+                        reader.readAsDataURL(file);
+                        e.target.value="";
+                      }}/>
+                    </label>
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    {editingName?.id===member.id?(
+                      <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:2}}>
+                        <input
+                          autoFocus
+                          value={editingName.value}
+                          onChange={e=>setEditingName(v=>({...v,value:e.target.value}))}
+                          onKeyDown={e=>{
+                            if(e.key==="Enter"&&editingName.value.trim()){
+                              setData(d=>({...d,team:d.team.map(t=>t.id===member.id?{...t,name:editingName.value.trim()}:t)}));
+                              setEditingName(null);
+                            } else if(e.key==="Escape") setEditingName(null);
+                          }}
+                          style={{flex:1,background:"#060d1a",border:`1px solid ${C.blue}`,borderRadius:6,padding:"4px 8px",color:C.text,fontSize:13,fontWeight:700,outline:"none",minWidth:0}}
+                        />
+                        <button onClick={()=>{if(editingName.value.trim()){setData(d=>({...d,team:d.team.map(t=>t.id===member.id?{...t,name:editingName.value.trim()}:t)}));setEditingName(null);}}} style={{background:C.green,border:"none",borderRadius:6,color:"#000",fontSize:11,fontWeight:700,cursor:"pointer",padding:"4px 8px"}}>✓</button>
+                        <button onClick={()=>setEditingName(null)} style={{background:"none",border:`1px solid ${C.border2}`,borderRadius:6,color:C.muted,fontSize:11,cursor:"pointer",padding:"4px 8px"}}>✕</button>
+                      </div>
+                    ):(
+                      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
+                        <div style={{fontSize:13,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{member.name}</div>
+                        <button onClick={()=>setEditingName({id:member.id,value:member.name})} title="แก้ไขชื่อ" style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:12,padding:0,flexShrink:0,lineHeight:1}}>✏️</button>
+                      </div>
+                    )}
+                    <div style={{fontSize:11,color:ROLE_COL[member.role]||C.muted}}>{ROLE_LBL[member.role]}</div>
+                    {member.avatar&&<button onClick={()=>setData(d=>({...d,team:d.team.map(t=>t.id===member.id?{...t,avatar:""}:t)}))} style={{fontSize:10,color:"#ef4444",background:"none",border:"none",cursor:"pointer",padding:0,marginTop:4}}>ลบรูป ×</button>}
+                  </div>
+                  {/* Level selector — owner only */}
+                  {role==="owner"&&<div style={{textAlign:"right"}}>
+                    <div style={{fontSize:9,color:C.muted,marginBottom:4}}>Delegation Level</div>
+                    <select value={data.employeeLevels[member.id]||1} onChange={e=>setData(d=>({...d,employeeLevels:{...d.employeeLevels,[member.id]:+e.target.value}}))} style={{background:"#060d1a",border:`1px solid ${C.border2}`,borderRadius:8,padding:"6px 10px",color:C.text,fontSize:12}}>
+                      {[1,2,3,4,5].map(l=><option key={l} value={l}>Level {l}</option>)}
+                    </select>
+                  </div>}
+                </div>
+                {/* Credentials row */}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+                  <div style={{fontSize:11,color:C.muted}}>
+                    <span style={{color:C.text,fontWeight:600}}>Username: </span>
+                    <span style={{color:C.blue,fontFamily:"monospace"}}>{member.username||"-"}</span>
+                  </div>
+                  <div style={{fontSize:11,color:C.muted}}>
+                    <span style={{color:C.text,fontWeight:600}}>Password: </span>
+                    <span style={{color:C.muted,fontFamily:"monospace"}}>{"•".repeat(member.password?.length||4)}</span>
+                  </div>
+                </div>
+                {/* Phone row */}
+                <div style={{marginBottom:8}}>
+                  {editingPhone?.id===member.id?(
+                    <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                      <span style={{fontSize:12}}>📞</span>
+                      <input
+                        autoFocus
+                        type="tel"
+                        value={editingPhone.value}
+                        onChange={e=>setEditingPhone(v=>({...v,value:e.target.value}))}
+                        onKeyDown={e=>{
+                          if(e.key==="Enter"&&editingPhone.value.trim()){
+                            setData(d=>({...d,team:d.team.map(t=>t.id===member.id?{...t,phone:editingPhone.value.trim()}:t)}));
+                            setEditingPhone(null);
+                          } else if(e.key==="Escape") setEditingPhone(null);
+                        }}
+                        placeholder="เบอร์โทรศัพท์"
+                        style={{flex:1,background:"#060d1a",border:`1px solid ${C.blue}`,borderRadius:6,padding:"4px 8px",color:C.text,fontSize:12,outline:"none",minWidth:0}}
+                      />
+                      <button onClick={()=>{if(editingPhone.value.trim()){setData(d=>({...d,team:d.team.map(t=>t.id===member.id?{...t,phone:editingPhone.value.trim()}:t)}));setEditingPhone(null);} else {setData(d=>({...d,team:d.team.map(t=>t.id===member.id?{...t,phone:""}:t)}));setEditingPhone(null);}}} style={{background:C.green,border:"none",borderRadius:6,color:"#000",fontSize:11,fontWeight:700,cursor:"pointer",padding:"4px 8px"}}>✓</button>
+                      <button onClick={()=>setEditingPhone(null)} style={{background:"none",border:`1px solid ${C.border2}`,borderRadius:6,color:C.muted,fontSize:11,cursor:"pointer",padding:"4px 8px"}}>✕</button>
+                    </div>
+                  ):(
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      {member.phone?(
+                        <a href={`tel:${member.phone}`} style={{fontSize:12,color:C.blue,textDecoration:"none",flex:1}}>📞 {member.phone}</a>
+                      ):(
+                        <span style={{fontSize:11,color:C.muted,flex:1}}>📞 ยังไม่มีเบอร์โทร</span>
+                      )}
+                      <button onClick={()=>setEditingPhone({id:member.id,value:member.phone||""})} title="แก้ไขเบอร์โทร" style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:11,padding:0,flexShrink:0,lineHeight:1}}>✏️</button>
+                    </div>
+                  )}
+                </div>
+                {/* Location row */}
+                {member.location?.address&&(
+                  <div style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",background:`${C.green}11`,borderRadius:8,border:`1px solid ${C.green}22`}}>
+                    <span style={{fontSize:12}}>📍</span>
+                    <span style={{fontSize:11,color:C.green,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{member.location.address}</span>
+                    {member.location.updatedAt&&<span style={{fontSize:9,color:C.muted,flexShrink:0}}>{new Date(member.location.updatedAt).toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"})}</span>}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
+
+// ═══════════════════════════════════════════════════════════════
+// PART 8.3: Login Page
+// ═══════════════════════════════════════════════════════════════
+
+const OWNER_EMAIL="Bostonth738@gmail.com";
+
+function LoginPage({data,onLogin}){
+  const [username,setUsername]=useState("");
+  const [password,setPassword]=useState("");
+  const [error,setError]=useState("");
+  const [showPw,setShowPw]=useState(false);
+  const [loading,setLoading]=useState(false);
+
+  const handleLogin=()=>{
+    if(!username.trim()||!password.trim()){setError("กรุณากรอก Username และ Password");return;}
+    setLoading(true);setError("");
+    setTimeout(()=>{
+      const member=data.team.find(m=>m.username===username.trim()&&m.password===password);
+      if(!member){setError("Username หรือ Password ไม่ถูกต้อง");setPassword("");setLoading(false);return;}
+      if(member.status!=="active"){setError("บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อเจ้าของโครงการ");setLoading(false);return;}
+      onLogin(member.id,member.role);
+      setLoading(false);
+    },400);
+  };
+
+  const accounts=[
+    {username:"owner",role:"owner",color:"#a78bfa",icon:"👑"},
+    {username:"engineer",role:"engineer",color:"#38bdf8",icon:"🔧"},
+    {username:"foreman",role:"foreman",color:"#fb923c",icon:"🏗"},
+    {username:"purchasing",role:"purchasing",color:"#4ade80",icon:"🛒"},
+    {username:"marketing",role:"marketing",color:"#f472b6",icon:"📢"},
+  ];
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{width:"100%",maxWidth:400}}>
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <div style={{width:72,height:72,borderRadius:20,background:`${C.blue}22`,border:`2px solid ${C.blue}44`,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px",fontSize:36}}>👑</div>
+          <div style={{fontSize:22,fontWeight:700,color:C.text}}>The Crown CPMS</div>
+          <div style={{fontSize:12,color:C.muted,marginTop:4}}>Construction Project Management</div>
+        </div>
+        <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:16,padding:28}}>
+          <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:18}}>🔑 เข้าสู่ระบบ</div>
+          <FG label="Username">
+            <FIn value={username} onChange={e=>{setUsername(e.target.value);setError("");}} placeholder="username" onKeyDown={e=>e.key==="Enter"&&handleLogin()} autoComplete="username"/>
+          </FG>
+          <FG label="Password">
+            <div style={{position:"relative"}}>
+              <FIn type={showPw?"text":"password"} value={password} onChange={e=>{setPassword(e.target.value);setError("");}} placeholder="รหัสผ่าน" onKeyDown={e=>e.key==="Enter"&&handleLogin()} autoComplete="current-password"/>
+              <button type="button" onClick={()=>setShowPw(v=>!v)} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:16,padding:0,lineHeight:1}}>{showPw?"🙈":"👁️"}</button>
+            </div>
+          </FG>
+          {error&&<div style={{background:`${C.red}22`,border:`1px solid ${C.red}44`,borderRadius:8,padding:"8px 12px",color:"#fca5a5",fontSize:12,marginBottom:12}}>{error}</div>}
+          <Btn onClick={handleLogin} disabled={loading} style={{width:"100%",justifyContent:"center",marginBottom:0}}>
+            {loading?"กำลังตรวจสอบ...":"เข้าสู่ระบบ"}
+          </Btn>
+          {/* Accounts reference */}
+          <div style={{marginTop:18,borderTop:`1px solid ${C.border}`,paddingTop:14}}>
+            <div style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.8,marginBottom:10}}>บัญชีในระบบ (รหัสผ่านเริ่มต้น: 1234)</div>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {accounts.map(a=>(
+                <button key={a.username} type="button" onClick={()=>{setUsername(a.username);setPassword("1234");setError("");}} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",borderRadius:8,border:`1px solid ${C.border}`,background:"#0d1117",cursor:"pointer",textAlign:"left",width:"100%",transition:"border-color 0.15s"}} onMouseOver={e=>e.currentTarget.style.borderColor=a.color} onMouseOut={e=>e.currentTarget.style.borderColor=C.border}>
+                  <span style={{fontSize:16,width:22,textAlign:"center"}}>{a.icon}</span>
+                  <span style={{fontFamily:"monospace",fontSize:12,color:a.color,fontWeight:700,minWidth:80}}>{a.username}</span>
+                  <span style={{fontSize:11,color:C.muted}}>{ROLE_LBL[a.role]}</span>
+                  <span style={{marginLeft:"auto",fontSize:10,color:C.muted}}>คลิกเพื่อเลือก</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// PART 8.4: Thai Date Picker (วัน/เดือน/ปี แบบไทย)
+// ═══════════════════════════════════════════════════════════════
+
+const THAI_MONTHS=["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+const THAI_MONTHS_SHORT=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+
+function ThaiDatePicker({value,onChange,placeholder="เลือกวันที่",useISO=false}){
+  // value = "YYYY-MM-DD" (ISO) or Thai text like "15 เมษายน 2569"
+  // useISO=true → onChange emits "YYYY-MM-DD" (CE year); false → emits "15 เมษายน 2569"
+  const parseVal=v=>{
+    if(!v)return{day:1,month:4,year:2569};
+    // Try ISO format first
+    const iso=v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(iso)return{day:+iso[3],month:+iso[2],year:+iso[1]+543};
+    // Try "15 เมษายน 2569"
+    const th=v.match(/^(\d+)\s+(\S+)\s+(\d+)$/);
+    if(th){const mi=THAI_MONTHS.indexOf(th[2]);return{day:+th[1],month:mi>=0?mi+1:1,year:+th[3]};}
+    return{day:1,month:4,year:2569};
+  };
+  const {day,month,year}=parseVal(value);
+  const [open,setOpen]=useState(false);
+  const [d,setD]=useState(day);
+  const [m,setM]=useState(month);
+  const [y,setY]=useState(year);
+  const startYear=2569;
+  const years=Array.from({length:10},(_,i)=>startYear+i);
+  const daysInMonth=(mo,yr)=>{const ceYr=yr-543;return new Date(ceYr,mo,0).getDate();};
+  const maxDay=daysInMonth(m,y);
+  const emit=(nd,nm,ny)=>{
+    const dd=Math.min(nd,daysInMonth(nm,ny));
+    if(useISO){
+      const ceYr=ny-543;
+      const mm=String(nm).padStart(2,"0");
+      const ds=String(dd).padStart(2,"0");
+      onChange(`${ceYr}-${mm}-${ds}`);
+    } else {
+      onChange(`${dd} ${THAI_MONTHS[nm-1]} ${ny}`);
+    }
+  };
+  const display=value?`${d} ${THAI_MONTHS[m-1]} ${y}`:placeholder;
+  return(
+    <div style={{position:"relative"}}>
+      <button type="button" onClick={()=>setOpen(o=>!o)} style={{width:"100%",background:"#0d1117",border:`2px solid ${C.border2}`,borderRadius:12,padding:"12px 14px",color:value?C.text:C.muted,fontSize:13,textAlign:"left",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <span>{display}</span><span style={{fontSize:11}}>📅</span>
+      </button>
+      {open&&(
+        <div style={{position:"absolute",top:"calc(100% + 6px)",left:0,background:C.panel,border:`1px solid ${C.border}`,borderRadius:12,padding:16,zIndex:400,boxShadow:"0 8px 24px rgba(0,0,0,.4)",minWidth:280}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 2fr 1fr",gap:8,marginBottom:12}}>
+            {/* Day */}
+            <div>
+              <div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:4,textTransform:"uppercase"}}>วัน</div>
+              <div style={{height:160,overflowY:"auto",borderRadius:8,border:`1px solid ${C.border}`,background:"#0d1117"}}>
+                {Array.from({length:maxDay},(_,i)=>i+1).map(n=>(
+                  <div key={n} onClick={()=>{setD(n);emit(n,m,y);}} style={{padding:"7px 12px",cursor:"pointer",background:d===n?`${C.blue}33`:"transparent",color:d===n?C.blue:C.text,fontSize:13,fontWeight:d===n?700:400,transition:"background 0.1s"}}>
+                    {n}
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Month */}
+            <div>
+              <div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:4,textTransform:"uppercase"}}>เดือน</div>
+              <div style={{height:160,overflowY:"auto",borderRadius:8,border:`1px solid ${C.border}`,background:"#0d1117"}}>
+                {THAI_MONTHS.map((mn,i)=>(
+                  <div key={i} onClick={()=>{setM(i+1);emit(d,i+1,y);}} style={{padding:"7px 12px",cursor:"pointer",background:m===i+1?`${C.blue}33`:"transparent",color:m===i+1?C.blue:C.text,fontSize:12,fontWeight:m===i+1?700:400,transition:"background 0.1s",whiteSpace:"nowrap"}}>
+                    {mn}
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Year */}
+            <div>
+              <div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:4,textTransform:"uppercase"}}>ปี พ.ศ.</div>
+              <div style={{height:160,overflowY:"auto",borderRadius:8,border:`1px solid ${C.border}`,background:"#0d1117"}}>
+                {years.map(yr=>(
+                  <div key={yr} onClick={()=>{setY(yr);emit(d,m,yr);}} style={{padding:"7px 12px",cursor:"pointer",background:y===yr?`${C.blue}33`:"transparent",color:y===yr?C.blue:C.text,fontSize:13,fontWeight:y===yr?700:400,transition:"background 0.1s"}}>
+                    {yr}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{fontSize:12,color:C.text,fontWeight:600}}>{d} {THAI_MONTHS[m-1]} {y}</div>
+            <Btn size="sm" onClick={()=>setOpen(false)}>✓ ตกลง</Btn>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Avatar component
+function Avatar({member,size=40,fontSize=16}){
+  if(member?.avatar){
+    return <img src={member.avatar} alt={member.name} style={{width:size,height:size,borderRadius:size/2,objectFit:"cover",flexShrink:0}}/>;
+  }
+  return(
+    <div style={{width:size,height:size,borderRadius:size/2,background:ROLE_COL[member?.role]||C.blue,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize,flexShrink:0}}>
+      {(member?.name||"?")[0]}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PART 8.5: Tracking Pages
+// ═══════════════════════════════════════════════════════════════
+
+// Print a Delegation Slip in a new window (also supports save-as-image via html2canvas)
+function printDelegationSlip(task,data,role){
+  const aTo=data.team.find(t=>t.id===task.assignedTo);
+  const aBy=data.team.find(t=>t.id===task.assignedBy);
+  const steps=Array.isArray(task.jobDetails?.how)?task.jobDetails.how:(task.jobDetails?.how?[task.jobDetails.how]:[]);
+  const statusTh={inprogress:"⏳ กำลังทำ",notstarted:"😴 ยังไม่เริ่ม",completed:"✅ เสร็จแล้ว",cancelled:"❌ ยกเลิก"}[task.status]||task.status;
+  const lc={1:"#22c55e",2:"#3b82f6",3:"#f97316",4:"#a855f7",5:"#ef4444"}[task.level]||"#3b82f6";
+  const safeName=(task.taskName||"slip").replace(/\s+/g,"_").slice(0,30);
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ใบมอบหมายงาน</title><script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script><style>@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Noto Sans Thai',sans-serif;background:#f1f5f9;color:#1a1a1a}
+.toolbar{display:flex;gap:8px;padding:10px 16px;background:#1e293b;position:sticky;top:0;z-index:10}
+.tbtn{padding:7px 16px;border-radius:6px;border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600}
+.tbtn-print{background:#3b82f6;color:#fff}.tbtn-save{background:#16a34a;color:#fff}.tbtn-close{background:#374151;color:#ccc}
+.wrap{padding:24px;max-width:480px;margin:0 auto;background:#fff}
+.hdr{border-bottom:3px solid #1a1a1a;padding-bottom:14px;margin-bottom:18px;text-align:center}.hdr-title{font-size:18px;font-weight:700}.hdr-meta{font-size:11px;color:#666;margin-top:4px}
+.task-name{font-size:16px;font-weight:700;margin-bottom:4px}.remarks{font-size:12px;color:#666;margin-bottom:12px}
+.info-row{display:flex;gap:16px;margin-bottom:16px}.info-item{flex:1}.info-label{font-size:10px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}.info-val{font-size:13px;font-weight:600;margin-top:2px}
+.lvl{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:700;border:2px solid ${lc};color:${lc}}
+.slip{border:2px dashed #aaa;border-radius:8px;padding:20px;margin-top:14px}
+.recipient{font-size:15px;font-weight:700;margin-bottom:14px}
+.field{margin-bottom:10px}.field-lbl{font-size:10px;font-weight:700;color:#444;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px}.field-val{font-size:13px;line-height:1.6}
+.step{display:flex;gap:8px;margin-bottom:5px;align-items:flex-start}.snum{width:22px;height:22px;border-radius:11px;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#2563eb;flex-shrink:0;margin-top:1px}
+.sig{border-top:1px solid #ddd;padding-top:14px;margin-top:18px;display:flex;justify-content:flex-end}.sig-inner{text-align:right;font-size:11px;color:#888}
+@media print{.toolbar{display:none}}</style></head><body>
+<div class="toolbar">
+  <button class="tbtn tbtn-print" onclick="window.print()">🖨️ พิมพ์</button>
+  <button class="tbtn tbtn-save" id="saveBtn">📸 บันทึกเป็นรูปภาพ</button>
+  <button class="tbtn tbtn-close" onclick="window.close()">✕ ปิด</button>
+</div>
+<div class="wrap" id="slipEl">
+<div class="hdr"><div class="hdr-title">ใบมอบหมายงาน</div><div class="hdr-meta">สร้างวันที่: ${task.createdDate||""} &nbsp;|&nbsp; สถานะ: ${statusTh}</div></div>
+<div class="task-name">${task.taskName}</div>
+${task.remarks?`<div class="remarks">หมายเหตุ: ${task.remarks}</div>`:""}
+<div class="info-row">
+<div class="info-item"><div class="info-label">มอบหมายให้</div><div class="info-val">${aTo?.name||"-"}</div></div>
+${role==="owner"?`<div class="info-item"><div class="info-label">ระดับ Delegation</div><div class="info-val"><span class="lvl">Level ${task.level}</span></div></div>`:""}
+</div>
+<div class="slip">
+<div class="recipient">${aTo?.name||""},</div>
+${task.jobDetails?.what?`<div class="field"><div class="field-lbl">What</div><div class="field-val">ช่วย ${task.jobDetails.what} นะ</div></div>`:""}
+${task.jobDetails?.why?`<div class="field"><div class="field-lbl">Why</div><div class="field-val">เพราะ${task.jobDetails.why}</div></div>`:""}
+<div class="field"><div class="field-lbl">When</div><div class="field-val">ส่งให้ฉันภายใน ${task.deadline}</div></div>
+${steps.length>0?`<div class="field"><div class="field-lbl">How</div>${steps.map((s,i)=>`<div class="step"><div class="snum">${i+1}</div><div class="field-val">${s}</div></div>`).join("")}</div>`:""}
+${task.jobDetails?.obstacles?`<div class="field"><div class="field-lbl">ถ้ามีอะไรติดขัด</div><div class="field-val">${task.jobDetails.obstacles}</div></div>`:""}
+</div>
+<div class="sig"><div class="sig-inner"><div>ผู้มอบหมาย: ${aBy?.name||"เจ้าของ"}</div><div style="margin-top:28px">ลายเซ็น: _______________________</div></div></div>
+</div>
+<script>
+document.getElementById('saveBtn').addEventListener('click',function(){
+  var btn=this;var tbar=document.querySelector('.toolbar');
+  btn.textContent='กำลังสร้าง...';btn.disabled=true;tbar.style.visibility='hidden';
+  html2canvas(document.getElementById('slipEl'),{scale:2,useCORS:true,backgroundColor:'#ffffff'}).then(function(c){
+    var a=document.createElement('a');a.download='${safeName}.png';a.href=c.toDataURL('image/png');a.click();
+    tbar.style.visibility='visible';btn.textContent='📸 บันทึกเป็นรูปภาพ';btn.disabled=false;
+  }).catch(function(){tbar.style.visibility='visible';btn.textContent='📸 บันทึกเป็นรูปภาพ';btn.disabled=false;});
+});
+<\/script></body></html>`;
+  const blob=new Blob([html],{type:"text/html;charset=utf-8"});
+  const blobUrl=URL.createObjectURL(blob);
+  const link=document.createElement("a");
+  link.href=blobUrl;link.target="_blank";link.rel="noopener noreferrer";
+  document.body.appendChild(link);link.click();document.body.removeChild(link);
+  setTimeout(()=>URL.revokeObjectURL(blobUrl),60000);
+}
+
+// Shared form for add/edit task - matches paper template layout
+function DelegationForm({task,setTask,data,role,isMobileMode}){
+  const [newStep,setNewStep]=useState("");
+  const assignedMember=data.team.find(t=>t.id===+task.assignedTo);
+  const steps=Array.isArray(task.jobDetails?.how)?task.jobDetails.how:[];
+  const addStep=()=>{if(!newStep.trim())return;setTask(t=>({...t,jobDetails:{...t.jobDetails,how:[...steps,newStep.trim()]}}));setNewStep("");};
+  const removeStep=(i)=>setTask(t=>({...t,jobDetails:{...t.jobDetails,how:steps.filter((_,idx)=>idx!==i)}}));
+  const updateStep=(i,v)=>setTask(t=>({...t,jobDetails:{...t.jobDetails,how:steps.map((s,idx)=>idx===i?v:s)}}));
+  return(
+    <div style={{display:"grid",gap:12}}>
+      <FG label="งาน / หัวข้องาน *"><FIn value={task.taskName} onChange={e=>setTask(t=>({...t,taskName:e.target.value}))} placeholder="เช่น หาราคา supplier"/></FG>
+      <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
+        <FG label="มอบหมายให้ *">
+          <FSel value={task.assignedTo} onChange={e=>setTask(t=>({...t,assignedTo:e.target.value}))}>
+            <option value="">-- เลือกทีมงาน --</option>
+            {data.team.filter(m=>m.id!==1&&m.status==="active").map(m=><option key={m.id} value={m.id}>{m.name} ({ROLE_LBL[m.role]})</option>)}
+          </FSel>
+        </FG>
+        {role==="owner"&&<FG label="ระดับ Delegation Level"><FSel value={task.level} onChange={e=>setTask(t=>({...t,level:+e.target.value}))}>{[1,2,3,4,5].map(l=><option key={l} value={l}>Level {l}</option>)}</FSel></FG>}
+      </div>
+      {task.assignedTo?(
+        <div style={{background:"#060d1a",border:`1px solid ${C.border}`,borderRadius:10,padding:16,marginTop:4}}>
+          <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:16}}>{assignedMember?.name||"..."},</div>
+          <FG label="What — ช่วย ... นะ"><FIn value={task.jobDetails.what} onChange={e=>setTask(t=>({...t,jobDetails:{...t.jobDetails,what:e.target.value}}))} placeholder="ตรวจสอบราคาปูนซีเมนต์จาก 3 ร้านค้า"/></FG>
+          <FG label="Why — เพราะ"><FIn value={task.jobDetails.why} onChange={e=>setTask(t=>({...t,jobDetails:{...t.jobDetails,why:e.target.value}}))} placeholder="เพื่อวัดราคาที่แข่งขันกันได้"/></FG>
+          <FG label="When — กำหนดส่ง *">
+            <ThaiDatePicker useISO value={task.deadline} onChange={v=>setTask(t=>({...t,deadline:v}))} placeholder="เลือกวันกำหนดส่ง"/>
+          </FG>
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.5,marginBottom:8}}>How — ขั้นตอน</div>
+            {steps.map((step,i)=>(
+              <div key={i} style={{display:"flex",gap:8,alignItems:"center",marginBottom:6}}>
+                <div style={{width:24,height:24,borderRadius:12,background:`${C.blue}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:C.blue,flexShrink:0}}>{i+1}</div>
+                <FIn value={step} onChange={e=>updateStep(i,e.target.value)} style={{flex:1}}/>
+                <button onClick={()=>removeStep(i)} style={{width:28,height:28,borderRadius:6,border:`1px solid ${C.border2}`,background:"none",color:"#ef4444",cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>×</button>
+              </div>
+            ))}
+            <div style={{display:"flex",gap:8,alignItems:"center",marginTop:4}}>
+              <div style={{width:24,height:24,borderRadius:12,background:C.faint,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:C.muted,flexShrink:0}}>{steps.length+1}</div>
+              <FIn value={newStep} onChange={e=>setNewStep(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();addStep();}}} placeholder="พิมพ์ขั้นตอน แล้วกด Enter หรือปุ่ม + เพิ่ม" style={{flex:1}}/>
+              <Btn size="sm" onClick={addStep} disabled={!newStep.trim()}>+ เพิ่ม</Btn>
+            </div>
+          </div>
+          <FG label="ถ้ามีอะไรติดขัด"><FIn value={task.jobDetails.obstacles} onChange={e=>setTask(t=>({...t,jobDetails:{...t.jobDetails,obstacles:e.target.value}}))} placeholder="แจ้งให้ฉันทราบทันที"/></FG>
+        </div>
+      ):(
+        <div style={{background:"#0d1117",border:`1px dashed ${C.border}`,borderRadius:10,padding:20,textAlign:"center",color:C.muted,fontSize:12}}>
+          กรุณาเลือกผู้รับมอบหมายก่อน เพื่อกรอกรายละเอียดงาน
+        </div>
+      )}
+      <FG label="หมายเหตุ"><FIn value={task.remarks} onChange={e=>setTask(t=>({...t,remarks:e.target.value}))} placeholder="เช่น รอข้อมูลจากร้าน 3"/></FG>
+    </div>
+  );
+}
+
+// Delegation Slip Card (inline display matching paper template)
+function DelegationSlipCard({task,data,role,isMobileMode}){
+  const aTo=data.team.find(t=>t.id===task.assignedTo);
+  const aBy=data.team.find(t=>t.id===task.assignedBy);
+  const steps=Array.isArray(task.jobDetails?.how)?task.jobDetails.how:(task.jobDetails?.how?[task.jobDetails.how]:[]);
+  const sc=getStatusColor(task.status);
+  return(
+    <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden"}}>
+      <div style={{padding:"14px 16px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:14,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{task.taskName}</div>
+          <div style={{fontSize:11,color:C.muted,marginTop:2}}>สร้างวันที่ {task.createdDate}</div>
+        </div>
+        <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
+          {role==="owner"&&<Tag color="blue"><span style={{fontWeight:700}}>L{task.level}</span></Tag>}
+          <div style={{display:"inline-flex",alignItems:"center",gap:4,padding:"4px 10px",background:`${sc}22`,color:sc,borderRadius:6,fontSize:11,fontWeight:600,border:`1px solid ${sc}44`}}>
+            {STATUS_ICONS[task.status]} {task.status==="inprogress"?"กำลังทำ":task.status==="notstarted"?"รอเริ่ม":task.status==="completed"?"เสร็จแล้ว":"ยกเลิก"}
+          </div>
+        </div>
+      </div>
+      <div style={{padding:16}}>
+        <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:16}}>{aTo?.name||"-"},</div>
+        {task.jobDetails?.what&&(
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.5,marginBottom:3}}>What</div>
+            <div style={{fontSize:13,color:C.text}}>ช่วย {task.jobDetails.what} นะ</div>
+          </div>
+        )}
+        {task.jobDetails?.why&&(
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.5,marginBottom:3}}>Why</div>
+            <div style={{fontSize:13,color:C.text}}>เพราะ{task.jobDetails.why}</div>
+          </div>
+        )}
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.5,marginBottom:3}}>When</div>
+          <div style={{fontSize:13,color:C.text}}>ส่งให้ฉันภายใน {fmtDateWithDay(task.deadline)}</div>
+        </div>
+        {steps.length>0&&(
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.5,marginBottom:8}}>How</div>
+            {steps.map((step,i)=>(
+              <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:6}}>
+                <div style={{width:22,height:22,borderRadius:11,background:`${C.blue}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:C.blue,flexShrink:0,marginTop:1}}>{i+1}</div>
+                <div style={{fontSize:13,color:C.text,lineHeight:1.5,paddingTop:2}}>{step}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {task.jobDetails?.obstacles&&(
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.5,marginBottom:3}}>ถ้ามีอะไรติดขัด</div>
+            <div style={{fontSize:13,color:C.text}}>{task.jobDetails.obstacles}</div>
+          </div>
+        )}
+        {task.remarks&&(
+          <div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${C.border}`,fontSize:12,color:C.muted}}>หมายเหตุ: {task.remarks}</div>
+        )}
+      </div>
+      <div style={{padding:"10px 16px",borderTop:`1px solid ${C.border}`,background:"#0d1117",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{fontSize:11,color:C.muted}}>มอบหมายโดย: {aBy?.name||"เจ้าของ"}</div>
+        <button onClick={()=>printDelegationSlip(task,data,role)} style={{padding:"5px 12px",borderRadius:6,border:`1px solid ${C.border2}`,background:"none",color:C.muted,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:4}}>🖨️ พิมพ์</button>
+      </div>
+    </div>
+  );
+}
+
+// Compact task table for non-owner view
+function NonOwnerTaskTable({tasks,data,setData,role,isMobileMode}){
+  const [slipModal,setSlipModal]=useState(null);
+  const updateStatus=(id,status)=>setData(d=>({...d,tracking:d.tracking.map(t=>t.id===id?{...t,status,...((status==="completed"||status==="cancelled")&&!t.completedDate?{completedDate:new Date().toISOString().slice(0,10)}:{})}:t)}));
+  return(
+    <>
+      <Card>
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",minWidth:380}}>
+            <thead>
+              <tr style={{borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>
+                <th style={{padding:"10px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase"}}>งาน</th>
+                <th style={{padding:"10px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase"}}>กำหนดส่ง</th>
+                <th style={{padding:"10px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase"}}>สถานะ</th>
+                <th style={{padding:"10px 12px",textAlign:"center",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase"}}>ใบมอบหมาย</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tasks.map(task=>{
+                const sc=getStatusColor(task.status);
+                const hasDetails=task.jobDetails&&(task.jobDetails.what||task.jobDetails.why||(Array.isArray(task.jobDetails.how)&&task.jobDetails.how.length>0));
+                return(
+                  <tr key={task.id} style={{borderBottom:`1px solid ${C.border}`}}>
+                    <td style={{padding:"10px 12px",fontSize:12,color:C.text}}>{task.taskName}</td>
+                    <td style={{padding:"10px 12px",fontSize:11,color:C.muted,whiteSpace:"nowrap"}}>{fmtDateWithDay(task.deadline)}</td>
+                    <td style={{padding:"10px 12px"}}>
+                      <select value={task.status} onChange={e=>updateStatus(task.id,e.target.value)} style={{background:`${sc}22`,border:`1px solid ${sc}44`,borderRadius:6,color:sc,fontSize:11,fontWeight:600,padding:"3px 8px",cursor:"pointer",outline:"none"}}>
+                        <option value="notstarted">😴 รอเริ่ม</option>
+                        <option value="inprogress">⏳ กำลังทำ</option>
+                        <option value="completed">✅ เสร็จแล้ว</option>
+                        <option value="cancelled">❌ ยกเลิก</option>
+                      </select>
+                    </td>
+                    <td style={{padding:"10px 12px",textAlign:"center"}}>
+                      {hasDetails?(
+                        <button onClick={()=>setSlipModal(task)} style={{padding:"4px 12px",borderRadius:6,border:`1px solid ${C.border2}`,background:"none",color:C.muted,cursor:"pointer",fontSize:11}}>📄 ดู</button>
+                      ):<span style={{color:C.faint,fontSize:11}}>—</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+      {slipModal&&(
+        <Mdl title="📄 ใบมอบหมายงาน" onClose={()=>setSlipModal(null)} size="lg" footer={<><Btn variant="ghost" onClick={()=>setSlipModal(null)}>ปิด</Btn><Btn onClick={()=>printDelegationSlip(slipModal,data,role)}>🖨️ พิมพ์</Btn></>}>
+          <DelegationSlipCard task={slipModal} data={data} role={role} isMobileMode={isMobileMode}/>
+        </Mdl>
+      )}
+    </>
+  );
+}
+
+// Returns true if task is completed/cancelled AND ref date is ≥ 7 days ago
+function isArchived(task){
+  if(task.status!=="completed"&&task.status!=="cancelled")return false;
+  const ref=task.completedDate||task.deadline;
+  if(!ref)return false;
+  return(Date.now()-new Date(ref).getTime())>=7*86400000;
+}
+
+function TrackingPage({data,setData,role,isMobileMode,authedUserId,isOwner}) {
+  const [selectedTeam,setSelectedTeam]=useState(null);
+  const [showAddTask,setShowAddTask]=useState(false);
+  const [showHistory,setShowHistory]=useState(false);
+  const emptyTask=()=>({taskName:"",assignedTo:"",level:1,deadline:"",status:"notstarted",remarks:"",jobDetails:{what:"",why:"",when:"",how:[],obstacles:""}});
+  const [newTask,setNewTask]=useState(emptyTask());
+
+  // Use authedUserId passed from App (supports owner "view as")
+  const currentUserId=authedUserId||(data.team.find(m=>m.role===role&&m.status==="active")?.id);
+  const ownerView=isOwner&&role==="owner"; // true only when owner views in owner mode
+  const [locLoading,setLocLoading]=useState(false);
+  const [locLoading2,setLocLoading2]=useState(false);
+  const [manualMode,setManualMode]=useState(false);
+  const [manualAddr,setManualAddr]=useState("");
+  const [locExpanded,setLocExpanded]=useState(false);
+  const [histDetailTask,setHistDetailTask]=useState(null);
+  const currentMemberObj=data.team.find(m=>m.id===currentUserId);
+
+  const saveLocation=(lat,lng,address)=>{
+    if(!currentUserId){return;}
+    setData(d=>({...d,team:d.team.map(t=>t.id===currentUserId?{...t,location:{lat,lng,address,updatedAt:new Date().toISOString()}}:t)}));
+  };
+
+  // Auto-detect location silently on mount + every 5 minutes
+  useEffect(()=>{
+    if(!currentUserId||!navigator.geolocation)return;
+    const detect=()=>{
+      navigator.geolocation.getCurrentPosition(async pos=>{
+        const lat=pos.coords.latitude,lng=pos.coords.longitude;
+        let address=`${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        try{
+          const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,{headers:{"Accept-Language":"th"}});
+          const json=await res.json();
+          if(json.address){const a=json.address;address=[a.road||a.pedestrian,a.suburb||a.neighbourhood||a.village||a.town||a.city,a.county||a.state_district].filter(Boolean).join(", ")||json.display_name;}
+        }catch(e){}
+        saveLocation(lat,lng,address);
+      },()=>{/* silent fail — user can still press button or type manually */},{enableHighAccuracy:true,timeout:8000});
+    };
+    detect(); // run immediately on mount
+    const interval=setInterval(detect,5*60*1000); // refresh every 5 min
+    return ()=>clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[currentUserId]);
+
+  const doCheckIn2=()=>{
+    if(!navigator.geolocation){
+      setManualMode(true);return;
+    }
+    setLocLoading2(true);
+    navigator.geolocation.getCurrentPosition(async pos=>{
+      const lat=pos.coords.latitude,lng=pos.coords.longitude;
+      let address=`${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      try{
+        const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,{headers:{"Accept-Language":"th"}});
+        const json=await res.json();
+        if(json.address){const a=json.address;address=[a.road||a.pedestrian,a.suburb||a.neighbourhood||a.village||a.town||a.city,a.county||a.state_district].filter(Boolean).join(", ")||json.display_name;}
+      }catch(e){}
+      saveLocation(lat,lng,address);
+      setLocLoading2(false);
+    },err=>{
+      setLocLoading2(false);
+      if(err.code===1){
+        // Permission denied — switch to manual input
+        setManualMode(true);
+      } else if(err.code===2){
+        alert("ไม่สามารถระบุตำแหน่งได้ (GPS ไม่มีสัญญาณ)\nลองเปิด Location ในโทรศัพท์ก่อน หรือกรอกที่อยู่เอง");
+        setManualMode(true);
+      } else {
+        alert("GPS timeout — ลองใหม่หรือกรอกที่อยู่เอง");
+        setManualMode(true);
+      }
+    },{enableHighAccuracy:true,timeout:10000});
+  };
+
+  // Permission filter: owner (in owner mode) sees all, others see only their tasks
+  const visibleTasks=ownerView
+    ?data.tracking
+    :data.tracking.filter(t=>t.assignedTo===currentUserId||t.assignedBy===currentUserId);
+
+  const activeTasks=data.tracking.filter(t=>t.status!=="completed"&&t.status!=="cancelled");
+  const archivedAll=data.tracking.filter(t=>isArchived(t));
+
+  const getTeamSummary=(teamId)=>{
+    const tasks=data.tracking.filter(t=>t.assignedTo===teamId&&!isArchived(t));
+    return {total:tasks.length,completed:tasks.filter(t=>t.status==="completed").length,inprogress:tasks.filter(t=>t.status==="inprogress").length,pending:tasks.filter(t=>t.status==="notstarted").length};
+  };
+
+  // ── Shared add-task modal (all roles) ──────────────────────
+  const addTaskModal=showAddTask&&(
+    <Mdl title="📋 มอบหมายงานใหม่" onClose={()=>{setShowAddTask(false);setNewTask(emptyTask());}} size="lg"
+      footer={<>
+        <Btn variant="ghost" onClick={()=>{setShowAddTask(false);setNewTask(emptyTask());}}>ยกเลิก</Btn>
+        <Btn onClick={()=>{
+          if(!newTask.taskName||!newTask.assignedTo||!newTask.deadline)return;
+          const aId=+newTask.assignedTo;
+          const lv=role==="owner"?+newTask.level:(data.employeeLevels[aId]||1);
+          setData(d=>({...d,tracking:[...d.tracking,{id:uid(),...newTask,assignedTo:aId,assignedBy:currentUserId||1,level:lv,createdDate:new Date().toISOString().slice(0,10)}]}));
+          setShowAddTask(false);setNewTask(emptyTask());
+        }} disabled={!newTask.taskName||!newTask.assignedTo||!newTask.deadline}>✓ มอบหมาย</Btn>
+      </>}
+    >
+      <DelegationForm task={newTask} setTask={setNewTask} data={data} role={role} isMobileMode={isMobileMode}/>
+    </Mdl>
+  );
+
+  // ── Shared history modal (all roles) ───────────────────────
+  const historyTasks=role==="owner"?archivedAll:archivedAll.filter(t=>t.assignedTo===currentUserId||t.assignedBy===currentUserId);
+  const historyModal=showHistory&&(
+    <Mdl title="📚 ประวัติงาน" onClose={()=>setShowHistory(false)} size="lg"
+      footer={<Btn variant="ghost" onClick={()=>setShowHistory(false)}>ปิด</Btn>}
+    >
+      {historyTasks.length===0?(
+        <div style={{textAlign:"center",padding:40,color:C.muted}}>ยังไม่มีประวัติงาน</div>
+      ):(
+        <div style={{display:"grid",gap:8}}>
+          {historyTasks.map(task=>{
+            const aTo=data.team.find(t=>t.id===task.assignedTo);
+            const sc=getStatusColor(task.status);
+            return(
+              <div key={task.id} onClick={()=>setHistDetailTask(task)} style={{background:"#0d1117",borderRadius:8,padding:"10px 14px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",cursor:"pointer",transition:"background 0.15s"}} onMouseOver={e=>e.currentTarget.style.background="#161d2a"} onMouseOut={e=>e.currentTarget.style.background="#0d1117"}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,fontWeight:600,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{task.taskName}</div>
+                  <div style={{fontSize:10,color:C.muted,marginTop:2}}>มอบให้: {aTo?.name||"-"} • กำหนด: {task.deadline}{task.completedDate?` • เสร็จ: ${task.completedDate}`:""}</div>
+                </div>
+                <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
+                  <span style={{fontSize:10,color:C.muted}}>รายละเอียด ›</span>
+                  <div style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 8px",background:`${sc}22`,color:sc,borderRadius:6,fontSize:10,fontWeight:600,border:`1px solid ${sc}44`}}>
+                    {STATUS_ICONS[task.status]} {task.status==="completed"?"เสร็จแล้ว":"ยกเลิก"}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Mdl>
+  );
+  const histDetailModal=histDetailTask&&(
+    <Mdl title="📄 รายละเอียดงาน" onClose={()=>setHistDetailTask(null)} size="lg"
+      footer={<>
+        <Btn variant="ghost" onClick={()=>setHistDetailTask(null)}>ปิด</Btn>
+        <Btn onClick={()=>printDelegationSlip(histDetailTask,data,role)}>🖨️ พิมพ์ / ดาวน์โหลด</Btn>
+      </>}
+    >
+      <DelegationSlipCard task={histDetailTask} data={data} role={role} isMobileMode={isMobileMode}/>
+    </Mdl>
+  );
+
+  if(selectedTeam){
+    return <TrackingDetailPage teamId={selectedTeam} data={data} setData={setData} role={role} onBack={()=>setSelectedTeam(null)} isMobileMode={isMobileMode} currentUserId={currentUserId} isOwner={isOwner}/>;
+  }
+
+  // ── Non-owner view (or owner viewing as someone) ────────────
+  if(!ownerView){
+    const myActive=visibleTasks.filter(t=>t.assignedTo===currentUserId&&!isArchived(t));
+    const assignedByMeActive=visibleTasks.filter(t=>t.assignedBy===currentUserId&&t.assignedTo!==currentUserId&&!isArchived(t));
+    const noActive=myActive.length===0&&assignedByMeActive.length===0;
+    return(
+      <div style={{padding:isMobileMode?12:24}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:8}}>
+          <div>
+            <div style={{fontSize:isMobileMode?18:24,fontWeight:700,color:C.text}}>📋 ติดตามงาน</div>
+            <div style={{fontSize:isMobileMode?11:13,color:C.muted,marginTop:2}}>งานที่เกี่ยวข้องกับคุณ</div>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            {historyTasks.length>0&&<Btn size="sm" variant="ghost" onClick={()=>setShowHistory(true)}>📚 ประวัติ ({historyTasks.length})</Btn>}
+            <Btn size="sm" onClick={()=>setShowAddTask(true)}>+ เพิ่มงาน</Btn>
+          </div>
+        </div>
+        {/* GPS Check-in card */}
+        <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 16px",marginBottom:16}}>
+          <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+            <Avatar member={currentMemberObj} size={40}/>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:12,fontWeight:700,color:C.text}}>{currentMemberObj?.name||"..."}  <span style={{fontWeight:400,color:C.muted,fontSize:10}}>({ROLE_LBL[role]})</span></div>
+              {currentMemberObj?.location?.address?(
+                <div style={{fontSize:11,color:C.green,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={currentMemberObj.location.address}>
+                  📍 {currentMemberObj.location.address}
+                </div>
+              ):(
+                <div style={{fontSize:11,color:C.muted,marginTop:2}}>ยังไม่ได้เช็คอินตำแหน่ง</div>
+              )}
+            </div>
+            <div style={{display:"flex",gap:6,flexShrink:0}}>
+              <Btn size="sm" variant={locLoading2?"ghost":"primary"} onClick={doCheckIn2} disabled={!!locLoading2}>
+                {locLoading2?"⏳ กำลังดึง...":"📍 GPS"}
+              </Btn>
+              <Btn size="sm" variant="ghost" onClick={()=>{setManualMode(m=>!m);setManualAddr("");}}>
+                ✏️ กรอกเอง
+              </Btn>
+            </div>
+          </div>
+          {manualMode&&(
+            <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${C.border}`}}>
+              <div style={{fontSize:11,color:C.orange,marginBottom:6}}>⚠️ GPS ถูกบล็อก — กรอกที่อยู่ปัจจุบันของคุณ</div>
+              <div style={{display:"flex",gap:6}}>
+                <input
+                  value={manualAddr}
+                  onChange={e=>setManualAddr(e.target.value)}
+                  placeholder="เช่น หน้างาน ม.บ้านใหม่ ต.หนองไผ่ อ.เมือง"
+                  style={{flex:1,background:"#0d1117",border:`1px solid ${C.border2}`,borderRadius:8,padding:"7px 10px",color:C.text,fontSize:12,outline:"none"}}
+                  onKeyDown={e=>{if(e.key==="Enter"&&manualAddr.trim()){saveLocation(null,null,manualAddr.trim());setManualMode(false);setManualAddr("");}}}
+                />
+                <Btn size="sm" onClick={()=>{if(!manualAddr.trim())return;saveLocation(null,null,manualAddr.trim());setManualMode(false);setManualAddr("");}} disabled={!manualAddr.trim()}>บันทึก</Btn>
+                <Btn size="sm" variant="ghost" onClick={()=>{setManualMode(false);setManualAddr("");}}>✕</Btn>
+              </div>
+            </div>
+          )}
+        </div>
+        {noActive&&(
+          <Card style={{padding:40,textAlign:"center",marginBottom:16}}>
+            <div style={{fontSize:32,marginBottom:8}}>📋</div>
+            <div style={{color:C.muted,fontSize:13}}>ไม่มีงานที่เกี่ยวข้องกับคุณในขณะนี้</div>
+          </Card>
+        )}
+        {myActive.length>0&&(
+          <div style={{marginBottom:24}}>
+            <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:12}}>📥 งานที่ได้รับมอบหมาย ({myActive.length})</div>
+            <NonOwnerTaskTable tasks={myActive} data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>
+          </div>
+        )}
+        {assignedByMeActive.length>0&&(
+          <div>
+            <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:12}}>📤 งานที่คุณมอบหมาย ({assignedByMeActive.length})</div>
+            <NonOwnerTaskTable tasks={assignedByMeActive} data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>
+          </div>
+        )}
+        {addTaskModal}
+        {historyModal}
+        {histDetailModal}
+      </div>
+    );
+  }
+
+  // ── Owner view ──────────────────────────────────────────────
+  const teamMembers=data.team.filter(t=>t.status==="active");
+
+  const doCheckIn=(memberId)=>{
+    if(!navigator.geolocation){alert("เบราว์เซอร์นี้ไม่รองรับ GPS");return;}
+    setLocLoading(memberId);
+    navigator.geolocation.getCurrentPosition(async pos=>{
+      const lat=pos.coords.latitude,lng=pos.coords.longitude;
+      let address=`${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      try{
+        const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=th`,{headers:{"Accept-Language":"th"}});
+        const json=await res.json();
+        if(json.address){
+          const a=json.address;
+          address=[a.road||a.pedestrian,a.suburb||a.neighbourhood||a.village||a.town||a.city,a.county||a.state_district].filter(Boolean).join(", ")||json.display_name;
+        }
+      }catch(e){/* use coords as fallback */}
+      setData(d=>({...d,team:d.team.map(t=>t.id===memberId?{...t,location:{lat,lng,address,updatedAt:new Date().toISOString()}}:t)}));
+      setLocLoading(false);
+    },err=>{
+      if(err.code===1) alert("ไม่ได้รับอนุญาต GPS\nไปที่ Settings > Privacy > Location ในเบราว์เซอร์แล้วอนุญาตก่อน");
+      else if(err.code===2) alert("ไม่พบสัญญาณ GPS — ลองเปิด Location ในโทรศัพท์ก่อน");
+      else alert("GPS timeout — ลองใหม่อีกครั้ง");
+      setLocLoading(false);
+    },{enableHighAccuracy:true,timeout:10000});
+  };
+
+  return (
+    <div style={{padding:isMobileMode?12:24}}>
+      <div style={{marginBottom:16}}>
+        <div style={{fontSize:isMobileMode?18:24,fontWeight:700,color:C.text}}>📋 ติดตามงาน</div>
+        <div style={{fontSize:isMobileMode?11:13,color:C.muted,marginTop:2}}>ดูภาพรวมงานที่มอบหมายให้ทุกคนในทีม</div>
+      </div>
+
+      {/* ── Location overview strip ── */}
+      <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:12,marginBottom:16,overflow:"hidden",transition:"box-shadow 0.2s",...(locExpanded?{boxShadow:"0 4px 24px rgba(59,130,246,0.12)"}:{})}}>
+        {/* Header row — always visible, click to toggle */}
+        <div onClick={()=>setLocExpanded(e=>!e)} style={{padding:"11px 16px",display:"flex",alignItems:"center",gap:8,cursor:"pointer",userSelect:"none"}}>
+          <span style={{fontSize:13}}>📍</span>
+          <span style={{fontSize:12,fontWeight:700,color:C.text}}>ตำแหน่งล่าสุดของทีม</span>
+          {/* live dots preview */}
+          <div style={{display:"flex",gap:4,marginLeft:4}}>
+            {teamMembers.slice(0,5).map(m=>{
+              const ago=m.location?.updatedAt?Math.floor((Date.now()-new Date(m.location.updatedAt).getTime())/60000):null;
+              return <div key={m.id} style={{width:7,height:7,borderRadius:"50%",background:ago!==null&&ago<60?C.green:"#374151",transition:"background 0.3s"}}/>;
+            })}
+          </div>
+          <span style={{marginLeft:"auto",fontSize:11,color:C.muted,fontWeight:400}}>
+            {teamMembers.filter(m=>m.location?.address).length}/{teamMembers.length} ออนไลน์
+          </span>
+          {/* Chevron */}
+          <span style={{fontSize:12,color:C.muted,transition:"transform 0.3s",transform:locExpanded?"rotate(180deg)":"rotate(0deg)",display:"inline-block"}}>▾</span>
+        </div>
+
+        {/* Expandable body */}
+        <div style={{
+          maxHeight:locExpanded?800:0,
+          overflow:"hidden",
+          transition:"max-height 0.4s cubic-bezier(0.4,0,0.2,1)",
+        }}>
+          <div style={{padding:"0 16px 16px",display:"grid",gridTemplateColumns:isMobileMode?"1fr 1fr":"repeat(auto-fill,minmax(180px,1fr))",gap:10}}>
+            {teamMembers.map(member=>{
+              const hasLoc=!!member.location?.address;
+              const updatedAt=member.location?.updatedAt?new Date(member.location.updatedAt):null;
+              const minutesAgo=updatedAt?Math.floor((Date.now()-updatedAt.getTime())/60000):null;
+              const isRecent=minutesAgo!==null&&minutesAgo<60;
+              const timeLabel=minutesAgo===null?"ยังไม่ได้เช็คอิน":minutesAgo<60?`${minutesAgo} นาทีที่แล้ว`:minutesAgo<1440?`${Math.floor(minutesAgo/60)} ชม. ที่แล้ว`:updatedAt.toLocaleDateString("th-TH");
+              return(
+                <div key={member.id} style={{
+                  background:"#0d1117",
+                  borderRadius:10,
+                  padding:"10px 12px",
+                  border:`1px solid ${isRecent?C.green+"44":C.border}`,
+                  display:"flex",
+                  gap:10,
+                  alignItems:"center",
+                  transition:"border-color 0.3s",
+                }}>
+                  <div style={{position:"relative",flexShrink:0}}>
+                    <Avatar member={member} size={36} fontSize={14}/>
+                    <div style={{position:"absolute",bottom:-1,right:-1,width:10,height:10,borderRadius:5,background:isRecent?C.green:"#374151",border:`2px solid #0d1117`,transition:"background 0.3s"}}/>
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:12,fontWeight:700,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{member.name.split(" ")[0]}</div>
+                    {hasLoc?(
+                      <div style={{fontSize:10,color:C.green,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}} title={member.location.address}>
+                        {member.location.address}
+                      </div>
+                    ):(
+                      <div style={{fontSize:10,color:C.muted}}>ยังไม่ทราบตำแหน่ง</div>
+                    )}
+                    <div style={{fontSize:9,color:C.muted,marginTop:1}}>{timeLabel}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"repeat(auto-fit,minmax(240px,1fr))",gap:12,marginBottom:20}}>
+        {teamMembers.map(member=>{
+          const s=getTeamSummary(member.id);
+          const activeMemberTasks=data.tracking.filter(t=>t.assignedTo===member.id&&!isArchived(t)&&t.status!=="completed"&&t.status!=="cancelled");
+          const showTasks=activeMemberTasks.slice(0,3);
+          const overflowCount=activeMemberTasks.length-showTasks.length;
+          return(
+            <div key={member.id} onClick={()=>setSelectedTeam(member.id)} style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:12,padding:16,cursor:"pointer",transition:"all 0.2s",position:"relative"}}>
+              {/* Header: avatar + name */}
+              <div style={{display:"flex",alignItems:"center",marginBottom:12,gap:10}}>
+                <Avatar member={member} size={42}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:700,color:C.text,fontSize:13,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{member.name}</div>
+                  <div style={{fontSize:10,color:ROLE_COL[member.role]||C.muted,marginTop:2,fontWeight:600}}>{ROLE_LBL[member.role]}</div>
+                </div>
+                <div style={{width:8,height:8,borderRadius:"50%",background:s.inprogress>0?C.green:"#374151",flexShrink:0}} title={s.inprogress>0?"มีงานกำลังทำ":"ไม่มีงาน"}/>
+              </div>
+              {/* Stat boxes */}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:activeMemberTasks.length>0?10:0}}>
+                <div style={{background:"#0d1117",borderRadius:7,padding:"7px 4px",textAlign:"center",borderTop:`2px solid ${C.orange}`}}>
+                  <div style={{fontSize:16,fontWeight:700,color:C.orange}}>{s.inprogress}</div>
+                  <div style={{fontSize:9,color:C.muted,marginTop:1}}>กำลังทำ</div>
+                </div>
+                <div style={{background:"#0d1117",borderRadius:7,padding:"7px 4px",textAlign:"center",borderTop:`2px solid ${C.blue}`}}>
+                  <div style={{fontSize:16,fontWeight:700,color:C.blue}}>{s.pending}</div>
+                  <div style={{fontSize:9,color:C.muted,marginTop:1}}>รอทำ</div>
+                </div>
+                <div style={{background:"#0d1117",borderRadius:7,padding:"7px 4px",textAlign:"center",borderTop:`2px solid ${C.green}`}}>
+                  <div style={{fontSize:16,fontWeight:700,color:C.green}}>{s.completed}</div>
+                  <div style={{fontSize:9,color:C.muted,marginTop:1}}>เสร็จแล้ว</div>
+                </div>
+              </div>
+              {/* Active task pills */}
+              {activeMemberTasks.length>0&&(
+                <div style={{borderTop:`1px solid ${C.border}`,paddingTop:8}}>
+                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                    {showTasks.map(task=>{
+                      const sc=task.status==="inprogress"?C.orange:C.blue;
+                      const icon=task.status==="inprogress"?"⏳":"😴";
+                      const lvlColor=["","#94a3b8","#38bdf8","#f59e0b","#f87171","#c084fc"][task.level]||C.muted;
+                      return(
+                        <div key={task.id} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 8px",background:"#0d1117",borderRadius:6,borderLeft:`2px solid ${sc}`}}>
+                          <span style={{fontSize:10}}>{icon}</span>
+                          <span style={{flex:1,fontSize:11,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{task.taskName}</span>
+                          <span style={{fontSize:9,color:lvlColor,fontWeight:700,flexShrink:0}}>L{task.level}</span>
+                        </div>
+                      );
+                    })}
+                    {overflowCount>0&&<div style={{fontSize:10,color:C.muted,textAlign:"center",paddingTop:2}}>+{overflowCount} งานอื่น...</div>}
+                  </div>
+                </div>
+              )}
+              {activeMemberTasks.length===0&&s.total===0&&(
+                <div style={{textAlign:"center",color:C.muted,fontSize:11,paddingTop:4}}>ไม่มีงานที่รับผิดชอบ</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <div style={{fontSize:14,fontWeight:700,color:C.text}}>มอบหมายงานใหม่</div>
+        <div style={{display:"flex",gap:8}}>
+          {archivedAll.length>0&&<Btn size="sm" variant="ghost" onClick={()=>setShowHistory(true)}>📚 ประวัติ ({archivedAll.length})</Btn>}
+          <Btn size="sm" onClick={()=>setShowAddTask(true)}>+ เพิ่มงาน</Btn>
+        </div>
+      </div>
+
+      <div style={{marginTop:20}}>
+        <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:12}}>📊 สรุปงานทั้งหมด</div>
+        <Card style={{padding:16}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12}}>
+            <div style={{textAlign:"center"}}><div style={{fontSize:20,fontWeight:700,color:C.orange}}>{activeTasks.filter(t=>t.status==="inprogress").length}</div><div style={{fontSize:11,color:C.muted,marginTop:4}}>⏳ กำลังทำ</div></div>
+            <div style={{textAlign:"center"}}><div style={{fontSize:20,fontWeight:700,color:C.blue}}>{activeTasks.filter(t=>t.status==="notstarted").length}</div><div style={{fontSize:11,color:C.muted,marginTop:4}}>😴 รอเริ่ม</div></div>
+            <div style={{textAlign:"center"}}><div style={{fontSize:20,fontWeight:700,color:C.green}}>{data.tracking.filter(t=>t.status==="completed"&&!isArchived(t)).length}</div><div style={{fontSize:11,color:C.muted,marginTop:4}}>✅ เสร็จแล้ว</div></div>
+            <div style={{textAlign:"center"}}><div style={{fontSize:20,fontWeight:700,color:C.muted}}>{archivedAll.length}</div><div style={{fontSize:11,color:C.muted,marginTop:4}}>📚 ในประวัติ</div></div>
+          </div>
+        </Card>
+      </div>
+      {addTaskModal}
+      {historyModal}
+      {histDetailModal}
+    </div>
+  );
+}
+
+function TrackingDetailPage({teamId,data,setData,role,onBack,isMobileMode,currentUserId}) {
+  const [activeTab,setActiveTab]=useState("tasks");
+  const [editModal,setEditModal]=useState(null);
+  const [slipModal,setSlipModal]=useState(null);
+  const [showHistory,setShowHistory]=useState(false);
+
+  const team=data.team.find(t=>t.id===teamId);
+  const allTasks=data.tracking.filter(t=>t.assignedTo===teamId);
+  const tasks=allTasks.filter(t=>!isArchived(t));
+  const archivedTasks=allTasks.filter(t=>isArchived(t));
+  const completed=tasks.filter(t=>t.status==="completed").length;
+  const inprogress=tasks.filter(t=>t.status==="inprogress").length;
+  const detailedTasks=tasks.filter(t=>t.jobDetails&&(t.jobDetails.what||t.jobDetails.why||(Array.isArray(t.jobDetails.how)&&t.jobDetails.how.length>0)));
+
+  if(!team)return null;
+
+  const canManage=(task)=>role==="owner"||task.assignedBy===currentUserId||task.assignedTo===currentUserId;
+
+  const handleUpdateTask=(taskId,updates)=>{
+    const withDate={...updates};
+    if((updates.status==="completed"||updates.status==="cancelled")&&!updates.completedDate){
+      withDate.completedDate=new Date().toISOString().slice(0,10);
+    }
+    setData(d=>({...d,tracking:d.tracking.map(t=>t.id===taskId?{...t,...withDate}:t)}));
+  };
+  const handleDeleteTask=(taskId)=>{
+    if(!window.confirm("ลบงานนี้?"))return;
+    setData(d=>({...d,tracking:d.tracking.filter(t=>t.id!==taskId)}));
+  };
+  const openEdit=(task,type)=>{
+    const normalized={...task,_type:type,jobDetails:{...task.jobDetails,how:Array.isArray(task.jobDetails?.how)?task.jobDetails.how:(task.jobDetails?.how?[task.jobDetails.how]:[]) }};
+    setEditModal(normalized);
+  };
+
+  return (
+    <div style={{padding:isMobileMode?12:24}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+        <button onClick={onBack} style={{background:"none",border:"none",color:C.muted,fontSize:18,cursor:"pointer",padding:"6px 10px"}}>← ย้อนกลับ</button>
+        <div style={{flex:1}}>
+          <div style={{fontSize:isMobileMode?18:20,fontWeight:700,color:C.text}}>{team.name}</div>
+          <div style={{fontSize:isMobileMode?10:11,color:C.muted,marginTop:2}}>{ROLE_LBL[team.role]} • งานปัจจุบัน {tasks.length} งาน</div>
+        </div>
+        {archivedTasks.length>0&&(
+          <Btn size="sm" variant="ghost" onClick={()=>setShowHistory(true)}>📚 ประวัติ ({archivedTasks.length})</Btn>
+        )}
+      </div>
+
+      {/* Stats */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+        <Card style={{padding:14,textAlign:"center"}}><div style={{fontSize:24,fontWeight:700,color:C.blue,marginBottom:4}}>{tasks.length}</div><div style={{fontSize:10,color:C.muted}}>ทั้งหมด</div></Card>
+        <Card style={{padding:14,textAlign:"center"}}><div style={{fontSize:24,fontWeight:700,color:C.orange,marginBottom:4}}>{inprogress}</div><div style={{fontSize:10,color:C.muted}}>⏳ กำลังทำ</div></Card>
+        <Card style={{padding:14,textAlign:"center"}}><div style={{fontSize:24,fontWeight:700,color:C.green,marginBottom:4}}>{completed}</div><div style={{fontSize:10,color:C.muted}}>✅ เสร็จ</div></Card>
+        <Card style={{padding:14,textAlign:"center"}}><div style={{fontSize:24,fontWeight:700,color:C.muted,marginBottom:4}}>{Math.round((completed/(tasks.length||1))*100)}%</div><div style={{fontSize:10,color:C.muted}}>คืบหน้า</div></Card>
+      </div>
+
+      {/* Tabs */}
+      <div style={{display:"flex",gap:0,marginBottom:16,borderBottom:`1px solid ${C.border}`}}>
+        {[{id:"tasks",label:"📋 งาน"},{id:"details",label:"📄 รายละเอียดงาน"}].map(tab=>(
+          <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{padding:"10px 18px",border:"none",background:"none",color:activeTab===tab.id?C.blue:C.muted,fontWeight:activeTab===tab.id?700:400,fontSize:13,cursor:"pointer",borderBottom:activeTab===tab.id?`2px solid ${C.blue}`:"2px solid transparent",marginBottom:-1,transition:"all 0.15s"}}>
+            {tab.label}
+            {tab.id==="details"&&detailedTasks.length>0&&<span style={{marginLeft:6,background:`${C.blue}33`,color:C.blue,borderRadius:10,fontSize:10,padding:"1px 7px",fontWeight:700}}>{detailedTasks.length}</span>}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab: งาน */}
+      {activeTab==="tasks"&&(
+        <Card>
+          <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",minWidth:isMobileMode?400:560}}>
+              <thead>
+                <tr style={{borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>
+                  <th style={{padding:isMobileMode?"10px 8px":"12px 14px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase"}}># งาน</th>
+                  {role==="owner"&&<th style={{padding:isMobileMode?"10px 8px":"12px 14px",textAlign:"center",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase"}}>ระดับ</th>}
+                  <th style={{padding:isMobileMode?"10px 8px":"12px 14px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase"}}>กำหนดส่ง</th>
+                  <th style={{padding:isMobileMode?"10px 8px":"12px 14px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase"}}>สถานะ</th>
+                  <th style={{padding:isMobileMode?"10px 8px":"12px 14px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase"}}>หมายเหตุ</th>
+                  <th style={{padding:isMobileMode?"10px 8px":"12px 14px",textAlign:"center",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase"}}>จัดการ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tasks.length===0?(
+                  <tr><td colSpan="6" style={{padding:"20px",textAlign:"center",color:C.muted}}>ไม่มีงานที่มอบหมาย</td></tr>
+                ):tasks.map(task=>{
+                  const sc=getStatusColor(task.status);
+                  const hasDetails=task.jobDetails&&(task.jobDetails.what||task.jobDetails.why||(Array.isArray(task.jobDetails.how)&&task.jobDetails.how.length>0));
+                  const can=canManage(task);
+                  return(
+                    <tr key={task.id} style={{borderBottom:`1px solid ${C.border}`}}>
+                      <td style={{padding:isMobileMode?"10px 8px":"12px 14px",fontSize:12,color:C.text,maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={task.taskName}>{task.taskName}</td>
+                      {role==="owner"&&<td style={{padding:isMobileMode?"10px 8px":"12px 14px",textAlign:"center"}}><Tag color="blue"><span style={{fontWeight:700}}>L{task.level}</span></Tag></td>}
+                      <td style={{padding:isMobileMode?"10px 8px":"12px 14px",fontSize:11,color:C.muted,whiteSpace:"nowrap"}}>{fmtDateWithDay(task.deadline)}</td>
+                      <td style={{padding:isMobileMode?"10px 8px":"12px 14px"}} onClick={can?()=>openEdit(task,"status"):undefined}>
+                        <div style={{cursor:can?"pointer":"default",display:"inline-flex",alignItems:"center",gap:4,padding:"4px 8px",background:`${sc}22`,color:sc,borderRadius:6,fontSize:11,fontWeight:600,border:`1px solid ${sc}44`}}>
+                          {STATUS_ICONS[task.status]} {task.status==="inprogress"?"กำลังทำ":task.status==="notstarted"?"รอเริ่ม":task.status==="completed"?"เสร็จแล้ว":"ยกเลิก"}
+                        </div>
+                      </td>
+                      <td style={{padding:isMobileMode?"10px 8px":"12px 14px",fontSize:11,color:C.muted,maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={task.remarks}>{task.remarks||"—"}</td>
+                      <td style={{padding:isMobileMode?"10px 8px":"12px 14px",textAlign:"center"}}>
+                        <div style={{display:"flex",gap:4,justifyContent:"center"}}>
+                          {hasDetails&&<button onClick={()=>setSlipModal(task)} style={{width:28,height:28,borderRadius:4,border:`1px solid ${C.border2}`,background:"none",color:C.muted,cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}} title="ดูใบมอบหมาย">📄</button>}
+                          {can&&<button onClick={()=>openEdit(task,"all")} style={{width:28,height:28,borderRadius:4,border:`1px solid ${C.border2}`,background:"none",color:C.muted,cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}} title="แก้ไข">✏️</button>}
+                          {can&&<button onClick={()=>handleDeleteTask(task.id)} style={{width:28,height:28,borderRadius:4,border:`1px solid ${C.border2}`,background:"none",color:C.muted,cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}} title="ลบ">🗑</button>}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* Tab: รายละเอียดงาน */}
+      {activeTab==="details"&&(
+        <div>
+          {detailedTasks.length===0?(
+            <Card style={{padding:40,textAlign:"center"}}>
+              <div style={{fontSize:32,marginBottom:8}}>📄</div>
+              <div style={{color:C.muted,fontSize:13}}>ยังไม่มีงานที่กรอกรายละเอียด What/Why/How</div>
+              <div style={{fontSize:11,color:C.muted,marginTop:4}}>ไปที่แท็บ "งาน" และกด ✏️ เพื่อเพิ่มรายละเอียด</div>
+            </Card>
+          ):(
+            <div style={{display:"grid",gap:16}}>
+              {detailedTasks.map(task=>(
+                <DelegationSlipCard key={task.id} task={task} data={data} role={role} isMobileMode={isMobileMode}/>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Slip Modal */}
+      {slipModal&&(
+        <Mdl title="📄 ใบมอบหมายงาน" onClose={()=>setSlipModal(null)} size="lg"
+          footer={<><Btn variant="ghost" onClick={()=>setSlipModal(null)}>ปิด</Btn><Btn onClick={()=>printDelegationSlip(slipModal,data,role)}>🖨️ พิมพ์ / ดาวน์โหลด</Btn></>}
+        >
+          <DelegationSlipCard task={slipModal} data={data} role={role} isMobileMode={isMobileMode}/>
+        </Mdl>
+      )}
+
+      {/* History Modal */}
+      {showHistory&&(
+        <Mdl title={`📚 ประวัติงาน — ${team.name}`} onClose={()=>setShowHistory(false)} size="lg"
+          footer={<Btn variant="ghost" onClick={()=>setShowHistory(false)}>ปิด</Btn>}
+        >
+          {archivedTasks.length===0?(
+            <div style={{textAlign:"center",padding:40,color:C.muted}}>ยังไม่มีประวัติงาน</div>
+          ):(
+            <div style={{display:"grid",gap:8}}>
+              {archivedTasks.map(task=>{
+                const sc=getStatusColor(task.status);
+                return(
+                  <div key={task.id} onClick={()=>setSlipModal(task)} style={{background:"#0d1117",borderRadius:8,padding:"10px 14px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",cursor:"pointer",transition:"background 0.15s"}} onMouseOver={e=>e.currentTarget.style.background="#161d2a"} onMouseOut={e=>e.currentTarget.style.background="#0d1117"}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:12,fontWeight:600,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{task.taskName}</div>
+                      <div style={{fontSize:10,color:C.muted,marginTop:2}}>กำหนด: {task.deadline}{task.completedDate?` • เสร็จ: ${task.completedDate}`:""}</div>
+                    </div>
+                    <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
+                      <span style={{fontSize:10,color:C.muted}}>รายละเอียด ›</span>
+                      <div style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 8px",background:`${sc}22`,color:sc,borderRadius:6,fontSize:10,fontWeight:600,border:`1px solid ${sc}44`}}>
+                        {STATUS_ICONS[task.status]} {task.status==="completed"?"เสร็จแล้ว":"ยกเลิก"}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Mdl>
+      )}
+
+      {/* Edit Modal */}
+      {editModal&&(
+        <Mdl title={editModal._type==="status"?"เปลี่ยนสถานะ":"✏️ แก้ไขงาน"} onClose={()=>setEditModal(null)} size="lg"
+          footer={<><Btn variant="ghost" onClick={()=>setEditModal(null)}>ยกเลิก</Btn><Btn onClick={()=>{const{_type,...task}=editModal;handleUpdateTask(task.id,task);setEditModal(null);}}>✓ บันทึก</Btn></>}
+        >
+          {editModal._type==="status"?(
+            <FG label="สถานะ">
+              <FSel value={editModal.status} onChange={e=>setEditModal(t=>({...t,status:e.target.value}))}>
+                <option value="notstarted">😴 ยังไม่เริ่ม</option>
+                <option value="inprogress">⏳ กำลังทำ</option>
+                <option value="completed">✅ เสร็จแล้ว</option>
+                <option value="cancelled">❌ ยกเลิก</option>
+              </FSel>
+            </FG>
+          ):(
+            <DelegationForm task={editModal} setTask={setEditModal} data={data} role={role} isMobileMode={isMobileMode}/>
+          )}
+        </Mdl>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// END OF PART 8.5
+// ═══════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════
 // END OF PART 8
@@ -1981,7 +3750,31 @@ const STORAGE_ROLE="thecrown_role";
 function loadData(){
   try{
     const raw=localStorage.getItem(STORAGE_KEY);
-    if(raw){const parsed=JSON.parse(raw);return{...INIT,...parsed};}
+    if(raw){
+      const parsed=JSON.parse(raw);
+      const merged={...INIT,...parsed};
+      // Always base team on INIT ids; merge saved mutable fields (avatar, password, location, pendingPassword)
+      // Also keep any pending-registration members from saved data
+      const savedById={};
+      (parsed.team||[]).forEach(m=>{savedById[m.id]=m;});
+      const baseTeam=INIT.team.map(m=>{
+        const saved=savedById[m.id]||{};
+        return {...m,
+          name:saved.name||m.name,
+          email:saved.email||m.email,
+          phone:saved.phone||m.phone,
+          avatar:saved.avatar||m.avatar,
+          password:saved.password||m.password,
+          location:saved.location||m.location,
+          pendingPassword:saved.pendingPassword||null,
+          pendingPasswordAt:saved.pendingPasswordAt||null,
+        };
+      });
+      // Add pending registration members (status==='pending') from saved data
+      const pendingNew=(parsed.team||[]).filter(m=>m.status==="pending"&&!INIT.team.find(b=>b.id===m.id));
+      merged.team=[...baseTeam,...pendingNew];
+      return merged;
+    }
   }catch(e){console.warn("Failed to load saved data",e);}
   return INIT;
 }
@@ -1999,56 +3792,255 @@ export default function App() {
   const [role,setRole]=useState(()=>loadRole());
   const [page,setPage]=useState("dash");
   const [openId,setOpenId]=useState(null);
+  const [isMobileMode,setIsMobileMode]=useState(()=>window.innerWidth<768);
+  const [sidebarOpen,setSidebarOpen]=useState(false);
+
+  // Auto-detect mobile on resize
+  useEffect(()=>{
+    const onResize=()=>setIsMobileMode(window.innerWidth<768);
+    window.addEventListener("resize",onResize);
+    return()=>window.removeEventListener("resize",onResize);
+  },[]);
+
+  // ── Auth state ─────────────────────────────────────────────
+  const [loggedIn,setLoggedIn]=useState(()=>{try{return JSON.parse(localStorage.getItem("cpms_loggedin")||"false");}catch(e){return false;}});
+  const [authedUserId,setAuthedUserId]=useState(()=>{try{return JSON.parse(localStorage.getItem("cpms_authed_uid")||"null");}catch(e){return null;}});
+  const [viewAsId,setViewAsId]=useState(null); // owner can "view as" an employee
+  const [showChangePw,setShowChangePw]=useState(false);
+  const [changePwForm,setChangePwForm]=useState({newPw:"",confirm:"",showNew:false,showConfirm:false,err:"",sent:false});
 
   // Auto-save data to localStorage
   useEffect(()=>{saveData(data);},[data]);
   useEffect(()=>{try{localStorage.setItem(STORAGE_ROLE,role);}catch(e){}},[role]);
+  useEffect(()=>{try{localStorage.setItem("cpms_loggedin",JSON.stringify(loggedIn));}catch(e){}},[loggedIn]);
+  useEffect(()=>{try{localStorage.setItem("cpms_authed_uid",JSON.stringify(authedUserId));}catch(e){}},[authedUserId]);
+
+  function handleLogin(memberId,memberRole){
+    setLoggedIn(true);
+    setAuthedUserId(memberId);
+    setRole(memberRole);
+    setViewAsId(null);
+    setPage(memberRole==="marketing"?"marketing":"dash");
+  }
+  function handleLogout(){
+    setLoggedIn(false);setAuthedUserId(null);setViewAsId(null);
+    try{localStorage.removeItem("cpms_loggedin");localStorage.removeItem("cpms_authed_uid");}catch(e){}
+  }
+
+  const realRole=role; // current role context (may differ if owner viewing as someone)
+  const effectiveUserId=viewAsId||authedUserId; // the user ID for task filtering
+  const authedMember=data.team.find(m=>m.id===authedUserId);
+  const isOwner=authedMember?.role==="owner";
 
   function handleRole(r){setRole(r);setOpenId(null);setPage(r==="marketing"?"marketing":"dash");}
   function handleOpen(h){setOpenId(h.id);setPage("house");}
   function handleBack(){setOpenId(null);setPage("dash");}
-  function handleSetPage(p){setPage(p);setOpenId(null);}
+  function handleSetPage(p){setPage(p);setOpenId(null);setSidebarOpen(false);}
 
-  const topTitle=openId?`บ้าน ${data.houses.find(h=>h.id===openId)?.name||""}`:({dash:"Dashboard",finance:"💹 Financial Dashboard",purchase:role==="engineer"?"อนุมัติคำสั่งซื้อ":"รายการจัดซื้อ",payments:"💰 Payments",analytics:"📊 Analytics",team:"👥 Team",marketing:"การตลาด",settings:"ตั้งค่า"}[page]||"");
+  // Sync browser history with page/openId state
+  useEffect(()=>{
+    const state={page,openId};
+    const hash=`#${page}${openId?"/"+openId:""}`;
+    history.pushState(state,"",hash);
+  },[page,openId]);
+  useEffect(()=>{
+    const fn=e=>{
+      if(e.state&&e.state.page){setPage(e.state.page);setOpenId(e.state.openId||null);}
+    };
+    window.addEventListener("popstate",fn);
+    return()=>window.removeEventListener("popstate",fn);
+  },[]);
+
+  // If not logged in, show LoginPage
+  if(!loggedIn){
+    return(<><style>{GS}</style><LoginPage data={data} onLogin={handleLogin}/></>);
+  }
+
+  const handleRequestChangePw=()=>{
+    const f=changePwForm;
+    if(!f.newPw||!f.confirm){setChangePwForm(v=>({...v,err:"กรุณากรอกรหัสผ่านใหม่ทั้งสองช่อง"}));return;}
+    if(f.newPw.length<4){setChangePwForm(v=>({...v,err:"รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร"}));return;}
+    if(f.newPw!==f.confirm){setChangePwForm(v=>({...v,err:"รหัสผ่านไม่ตรงกัน"}));return;}
+    // Store pending password change
+    setData(d=>({...d,team:d.team.map(t=>t.id===authedUserId?{...t,pendingPassword:f.newPw,pendingPasswordAt:new Date().toISOString()}:t)}));
+    // Send email to owner
+    const member=data.team.find(m=>m.id===authedUserId);
+    const subject=encodeURIComponent(`[CPMS] ขอเปลี่ยนรหัสผ่าน - ${member?.name||""}`);
+    const body=encodeURIComponent(
+      `มีคำขอเปลี่ยนรหัสผ่านในระบบ CPMS\n\n`+
+      `ผู้ขอ: ${member?.name||""}\nUsername: ${member?.username||""}\nตำแหน่ง: ${ROLE_LBL[member?.role||""]}\n`+
+      `วันที่ขอ: ${new Date().toLocaleString("th-TH")}\n\n`+
+      `กรุณาเข้าสู่ระบบในฐานะ owner แล้วไปที่ ตั้งค่า → ทีมงาน เพื่ออนุมัติการเปลี่ยนรหัสผ่าน`
+    );
+    try{window.open(`mailto:${OWNER_EMAIL}?subject=${subject}&body=${body}`);}catch(e){}
+    setChangePwForm(v=>({...v,err:"",sent:true}));
+  };
+
+  const changePwModal=showChangePw&&(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={e=>{if(e.target===e.currentTarget){setShowChangePw(false);setChangePwForm({newPw:"",confirm:"",showNew:false,showConfirm:false,err:"",sent:false});}}}>
+      <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:16,padding:28,width:"100%",maxWidth:360}}>
+        <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:16}}>🔑 ขอเปลี่ยนรหัสผ่าน</div>
+        {changePwForm.sent?(
+          <>
+            <div style={{textAlign:"center",padding:"20px 0"}}>
+              <div style={{fontSize:40,marginBottom:10}}>📨</div>
+              <div style={{fontSize:13,color:C.text,fontWeight:600,marginBottom:6}}>ส่งคำขอสำเร็จ</div>
+              <div style={{fontSize:12,color:C.muted,lineHeight:1.7}}>ระบบเปิดอีเมลแจ้งเจ้าของโครงการแล้ว<br/>รอการอนุมัติจาก <span style={{color:C.blue}}>{OWNER_EMAIL}</span></div>
+            </div>
+            <Btn onClick={()=>{setShowChangePw(false);setChangePwForm({newPw:"",confirm:"",showNew:false,showConfirm:false,err:"",sent:false});}} style={{width:"100%",justifyContent:"center"}}>ปิด</Btn>
+          </>
+        ):(
+          <>
+            <FG label="รหัสผ่านใหม่ (≥4 ตัว)">
+              <div style={{position:"relative"}}>
+                <FIn type={changePwForm.showNew?"text":"password"} value={changePwForm.newPw} onChange={e=>setChangePwForm(v=>({...v,newPw:e.target.value,err:""}))} placeholder="รหัสผ่านใหม่"/>
+                <button type="button" onClick={()=>setChangePwForm(v=>({...v,showNew:!v.showNew}))} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:14,padding:0}}>{changePwForm.showNew?"🙈":"👁️"}</button>
+              </div>
+            </FG>
+            <FG label="ยืนยันรหัสผ่านใหม่">
+              <div style={{position:"relative"}}>
+                <FIn type={changePwForm.showConfirm?"text":"password"} value={changePwForm.confirm} onChange={e=>setChangePwForm(v=>({...v,confirm:e.target.value,err:""}))} placeholder="พิมพ์รหัสผ่านใหม่อีกครั้ง"/>
+                <button type="button" onClick={()=>setChangePwForm(v=>({...v,showConfirm:!v.showConfirm}))} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:14,padding:0}}>{changePwForm.showConfirm?"🙈":"👁️"}</button>
+              </div>
+            </FG>
+            {changePwForm.err&&<div style={{background:`${C.red}22`,border:`1px solid ${C.red}44`,borderRadius:8,padding:"8px 12px",color:"#fca5a5",fontSize:12,marginBottom:12}}>{changePwForm.err}</div>}
+            <div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:8,padding:"8px 12px",fontSize:11,color:C.orange,marginBottom:14}}>
+              ⚠️ รหัสผ่านจะเปลี่ยนได้เมื่อเจ้าของโครงการอนุมัติทางอีเมล <span style={{color:C.blue}}>{OWNER_EMAIL}</span> เท่านั้น
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <Btn variant="ghost" onClick={()=>{setShowChangePw(false);setChangePwForm({newPw:"",confirm:"",showNew:false,showConfirm:false,err:"",sent:false});}} style={{flex:1,justifyContent:"center"}}>ยกเลิก</Btn>
+              <Btn onClick={handleRequestChangePw} style={{flex:2,justifyContent:"center"}}>📨 ส่งคำขอ</Btn>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  const topTitle=openId?`บ้าน ${data.houses.find(h=>h.id===openId)?.name||""}`:({dash:"Dashboard",finance:"💹 Financial Dashboard",purchase:role==="engineer"?"อนุมัติคำสั่งซื้อ":"รายการจัดซื้อ",payments:"💰 Payments",analytics:"📊 Analytics",team:"👥 Team",tracking:"📋 ติดตามงาน",marketing:"การตลาด",settings:"ตั้งค่า"}[page]||"");
+
+  // Compute unviewed notif count for mobile sidebar badge
+  const allNotifItems=[
+    ...data.phaseMessages.filter(msg=>!data.messageViewed?.[msg.id]),
+    ...data.houses.flatMap(h=>data.phases.filter(p=>data.phaseProgress[h.id]?.[p.id]?.s==="waiting_review").map(p=>({id:`waiting-${h.id}-${p.id}`}))),
+    ...data.requests.filter(r=>r.status==="pending").map(r=>({id:`order-${r.id}`})),
+  ];
+  const mobileUnviewedCount=allNotifItems.filter(n=>!data.notificationViewed?.[n.id]).length;
+
+  // Bottom nav items per role (max 5 slots)
+  const bottomNavByRole={
+    owner:[{id:"dash",icon:"⊞",label:"Dashboard"},{id:"tracking",icon:"📋",label:"ติดตาม"},{id:"analytics",icon:"📊",label:"วิเคราะห์"},{id:"team",icon:"👥",label:"ทีม"},{id:"settings",icon:"⚙️",label:"ตั้งค่า"}],
+    engineer:[{id:"dash",icon:"⊞",label:"บ้าน"},{id:"tracking",icon:"📋",label:"ติดตาม"},{id:"team",icon:"👥",label:"ทีม"},{id:"analytics",icon:"📊",label:"วิเคราะห์"},{id:"settings",icon:"⚙️",label:"ตั้งค่า"}],
+    foreman:[{id:"dash",icon:"⊞",label:"บ้าน"},{id:"tracking",icon:"📋",label:"ติดตาม"},{id:"team",icon:"👥",label:"ทีม"},{id:"timeline",icon:"📈",label:"Timeline"}],
+    purchasing:[{id:"dash",icon:"⊞",label:"ภาพรวม"},{id:"tracking",icon:"📋",label:"ติดตาม"},{id:"team",icon:"👥",label:"ทีม"},{id:"timeline",icon:"📈",label:"Timeline"}],
+    marketing:[{id:"marketing",icon:"📢",label:"การตลาด"},{id:"tracking",icon:"📋",label:"ติดตาม"},{id:"analytics",icon:"📊",label:"วิเคราะห์"},{id:"team",icon:"👥",label:"ทีม"}],
+  };
+  const mobileBottomItems=bottomNavByRole[role]||bottomNavByRole.owner;
 
   return (
     <>
       <style>{GS}</style>
-      <div style={{display:"flex",height:"100vh",overflow:"hidden"}}>
-        <Sidebar page={page} setPage={handleSetPage} role={role} data={data}/>
-        <div style={{marginLeft:220,flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-          <div style={{height:52,background:C.panel,borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",padding:"0 20px",gap:12,flexShrink:0}}>
-            <div style={{flex:1,fontSize:15,fontWeight:700,color:C.text}}>{topTitle}</div>
-            <Notifs data={data} setData={setData} role={role} onOpenHouse={handleOpen} setPage={handleSetPage} onScrollToPhase={page==="house"?((phaseId,messageId)=>{
-        const element=document.getElementById(`phase-${phaseId}`);
-        if(element)element.scrollIntoView({behavior:"smooth",block:"start"});
-        if(messageId){
-          setTimeout(()=>{
-            const msgElement=document.getElementById(`msg-${messageId}`);
-            if(msgElement){
-              msgElement.scrollIntoView({behavior:"smooth",block:"nearest"});
-              msgElement.style.background="#1d3a6e";
-              msgElement.style.transition="background 0.3s";
-              setTimeout(()=>msgElement.style.background="",500);
-            }
-          },600);
-        }
-      }):null}/>
-            <RoleSwitcher role={role} setRole={handleRole}/>
+      <div style={{display:"flex",height:"100dvh",overflow:"hidden"}}>
+        {/* SIDEBAR - Desktop always visible; Mobile: drawer overlay */}
+        {(!isMobileMode||sidebarOpen)&&(
+          <div style={{position:isMobileMode?"fixed":"relative",left:0,top:0,width:isMobileMode?280:220,height:"100%",zIndex:200,boxShadow:isMobileMode?"4px 0 24px rgba(0,0,0,0.5)":"none"}}>
+            <Sidebar page={page} setPage={handleSetPage} role={role} data={data} authedUserId={authedUserId}
+              isMobileMode={isMobileMode} isOwner={isOwner}
+              onLogout={handleLogout}
+              onChangePw={()=>{setShowChangePw(true);setSidebarOpen(false);}}
+              unviewedNotifs={mobileUnviewedCount}
+              onOpenNotif={()=>{setSidebarOpen(false);}}
+            />
           </div>
-          <div style={{flex:1,overflowY:"auto"}}>
-            {page==="house"&&openId&&<HousePage houseId={openId} data={data} setData={setData} role={role} onBack={handleBack}/>}
-            {page==="dash"&&<DashPage data={data} setData={setData} role={role} onOpenHouse={handleOpen}/>}
-            {page==="timeline"&&<TimelinePage data={data} role={role} onOpenHouse={handleOpen}/>}
+        )}
+        
+        {/* OVERLAY on mobile when sidebar is open */}
+        {isMobileMode&&sidebarOpen&&(
+          <div onClick={()=>setSidebarOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:150,backdropFilter:"blur(4px)"}}/>
+        )}
 
-            {page==="analytics"&&<AnalyticsPage data={data}/>}
-            {page==="finance"&&role==="owner"&&<FinancePage data={data} role={role}/>}
-            {page==="team"&&<TeamPage data={data} setData={setData} role={role}/>}
-            {page==="marketing"&&<MarketingPage data={data} setData={setData}/>}
-            {page==="settings"&&["owner","engineer"].includes(role)&&<SettingsPage data={data} setData={setData}/>}
+        {/* MAIN CONTENT AREA */}
+        <div style={{marginLeft:isMobileMode?0:220,flex:1,display:"flex",flexDirection:"column",overflow:"hidden",width:isMobileMode?"100%":"auto"}}>
+          {/* HEADER */}
+          <div style={{height:isMobileMode?50:52,background:C.panel,borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",padding:isMobileMode?"0 12px":"0 20px",gap:isMobileMode?8:12,flexShrink:0}}>
+            {isMobileMode&&(
+              <button onClick={()=>setSidebarOpen(!sidebarOpen)} style={{background:"none",border:"none",color:C.text,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",width:38,height:38,flexShrink:0}}>
+                ☰
+              </button>
+            )}
+            <div style={{flex:1,fontSize:isMobileMode?14:15,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{topTitle}</div>
+            {/* Mobile: notification bell */}
+            {isMobileMode&&<Notifs data={data} setData={setData} role={role} onOpenHouse={handleOpen} setPage={handleSetPage} onScrollToPhase={null}/>}
+            {/* User avatar + name */}
+            <div style={{display:"flex",alignItems:"center",gap:isMobileMode?5:8,padding:isMobileMode?"3px 7px":"4px 10px",background:C.faint,borderRadius:8,border:`1px solid ${C.border}`,flexShrink:0}}>
+              <Avatar member={authedMember} size={isMobileMode?20:22} fontSize={9}/>
+              <span style={{fontSize:isMobileMode?11:12,fontWeight:600,color:C.text,maxWidth:isMobileMode?60:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{authedMember?.name?.split(" ")[0]||role}</span>
+              <span style={{width:5,height:5,borderRadius:"50%",background:ROLE_COL[realRole]||C.blue,flexShrink:0}}/>
+            </div>
+            {/* Desktop-only: RoleSwitcher / PwChange + Logout */}
+            <div style={{display:isMobileMode?"none":"flex",alignItems:"center",gap:8}}>
+              <Notifs data={data} setData={setData} role={role} onOpenHouse={handleOpen} setPage={handleSetPage} onScrollToPhase={page==="house"?((phaseId,messageId)=>{
+          const element=document.getElementById(`phase-${phaseId}`);
+          if(element)element.scrollIntoView({behavior:"smooth",block:"start"});
+          if(messageId){
+            setTimeout(()=>{
+              const msgElement=document.getElementById(`msg-${messageId}`);
+              if(msgElement){
+                msgElement.scrollIntoView({behavior:"smooth",block:"nearest"});
+                msgElement.style.background="#1d3a6e";
+                msgElement.style.transition="background 0.3s";
+                setTimeout(()=>msgElement.style.background="",500);
+              }
+            },600);
+          }
+        }):null}/>
+              {isOwner&&<RoleSwitcher role={role} setRole={r=>{
+                handleRole(r);
+                const member=data.team.find(m=>m.role===r&&m.status==="active");
+                setViewAsId(r==="owner"?null:member?.id||null);
+              }}/>}
+              {!isOwner&&(
+                <button onClick={()=>setShowChangePw(true)} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.border2}`,background:"none",color:C.muted,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:4}}>
+                  🔑 รหัสผ่าน
+                </button>
+              )}
+              <button onClick={handleLogout} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.border2}`,background:"none",color:C.muted,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:4}}>
+                🔓 ออก
+              </button>
+            </div>
           </div>
+          
+          {/* CONTENT AREA */}
+          <div style={{flex:1,overflowY:"auto",overflowX:"hidden",paddingBottom:isMobileMode?70:0}}>
+            {page==="house"&&openId&&<HousePage houseId={openId} data={data} setData={setData} role={role} onBack={handleBack} isMobileMode={isMobileMode}/>}
+            {page==="dash"&&<DashPage data={data} setData={setData} role={role} onOpenHouse={handleOpen} isMobileMode={isMobileMode}/>}
+            {page==="timeline"&&<TimelinePage data={data} role={role} onOpenHouse={handleOpen} isMobileMode={isMobileMode}/>}
+            {page==="tracking"&&<TrackingPage data={data} setData={setData} role={role} isMobileMode={isMobileMode} authedUserId={effectiveUserId} isOwner={isOwner}/>}
+            {page==="analytics"&&<AnalyticsPage data={data} isMobileMode={isMobileMode}/>}
+            {page==="finance"&&role==="owner"&&<FinancePage data={data} role={role} isMobileMode={isMobileMode}/>}
+            {page==="team"&&<TeamPage data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>}
+            {page==="marketing"&&<MarketingPage data={data} setData={setData} isMobileMode={isMobileMode}/>}
+            {page==="settings"&&["owner","engineer"].includes(role)&&<SettingsPage data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>}
+          </div>
+
+          {/* MOBILE BOTTOM NAVIGATION BAR */}
+          {isMobileMode&&(
+            <div style={{position:"fixed",bottom:0,left:0,right:0,height:62,background:C.panel,borderTop:`1px solid ${C.border}`,display:"flex",alignItems:"stretch",zIndex:100,paddingBottom:"env(safe-area-inset-bottom)"}}>
+              {mobileBottomItems.map(item=>{
+                const active=page===item.id;
+                return (
+                  <button key={item.id} onClick={()=>handleSetPage(item.id)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"6px 2px",position:"relative",transition:"all 0.15s"}}>
+                    <span style={{fontSize:20,lineHeight:1,filter:active?"drop-shadow(0 0 6px "+C.blue+")":"none"}}>{item.icon}</span>
+                    <span style={{fontSize:9,fontWeight:active?700:500,color:active?C.blue:C.muted,letterSpacing:.2}}>{item.label}</span>
+                    {active&&<span style={{position:"absolute",top:0,left:"20%",right:"20%",height:2,background:C.blue,borderRadius:"0 0 2px 2px"}}/>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
+      {changePwModal}
     </>
   );
 }

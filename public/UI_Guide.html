@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>คู่มือศัพท์เทคนิค CPMS App - วิธีการสั่งงาน</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans Thai', 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 3px solid #3b82f6;
+            padding-bottom: 20px;
+        }
+        
+        header h1 {
+            font-size: 32px;
+            color: #0d1117;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            font-size: 16px;
+            color: #666;
+        }
+        
+        section {
+            margin-bottom: 40px;
+        }
+        
+        h2 {
+            font-size: 24px;
+            color: #0d1117;
+            margin-bottom: 20px;
+            padding-left: 10px;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        h3 {
+            font-size: 18px;
+            color: #1f2937;
+            margin-top: 20px;
+            margin-bottom: 15px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        th {
+            background: #3b82f6;
+            color: white;
+            padding: 14px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        tr:last-child td {
+            border-bottom: none;
+        }
+        
+        tr:nth-child(even) {
+            background: #f9fafb;
+        }
+        
+        .example {
+            background: #f0f9ff;
+            border-left: 4px solid #0ea5e9;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 6px;
+        }
+        
+        .example-good {
+            background: #f0fdf4;
+            border-left-color: #22c55e;
+        }
+        
+        .example-bad {
+            background: #fef2f2;
+            border-left-color: #ef4444;
+        }
+        
+        .example-title {
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .example-good .example-title::before {
+            content: "✅ ";
+            color: #22c55e;
+        }
+        
+        .example-bad .example-title::before {
+            content: "❌ ";
+            color: #ef4444;
+        }
+        
+        .tip {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 6px;
+        }
+        
+        .tip::before {
+            content: "💡 ";
+            margin-right: 8px;
+        }
+        
+        .icon-box {
+            display: inline-block;
+            background: #f3f4f6;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin: 0 4px;
+            font-weight: 600;
+        }
+        
+        ul {
+            margin-left: 20px;
+        }
+        
+        li {
+            margin-bottom: 10px;
+        }
+        
+        .highlight {
+            background: #fef08a;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        
+        .steps {
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .step {
+            display: flex;
+            margin-bottom: 12px;
+        }
+        
+        .step-number {
+            background: #3b82f6;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+            margin-right: 12px;
+        }
+        
+        .step-content {
+            flex: 1;
+            padding-top: 4px;
+        }
+        
+        .usage-table {
+            width: 100%;
+            margin: 15px 0;
+        }
+        
+        .usage-table td {
+            padding: 10px;
+        }
+        
+        .usage-table td:first-child {
+            width: 30%;
+            font-weight: 600;
+            color: #0d1117;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            color: #999;
+            font-size: 12px;
+        }
+        
+        .page-break {
+            page-break-after: always;
+            margin: 40px 0;
+            border-bottom: 2px dashed #e5e7eb;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .container {
+                box-shadow: none;
+                padding: 20px;
+                max-width: 100%;
+            }
+            
+            .page-break {
+                margin: 20px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>🏗️ CPMS App - คู่มือศัพท์เทคนิค</h1>
+            <p>วิธีการสั่งงานและชื่อเรียกส่วนต่างๆของแอปลิเคชัน</p>
+            <p style="font-size: 13px; color: #999; margin-top: 10px;">วันที่อัปเดต: 17 เมษายน 2566</p>
+        </header>
+
+        <!-- ส่วนที่ 1: ส่วนประกอบ UI -->
+        <section>
+            <h2>📌 ส่วนประกอบ UI (Components)</h2>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>ชื่อเรียก</th>
+                        <th>ตัวอย่าง</th>
+                        <th>อธิบาย</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Card</strong><br>(กล่อง)</td>
+                        <td>กล่อง "ค่าใช้จ่ายจริง ฿150,000"</td>
+                        <td>ชิ้นสี่เหลี่ยมที่บรรจุข้อมูล หรือสรุปผล</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Input Field</strong><br>(ช่องกรอก)</td>
+                        <td>ช่องกรอกจำนวนวัน, เงิน</td>
+                        <td>ช่องสำหรับพิมพ์ตัวเลขหรือข้อความ</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Button</strong><br>(ปุ่ม)</td>
+                        <td>ปุ่ม "บันทึก", "สร้าง", "✓"</td>
+                        <td>ปุ่มเพื่อทำการกระทำ (บันทึก, ยกเลิก, ลบ)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Table</strong><br>(ตาราง)</td>
+                        <td>ตาราง Payments, Team, BOQ</td>
+                        <td>แสดงข้อมูลเป็นแถวและคอลัมน์</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Tab</strong><br>(แท็บ)</td>
+                        <td>📋 BOQ | 📅 Gantt | 🏠 ข้อมูล</td>
+                        <td>ปุ่มสลับเนื้อหา (ตั้งอยู่ด้านบน)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Modal / Dialog</strong><br>(ป๊อปอัป)</td>
+                        <td>ป๊อปอัป "สร้างบ้านใหม่"</td>
+                        <td>หน้าต่างที่ปรากฏขึ้นมา เพื่อกรอกข้อมูลหรือยืนยัน</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Dropdown / Select</strong><br>(เลือก)</td>
+                        <td>เลือกโครงการ, เลือก Role</td>
+                        <td>ช่องสำหรับเลือกจากรายการ</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Progress Bar</strong><br>(แถบความคืบหน้า)</td>
+                        <td>เส้นแสดง 65% สีน้ำเงิน</td>
+                        <td>เส้นความสำเร็จหรือความคืบหน้า</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Sidebar</strong><br>(เมนูข้าง)</td>
+                        <td>📈 Timeline, ⊞ Dashboard</td>
+                        <td>เมนูแนวตั้งด้านซ้าย สำหรับเปลี่ยนหน้า</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Notification</strong><br>(การแจ้งเตือน)</td>
+                        <td>ข้อความเติม "สำเร็จ" สีเขียว</td>
+                        <td>ข้อความแจ้งเตือน (ข้อมูล, สำเร็จ, เตือน, ข้อผิดพลาด)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- ส่วนที่ 2: ชื่อเรียกข้อมูล -->
+        <section>
+            <h2>💰 ชื่อเรียกข้อมูล (Data Terms)</h2>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>ชื่อ</th>
+                        <th>ตัวอักษรย่อ</th>
+                        <th>ความหมาย</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>BOQ</strong></td>
+                        <td>-</td>
+                        <td>งบประมาณแผน (Bill of Quantities)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Actual</strong></td>
+                        <td>-</td>
+                        <td>ค่าใช้จ่ายจริง (เงินที่จ่ายออกจริงแล้ว)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Variance</strong></td>
+                        <td>Δ</td>
+                        <td>ส่วนต่าง = BOQ - Actual</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Percentage / %</strong></td>
+                        <td>%</td>
+                        <td>ความคืบหน้า (ความสำเร็จ)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>KPI</strong></td>
+                        <td>-</td>
+                        <td>ตัวชี้วัดหลัก (5 กล่องด้านบน Dashboard)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- ส่วนที่ 3: ตำแหน่งในแอป -->
+        <section>
+            <h2>🗺️ หมวด / หน้า (Pages)</h2>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>ไอคอน</th>
+                        <th>ชื่อหมวด</th>
+                        <th>งานหลัก</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>⊞</td>
+                        <td><strong>Dashboard</strong></td>
+                        <td>ภาพรวมโครงการและบ้าน</td>
+                    </tr>
+                    <tr>
+                        <td>💹</td>
+                        <td><strong>Finance</strong></td>
+                        <td>วิเคราะห์การเงิน cost breakdown</td>
+                    </tr>
+                    <tr>
+                        <td>📊</td>
+                        <td><strong>Analytics</strong></td>
+                        <td>รายงานและวิเคราะห์ข้อมูล</td>
+                    </tr>
+                    <tr>
+                        <td>📈</td>
+                        <td><strong>Timeline</strong></td>
+                        <td>ดูความคืบหน้าของบ้านทั้งหมด</td>
+                    </tr>
+                    <tr>
+                        <td>💰</td>
+                        <td><strong>Payments</strong></td>
+                        <td>จัดการชำระเงิน</td>
+                    </tr>
+                    <tr>
+                        <td>👥</td>
+                        <td><strong>Team</strong></td>
+                        <td>จัดการสมาชิกทีม</td>
+                    </tr>
+                    <tr>
+                        <td>📢</td>
+                        <td><strong>Marketing</strong></td>
+                        <td>ติดตามลูกค้า</td>
+                    </tr>
+                    <tr>
+                        <td>⚙️</td>
+                        <td><strong>Settings</strong></td>
+                        <td>ตั้งค่าระบบ</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- ส่วนที่ 4: วิธีการสั่งงาน -->
+        <section>
+            <h2>📧 วิธีการสั่งงานที่ถูกต้อง</h2>
+            
+            <h3>🎯 หลักการพื้นฐาน (5 ขั้นตอน)</h3>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <strong>บอกหมวด</strong> → "ในหมวด Finance..."
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <strong>บอกส่วนประกอบ</strong> → "ใน Card..."
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <strong>บอกตำแหน่ง</strong> → "ซ้ายสุด / ด้านบน / แถวที่ 2"
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <strong>บอกสิ่งที่ต้องการ</strong> → "เปลี่ยนสี / เพิ่ม / ลบ / แก้"
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">5</div>
+                    <div class="step-content">
+                        <strong>บอกรายละเอียด</strong> → "จากสีเหลืองเป็นเขียว"
+                    </div>
+                </div>
+            </div>
+
+            <h3>✅ ตัวอย่างคำขอที่ชัดเจน</h3>
+            <div class="example example-good">
+                <div class="example-title">ตัวอย่างที่ 1</div>
+                <p>ในหมวด <span class="highlight">Finance</span>, <span class="highlight">Card</span> ที่แสดง 'ค่าใช้จ่ายจริง' (ซ้ายสุด), อยากให้เปลี่ยนสี<span class="highlight">พื้นหลัง</span>จากเหลืองเป็นสีเขียว</p>
+            </div>
+
+            <div class="example example-good">
+                <div class="example-title">ตัวอย่างที่ 2</div>
+                <p>ในแท็บ <span class="highlight">Gantt</span>, เส้นแถบเวลาด้านบน, อยากให้เปลี่ยนชื่อเดือนจากภาษาอังกฤษเป็นไทยเต็ม</p>
+            </div>
+
+            <div class="example example-good">
+                <div class="example-title">ตัวอย่างที่ 3</div>
+                <p>ในหมวด <span class="highlight">Dashboard</span>, <span class="highlight">ตาราง</span>บ้าน (ด้านล่าง), อยากให้เพิ่ม<span class="highlight">คอลัมน์</span>แสดง 'วันเริ่มก่อสร้าง'</p>
+            </div>
+
+            <h3>❌ ตัวอย่างคำขอที่ไม่ชัดเจน</h3>
+            <div class="example example-bad">
+                <div class="example-title">ตัวอย่างที่ 1</div>
+                <p>"อยากให้แก้สีกล่องนั่น" → ไม่เข้าใจว่ากล่องไหน</p>
+            </div>
+
+            <div class="example example-bad">
+                <div class="example-title">ตัวอย่างที่ 2</div>
+                <p>"เพิ่มปุ่มหน่อย" → ไม่รู้ว่าเพิ่มปุ่มตรงไหน</p>
+            </div>
+
+            <div class="example example-bad">
+                <div class="example-title">ตัวอย่างที่ 3</div>
+                <p>"เปลี่ยนแถบนั่น" → ไม่ชัดว่าแถบใหน</p>
+            </div>
+        </section>
+
+        <div class="page-break"></div>
+
+        <!-- ส่วนที่ 5: ตัวอย่างจริง -->
+        <section>
+            <h2>📋 ตัวอย่างการสั่งงานจริง</h2>
+            
+            <table class="usage-table">
+                <tbody>
+                    <tr>
+                        <td>1️⃣</td>
+                        <td>"ในแท็บ <span class="highlight">Gantt</span>, เส้นแดงแสดงวันนี้, อยากให้เปลี่ยนเป็นเส้นประ"</td>
+                    </tr>
+                    <tr>
+                        <td>2️⃣</td>
+                        <td>"ในหมวด <span class="highlight">Dashboard</span>, <span class="highlight">Dropdown</span>เลือกโครงการ (ด้านบน), อยากให้เพิ่ม option 'ทั้งหมด'"</td>
+                    </tr>
+                    <tr>
+                        <td>3️⃣</td>
+                        <td>"ในโหมด <span class="highlight">Mobile</span> 📱, <span class="highlight">Sidebar</span>ควรเป็น Hamburger menu (☰) เล็กๆ"</td>
+                    </tr>
+                    <tr>
+                        <td>4️⃣</td>
+                        <td>"ปุ่ม '<span class="highlight">บันทึก</span>' (เขียว), อยากให้เปลี่ยนข้อความเป็น '✓ ยืนยัน'"</td>
+                    </tr>
+                    <tr>
+                        <td>5️⃣</td>
+                        <td>"ในหมวด <span class="highlight">Payments</span>, <span class="highlight">Notification</span>ด้านบน, อยากให้เปลี่ยนสีจากแดงเป็นสีส้ม"</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- ส่วนที่ 6: คำศัพท์เพิ่มเติม -->
+        <section>
+            <h2>📚 คำศัพท์เสริม</h2>
+            
+            <h3>🎨 การออกแบบ (Design Terms)</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>คำศัพท์</th>
+                        <th>ความหมาย</th>
+                        <th>ตัวอย่าง</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Color</strong> (สี)</td>
+                        <td>สีของส่วนประกอบ</td>
+                        <td>เขียว, แดง, น้ำเงิน, ม่วง</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Background</strong> (พื้นหลัง)</td>
+                        <td>สีพื้นหลังของกล่อง</td>
+                        <td>"สีพื้นหลังสีเขียว"</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Size</strong> (ขนาด)</td>
+                        <td>ขนาดของส่วนประกอบ</td>
+                        <td>ใหญ่, เล็ก, ปกติ</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Font</strong> (ฟอนต์)</td>
+                        <td>ลักษณะตัวอักษร</td>
+                        <td>ตัวหนา (Bold), ตัวเอียง (Italic)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Icon</strong> (ไอคอน)</td>
+                        <td>รูปสัญลักษณ์เล็กๆ</td>
+                        <td>💾 บันทึก, ✓ ตรวจสอบ, ❌ ลบ</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>🛠️ การแก้ไข (Action Terms)</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>คำศัพท์</th>
+                        <th>ความหมาย</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>เปลี่ยน (Change)</strong></td>
+                        <td>เปลี่ยนแปลงสิ่งของที่มีอยู่</td>
+                    </tr>
+                    <tr>
+                        <td><strong>เพิ่ม (Add)</strong></td>
+                        <td>เพิ่มสิ่งใหม่</td>
+                    </tr>
+                    <tr>
+                        <td><strong>ลบ (Remove)</strong></td>
+                        <td>ลบสิ่งที่มีอยู่</td>
+                    </tr>
+                    <tr>
+                        <td><strong>ซ่อน (Hide)</strong></td>
+                        <td>ไม่แสดง แต่ยังเก็บไว้</td>
+                    </tr>
+                    <tr>
+                        <td><strong>ย้าย (Move)</strong></td>
+                        <td>ย้ายสิ่งของไปยังตำแหน่งอื่น</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <div class="tip">
+            💡 <strong>เคล็ดลับ:</strong> ยิ่งคำขอชัดเจนเท่าไร การทำงานก็จะเร็วขึ้นเท่านั้น! ลองเขียนลงกระดาษก่อนส่ง เพื่อให้แน่ใจว่าชัดเจน
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            <p>คู่มือศัพท์เทคนิค CPMS App | วันที่พิมพ์: <span id="print-date"></span></p>
+            <p>สำหรับการสั่งงานแก้ไขและพัฒนาแอปลิเคชัน</p>
+        </footer>
+    </div>
+
+    <script>
+        // ตั้งค่าวันที่พิมพ์
+        const today = new Date();
+        const options = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Bangkok' };
+        document.getElementById('print-date').textContent = today.toLocaleDateString('th-TH', options);
+    </script>
+</body>
+</html>

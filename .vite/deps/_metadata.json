@@ -1,0 +1,49 @@
+{
+  "hash": "84a0f57f",
+  "configHash": "2fca67ea",
+  "lockfileHash": "8afaebd1",
+  "browserHash": "545154f1",
+  "optimized": {
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "d214401b",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "4d10e5cf",
+      "needsInterop": true
+    },
+    "html2canvas": {
+      "src": "../../node_modules/html2canvas/dist/html2canvas.esm.js",
+      "file": "html2canvas.js",
+      "fileHash": "caffe1fd",
+      "needsInterop": false
+    },
+    "jspdf": {
+      "src": "../../node_modules/jspdf/dist/jspdf.es.min.js",
+      "file": "jspdf.js",
+      "fileHash": "b9900e02",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-4SFRHSJ3": {
+      "file": "chunk-4SFRHSJ3.js"
+    },
+    "purify.es-2I25IRC5": {
+      "file": "purify__es-2I25IRC5.js"
+    },
+    "index.es-FHEPTPHE": {
+      "file": "index__es-FHEPTPHE.js"
+    },
+    "chunk-SITVF2AJ": {
+      "file": "chunk-SITVF2AJ.js"
+    },
+    "chunk-EQCVQC35": {
+      "file": "chunk-EQCVQC35.js"
+    }
+  }
+}

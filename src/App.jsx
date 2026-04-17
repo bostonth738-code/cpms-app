@@ -301,6 +301,38 @@ function Notifs({data,setData,role,onOpenHouse,setPage,onScrollToPhase}) {
     page:"boq",
     show:["owner","engineer"].includes(role)
   }));
+  // ── งานที่ถูกมอบหมายใหม่ (แจ้งผู้รับงาน) ──
+  const authedId=data.team.find(m=>m.role===role&&m.status==="active")?.id;
+  const taskAssignItems=(data.tracking||[]).filter(t=>t.assignedTo===authedId&&t.status!=="completed"&&t.status!=="cancelled").map(t=>{
+    const aBy=data.team.find(m=>m.id===t.assignedBy);
+    const isViewed=data.notificationViewed?.[`task-assign-${t.id}`];
+    if(isViewed)return null;
+    return {
+      id:`task-assign-${t.id}`,
+      t:"info",
+      msg:`📋 ${aBy?.name||"เจ้าของ"} มอบหมายงาน "${t.taskName}" ให้คุณ — กำหนด ${fmtDate(t.deadline)}`,
+      taskId:t.id,
+      page:"tracking",
+      show:true
+    };
+  }).filter(Boolean);
+  // ── งานใกล้ถึงกำหนด (≤1 วัน) & ถึงกำหนดวันนี้/เลยกำหนด ──
+  const taskDeadlineItems=(data.tracking||[]).filter(t=>t.status!=="completed"&&t.status!=="cancelled"&&t.deadline).flatMap(t=>{
+    const aTo=data.team.find(m=>m.id===t.assignedTo);
+    const dl=Math.ceil((new Date(t.deadline+"T23:59:59")-new Date())/86400000);
+    const items=[];
+    const showToMe=t.assignedTo===authedId||t.assignedBy===authedId||role==="owner";
+    if(!showToMe)return[];
+    if(dl===1){
+      const viewed=data.notificationViewed?.[`task-due-soon-${t.id}`];
+      if(!viewed)items.push({id:`task-due-soon-${t.id}`,t:"warning",msg:`🟠 งาน "${t.taskName}" (${aTo?.name||"-"}) จะถึงกำหนดพรุ่งนี้!`,taskId:t.id,page:"tracking",show:true});
+    }
+    if(dl<=0){
+      const viewed=data.notificationViewed?.[`task-overdue-${t.id}`];
+      if(!viewed)items.push({id:`task-overdue-${t.id}`,t:"danger",msg:`🔴 งาน "${t.taskName}" (${aTo?.name||"-"}) ${dl===0?"ถึงกำหนดวันนี้!":"เกินกำหนด "+Math.abs(dl)+" วันแล้ว!"}`,taskId:t.id,page:"tracking",show:true});
+    }
+    return items;
+  });
   // ข้อความใหม่ในแต่ละหมวด
   const messageItems=data.phaseMessages.flatMap(msg=>{
     const h=data.houses.find(ho=>ho.id===msg.houseId);
@@ -319,7 +351,7 @@ function Notifs({data,setData,role,onOpenHouse,setPage,onScrollToPhase}) {
     };
   });
   
-  const allItems=[...messageItems,...waitingReviewItems,...orderItems,...overBudgetItems].filter(n=>n.show);
+  const allItems=[...taskDeadlineItems,...taskAssignItems,...messageItems,...waitingReviewItems,...orderItems,...overBudgetItems].filter(n=>n.show);
   const unviewedCount=allItems.filter(n=>!data.notificationViewed?.[n.id]).length;
   
   const handleNotifClick=(n)=>{
@@ -327,6 +359,11 @@ function Notifs({data,setData,role,onOpenHouse,setPage,onScrollToPhase}) {
       setData(d=>({...d,messageViewed:{...d.messageViewed,[n.messageId]:true}}));
     }else{
       setData(d=>({...d,notificationViewed:{...d.notificationViewed,[n.id]:true}}));
+    }
+    if(n.page==="tracking"){
+      setPage("tracking");
+      setOpen(false);
+      return;
     }
     onOpenHouse(data.houses.find(h=>h.id===n.houseId));
     setOpen(false);
@@ -3075,10 +3112,13 @@ function NonOwnerTaskTable({tasks,data,setData,role,isMobileMode}){
               {tasks.map(task=>{
                 const sc=getStatusColor(task.status);
                 const hasDetails=task.jobDetails&&(task.jobDetails.what||task.jobDetails.why||(Array.isArray(task.jobDetails.how)&&task.jobDetails.how.length>0));
+                const _dl=task.deadline&&task.status!=="completed"&&task.status!=="cancelled"?Math.ceil((new Date(task.deadline+"T23:59:59")-new Date())/86400000):999;
+                const _dlColor=_dl<=0?C.red:_dl===1?C.orange:C.muted;
+                const _dlLabel=_dl<0?` (เกิน ${Math.abs(_dl)} วัน!)`:_dl===0?" (วันนี้!)":_dl===1?" (พรุ่งนี้!)":"";
                 return(
-                  <tr key={task.id} style={{borderBottom:`1px solid ${C.border}`}}>
+                  <tr key={task.id} style={{borderBottom:`1px solid ${C.border}`,background:_dl<=0?`${C.red}08`:_dl===1?`${C.orange}08`:"transparent"}}>
                     <td style={{padding:"10px 12px",fontSize:12,color:C.text}}>{task.taskName}</td>
-                    <td style={{padding:"10px 12px",fontSize:11,color:C.muted,whiteSpace:"nowrap"}}>{fmtDateWithDay(task.deadline)}</td>
+                    <td style={{padding:"10px 12px",fontSize:11,color:_dlColor,fontWeight:_dl<=1?700:400,whiteSpace:"nowrap"}}>{fmtDateWithDay(task.deadline)}{_dlLabel}</td>
                     <td style={{padding:"10px 12px"}}>
                       <select value={task.status} onChange={e=>updateStatus(task.id,e.target.value)} style={{background:`${sc}22`,border:`1px solid ${sc}44`,borderRadius:6,color:sc,fontSize:11,fontWeight:600,padding:"3px 8px",cursor:"pointer",outline:"none"}}>
                         <option value="notstarted">😴 รอเริ่ม</option>
@@ -3490,11 +3530,13 @@ function TrackingPage({data,setData,role,isMobileMode,authedUserId,isOwner}) {
                       const sc=task.status==="inprogress"?C.orange:C.blue;
                       const icon=task.status==="inprogress"?"⏳":"😴";
                       const lvlColor=["","#94a3b8","#38bdf8","#f59e0b","#f87171","#c084fc"][task.level]||C.muted;
+                      const _dlPill=task.deadline&&task.status!=="completed"&&task.status!=="cancelled"?Math.ceil((new Date(task.deadline+"T23:59:59")-new Date())/86400000):999;
+                      const _pillBorder=_dlPill<=0?C.red:_dlPill===1?C.orange:sc;
                       return(
-                        <div key={task.id} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 8px",background:"#0d1117",borderRadius:6,borderLeft:`2px solid ${sc}`}}>
-                          <span style={{fontSize:10}}>{icon}</span>
+                        <div key={task.id} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 8px",background:_dlPill<=0?`${C.red}11`:_dlPill===1?`${C.orange}11`:"#0d1117",borderRadius:6,borderLeft:`2px solid ${_pillBorder}`}}>
+                          <span style={{fontSize:10}}>{_dlPill<=0?"🔴":_dlPill===1?"🟠":icon}</span>
                           <span style={{flex:1,fontSize:11,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{task.taskName}</span>
-                          <span style={{fontSize:9,color:lvlColor,fontWeight:700,flexShrink:0}}>L{task.level}</span>
+                          {_dlPill<=1?<span style={{fontSize:9,color:_dlPill<=0?C.red:C.orange,fontWeight:700,flexShrink:0}}>{_dlPill<=0?(_dlPill===0?"วันนี้!":`เกิน${Math.abs(_dlPill)}วัน`):"พรุ่งนี้"}</span>:<span style={{fontSize:9,color:lvlColor,fontWeight:700,flexShrink:0}}>L{task.level}</span>}
                         </div>
                       );
                     })}
@@ -3623,11 +3665,14 @@ function TrackingDetailPage({teamId,data,setData,role,onBack,isMobileMode,curren
                   const sc=getStatusColor(task.status);
                   const hasDetails=task.jobDetails&&(task.jobDetails.what||task.jobDetails.why||(Array.isArray(task.jobDetails.how)&&task.jobDetails.how.length>0));
                   const can=canManage(task);
+                  const _dl2=task.deadline&&task.status!=="completed"&&task.status!=="cancelled"?Math.ceil((new Date(task.deadline+"T23:59:59")-new Date())/86400000):999;
+                  const _dlColor2=_dl2<=0?C.red:_dl2===1?C.orange:C.muted;
+                  const _dlLabel2=_dl2<0?` (เกิน ${Math.abs(_dl2)} วัน!)`:_dl2===0?" (วันนี้!)":_dl2===1?" (พรุ่งนี้!)":"";
                   return(
-                    <tr key={task.id} style={{borderBottom:`1px solid ${C.border}`}}>
+                    <tr key={task.id} style={{borderBottom:`1px solid ${C.border}`,background:_dl2<=0?`${C.red}08`:_dl2===1?`${C.orange}08`:"transparent"}}>
                       <td style={{padding:isMobileMode?"10px 8px":"12px 14px",fontSize:12,color:C.text,maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={task.taskName}>{task.taskName}</td>
                       {role==="owner"&&<td style={{padding:isMobileMode?"10px 8px":"12px 14px",textAlign:"center"}}><Tag color="blue"><span style={{fontWeight:700}}>L{task.level}</span></Tag></td>}
-                      <td style={{padding:isMobileMode?"10px 8px":"12px 14px",fontSize:11,color:C.muted,whiteSpace:"nowrap"}}>{fmtDateWithDay(task.deadline)}</td>
+                      <td style={{padding:isMobileMode?"10px 8px":"12px 14px",fontSize:11,color:_dlColor2,fontWeight:_dl2<=1?700:400,whiteSpace:"nowrap"}}>{fmtDateWithDay(task.deadline)}{_dlLabel2}</td>
                       <td style={{padding:isMobileMode?"10px 8px":"12px 14px"}} onClick={can?()=>openEdit(task,"status"):undefined}>
                         <div style={{cursor:can?"pointer":"default",display:"inline-flex",alignItems:"center",gap:4,padding:"4px 8px",background:`${sc}22`,color:sc,borderRadius:6,fontSize:11,fontWeight:600,border:`1px solid ${sc}44`}}>
                           {STATUS_ICONS[task.status]} {task.status==="inprogress"?"กำลังทำ":task.status==="notstarted"?"รอเริ่ม":task.status==="completed"?"เสร็จแล้ว":"ยกเลิก"}

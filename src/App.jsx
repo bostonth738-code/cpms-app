@@ -29,8 +29,9 @@ const STATUS_ICONS={notstarted:"😴",inprogress:"⏳",completed:"✅",cancelled
 const getStatusColor=s=>({notstarted:C.muted,inprogress:C.orange,completed:C.green,cancelled:C.red}[s]||C.muted);
 
 // Export functions
-const exp2CSV=(headers,rows)=>{const csv=[headers.join(","),...rows.map(r=>r.map(c=>`"${c}"`).join(","))].join("\n");const blob=new Blob(["\uFEFF"+csv],{type:"text/csv"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`report_${Date.now()}.csv`;a.click();};
-const exp2JSON=(data,name)=>{const json=JSON.stringify(data,null,2);const blob=new Blob([json],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`${name}_${Date.now()}.json`;a.click();};
+const dlBlob=(blob,filename)=>{const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;a.style.display="none";document.body.appendChild(a);a.click();setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},200);};
+const exp2CSV=(headers,rows)=>{const csv=[headers.join(","),...rows.map(r=>r.map(c=>`"${c}"`).join(","))].join("\n");dlBlob(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"}),`report_${Date.now()}.csv`);};
+const exp2JSON=(data,name)=>{const json=JSON.stringify(data,null,2);dlBlob(new Blob([json],{type:"application/json"}),`${name}_${Date.now()}.json`);};
 
 // Analytics builders
 const getCostBreakdown=data=>{const bd={};data.boqItems.forEach(b=>{const p=data.phases.find(ph=>ph.id===b.phaseId);if(p){if(!bd[p.name])bd[p.name]=0;bd[p.name]+=b.actualPrice>0?b.qty*b.actualPrice:b.qty*b.boqPrice;}});return Object.entries(bd).map(([k,v])=>({phase:k,cost:v}));};
@@ -1067,7 +1068,7 @@ function PhotoReportModal({house,data,setData,role,onClose,isMobileMode}){
               pdf.addImage(imgData,"JPEG",0,pos,iw,ih);
               let left=ih-ph;
               while(left>0){pdf.addPage();pos-=ph;pdf.addImage(imgData,"JPEG",0,pos,iw,ih);left-=ph;}
-              pdf.save(`รูปเล่มงาน_${house.name}.pdf`);
+              dlBlob(pdf.output('blob'),`รูปเล่มงาน_${house.name}.pdf`);
             }catch(e){alert("เกิดข้อผิดพลาด: "+e.message);}
             btn.textContent=oldText;
             btn.disabled=false;

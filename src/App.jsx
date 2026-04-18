@@ -5141,10 +5141,12 @@ function SettingsPage({data,setData,role}) {
   const [showNewHouse,setShowNewHouse]=useState(false);
   const [newHouse,setNewHouse]=useState({name:"",customer:"",start:"",days:180,boq:1800000,templateId:1,foreman:"",engineer:""});
   // Greeting settings state
-  const gs=data.greetingSettings||{messages:[],effectId:"sunrise",soundMode:"tts",soundUrl:"",ttsEnabled:true,celebrationEnabled:true};
-  const [greetForm,setGreetForm]=useState(gs);
+  const defaultMsgs=["สวัสดีตอนเช้า ขอให้วันนี้ราบรื่น","เริ่มต้นวันใหม่อย่างมั่นใจ","ขอให้วันนี้สำเร็จตามแผน","วันนี้อีกหนึ่งก้าวสู่ความสำเร็จ","ทำวันนี้ให้ดีที่สุด","งานดี เริ่มที่วันนี้","พร้อมลุยงานวันนี้หรือยัง","วันนี้ต้องดีกว่าเมื่อวาน","ทุกงานวันนี้มีความหมาย","ขอให้วันนี้เป็นวันที่ดี"];
+  const gs=data.greetingSettings||{messages:defaultMsgs,effectId:"sunrise",effectMode:"random",soundUrl:"",ttsEnabled:true,celebrationEnabled:true,dateOverrides:[]};
+  const [greetForm,setGreetForm]=useState({...gs,messages:(gs.messages&&gs.messages.length>0)?gs.messages:defaultMsgs});
   const [newMsg,setNewMsg]=useState("");
   const [previewEffect,setPreviewEffect]=useState(null);
+  const [newDateOverride,setNewDateOverride]=useState({dateKey:"",messages:[],effectId:"",newMsg:""});
   // 30 Greeting Effects Library
   const GREETING_EFFECTS=[
     {id:"sunrise",name:"🌅 พระอาทิตย์ขึ้น",emoji:"☀️",bg:"linear-gradient(135deg,#0f172a,#1e3a5f,#0f172a)",border:"#f59e0b",particles:"⭐",particleCount:30,anim:"greetSun",cardAnim:"greetBounce",shadow:"rgba(245,158,11,.3)"},
@@ -5609,32 +5611,52 @@ function SettingsPage({data,setData,role}) {
               <FIn value={greetForm.soundUrl||""} onChange={e=>setGreetForm(f=>({...f,soundUrl:e.target.value}))} placeholder="https://example.com/greeting.mp3"/>
               {greetForm.soundUrl&&<Btn size="sm" variant="ghost" style={{marginTop:6}} onClick={()=>{try{new Audio(greetForm.soundUrl).play();}catch(e){alert("ไม่สามารถเล่นเสียงได้");}}}>▶️ ทดสอบเสียง</Btn>}
             </div>
+            {/* Effect Mode */}
+            <div style={{padding:"12px 0"}}>
+              <div style={{fontSize:12,fontWeight:600,color:C.text,marginBottom:6}}>🎯 โหมดเอฟเฟกต์</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {[{k:"random",l:"🎲 สุ่มอัตโนมัติ",d:"สุ่มเอฟเฟกต์+ข้อความทุกวัน"},{k:"fixed",l:"📌 เลือกเอฟเฟกต์เดิม",d:"ใช้เอฟเฟกต์ที่เลือกไว้ สุ่มข้อความ"}].map(m=>(
+                  <div key={m.k} onClick={()=>setGreetForm(f=>({...f,effectMode:m.k}))} style={{padding:"10px 14px",borderRadius:10,border:`2px solid ${(greetForm.effectMode||"random")===m.k?C.blue:C.border}`,background:(greetForm.effectMode||"random")===m.k?"rgba(59,130,246,0.1)":"#0d1117",cursor:"pointer",flex:1,minWidth:150}}>
+                    <div style={{fontSize:12,fontWeight:700,color:(greetForm.effectMode||"random")===m.k?C.blue:C.text}}>{m.l}</div>
+                    <div style={{fontSize:10,color:C.muted,marginTop:2}}>{m.d}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </Card>
           {/* Custom Messages */}
           <Card style={{padding:20,marginBottom:16}}>
-            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>💬 ข้อความทักทาย</div>
-            <div style={{fontSize:11,color:C.muted,marginBottom:12}}>เพิ่มข้อความที่ต้องการแสดงตอนเช้า (ถ้าไม่เพิ่ม จะใช้ข้อความ default)</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.text}}>💬 ข้อความทักทาย ({(greetForm.messages||[]).length})</div>
+              <Btn size="sm" variant="ghost" onClick={()=>{const msgs=greetForm.messages||[];const r=msgs[Math.floor(Math.random()*msgs.length)]||"ไม่มีข้อความ";alert("🎲 สุ่มได้: "+r);}}>🎲 สุ่มข้อความ</Btn>
+            </div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:12}}>ข้อความจะถูกสุ่มแสดงทุกเช้า คลิก 🎲 เพื่อทดสอบ</div>
             <div style={{display:"flex",gap:8,marginBottom:12}}>
               <FIn value={newMsg} onChange={e=>setNewMsg(e.target.value)} placeholder="พิมพ์ข้อความทักทายใหม่..." style={{flex:1}} onKeyDown={e=>{if(e.key==="Enter"&&newMsg.trim()){setGreetForm(f=>({...f,messages:[...(f.messages||[]),newMsg.trim()]}));setNewMsg("");}}}/>
               <Btn size="sm" onClick={()=>{if(newMsg.trim()){setGreetForm(f=>({...f,messages:[...(f.messages||[]),newMsg.trim()]}));setNewMsg("");}}} disabled={!newMsg.trim()}>+ เพิ่ม</Btn>
             </div>
             {(greetForm.messages||[]).length>0?(
-              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:300,overflowY:"auto"}}>
                 {greetForm.messages.map((m,i)=>(
                   <div key={i} style={{display:"flex",alignItems:"center",gap:8,background:"#0d1117",borderRadius:8,padding:"8px 12px",border:`1px solid ${C.border}`}}>
+                    <span style={{fontSize:11,color:C.muted,fontWeight:600,width:20,flexShrink:0}}>{i+1}.</span>
                     <span style={{fontSize:13,color:C.text,flex:1}}>{m}</span>
                     <button onClick={()=>setGreetForm(f=>({...f,messages:f.messages.filter((_,j)=>j!==i)}))} style={{background:"none",border:"none",color:C.red,cursor:"pointer",fontSize:14,padding:0}}>✕</button>
                   </div>
                 ))}
               </div>
             ):(
-              <div style={{fontSize:12,color:C.muted,fontStyle:"italic"}}>ยังไม่มีข้อความกำหนดเอง — จะใช้ข้อความ default 10 ข้อความ</div>
+              <div style={{fontSize:12,color:C.muted,fontStyle:"italic"}}>ยังไม่มีข้อความ</div>
             )}
+            {(greetForm.messages||[]).length===0&&<Btn size="sm" variant="ghost" style={{marginTop:8}} onClick={()=>setGreetForm(f=>({...f,messages:[...defaultMsgs]}))}>📋 ใส่ข้อความ default 10 รายการ</Btn>}
           </Card>
           {/* 30 Effects Grid */}
           <Card style={{padding:20,marginBottom:16}}>
-            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>🎨 เลือกเอฟเฟกกราฟฟิก ({GREETING_EFFECTS.length} แบบ)</div>
-            <div style={{fontSize:11,color:C.muted,marginBottom:14}}>คลิกเพื่อเลือก กดพรีวิวเพื่อดูตัวอย่าง</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.text}}>🎨 เอฟเฟกกราฟฟิก ({GREETING_EFFECTS.length} แบบ)</div>
+              <Btn size="sm" variant="ghost" onClick={()=>{const r=GREETING_EFFECTS[Math.floor(Math.random()*GREETING_EFFECTS.length)];setGreetForm(f=>({...f,effectId:r.id}));setPreviewEffect(r);setTimeout(()=>setPreviewEffect(null),4000);}}>🎲 สุ่มเอฟเฟกต์</Btn>
+            </div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:14}}>{(greetForm.effectMode||"random")==="random"?"โหมดสุ่ม — จะสุ่มเอฟเฟกต์ใหม่ทุกวัน":"คลิกเพื่อเลือกเอฟเฟกต์ที่ต้องการใช้ถาวร"}</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
               {GREETING_EFFECTS.map(ef=>{
                 const sel=greetForm.effectId===ef.id;
@@ -5647,6 +5669,49 @@ function SettingsPage({data,setData,role}) {
                   </div>
                 );
               })}
+            </div>
+          </Card>
+          {/* Date-Specific Overrides */}
+          <Card style={{padding:20,marginBottom:16}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>📅 ข้อความตามวันพิเศษ</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:14}}>กำหนดข้อความและเอฟเฟกต์เฉพาะวัน เช่น วันสงกรานต์ วันปีใหม่ — จะแสดงแทนข้อความปกติ</div>
+            {/* Existing overrides */}
+            {(greetForm.dateOverrides||[]).map((ov,idx)=>(
+              <div key={idx} style={{background:"#0d1117",borderRadius:10,padding:14,border:`1px solid ${C.border}`,marginBottom:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text}}>📅 {ov.dateKey} {ov.effectId?`— ${GREETING_EFFECTS.find(e=>e.id===ov.effectId)?.name||ov.effectId}`:""}</div>
+                  <button onClick={()=>setGreetForm(f=>({...f,dateOverrides:(f.dateOverrides||[]).filter((_,i)=>i!==idx)}))} style={{background:"none",border:"none",color:C.red,cursor:"pointer",fontSize:14}}>🗑</button>
+                </div>
+                {ov.messages.map((m,mi)=>(
+                  <div key={mi} style={{fontSize:12,color:C.muted,padding:"3px 0"}}>• {m}</div>
+                ))}
+              </div>
+            ))}
+            {/* Add new override */}
+            <div style={{background:"#0d1117",borderRadius:10,padding:14,border:`1px dashed ${C.border}`}}>
+              <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:8}}>➕ เพิ่มวันพิเศษ</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+                <FG label="วันที่ (MM-DD) เช่น 04-13"><FIn value={newDateOverride.dateKey} onChange={e=>setNewDateOverride(d=>({...d,dateKey:e.target.value}))} placeholder="04-13"/></FG>
+                <FG label="เอฟเฟกต์"><FSel value={newDateOverride.effectId} onChange={e=>setNewDateOverride(d=>({...d,effectId:e.target.value}))}>
+                  <option value="">🎲 สุ่ม</option>
+                  {GREETING_EFFECTS.map(ef=><option key={ef.id} value={ef.id}>{ef.name}</option>)}
+                </FSel></FG>
+              </div>
+              <div style={{display:"flex",gap:8,marginBottom:8}}>
+                <FIn value={newDateOverride.newMsg||""} onChange={e=>setNewDateOverride(d=>({...d,newMsg:e.target.value}))} placeholder="ข้อความสำหรับวันนี้..." style={{flex:1}} onKeyDown={e=>{if(e.key==="Enter"&&newDateOverride.newMsg?.trim()){setNewDateOverride(d=>({...d,messages:[...d.messages,d.newMsg.trim()],newMsg:""}));}}}/>
+                <Btn size="sm" onClick={()=>{if(newDateOverride.newMsg?.trim()){setNewDateOverride(d=>({...d,messages:[...d.messages,d.newMsg.trim()],newMsg:""}));}}} disabled={!newDateOverride.newMsg?.trim()}>+ เพิ่ม</Btn>
+              </div>
+              {newDateOverride.messages.length>0&&<div style={{marginBottom:8}}>{newDateOverride.messages.map((m,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:C.text,padding:"3px 0"}}>
+                  <span style={{flex:1}}>• {m}</span>
+                  <button onClick={()=>setNewDateOverride(d=>({...d,messages:d.messages.filter((_,j)=>j!==i)}))} style={{background:"none",border:"none",color:C.red,cursor:"pointer",fontSize:12}}>✕</button>
+                </div>
+              ))}</div>}
+              <Btn size="sm" style={{width:"100%"}} onClick={()=>{
+                if(!newDateOverride.dateKey||newDateOverride.messages.length===0){alert("กรุณาใส่วันที่และข้อความอย่างน้อย 1 รายการ");return;}
+                setGreetForm(f=>({...f,dateOverrides:[...(f.dateOverrides||[]),{dateKey:newDateOverride.dateKey,messages:newDateOverride.messages,effectId:newDateOverride.effectId}]}));
+                setNewDateOverride({dateKey:"",messages:[],effectId:"",newMsg:""});
+              }} disabled={!newDateOverride.dateKey||newDateOverride.messages.length===0}>✓ เพิ่มวันพิเศษ</Btn>
             </div>
           </Card>
           <Btn style={{width:"100%"}} onClick={()=>{setData(d=>({...d,greetingSettings:{...greetForm}}));alert("บันทึกการตั้งค่าคำทักทายเรียบร้อย!");}}>💾 บันทึกการตั้งค่าคำทักทาย</Btn>
@@ -6848,13 +6913,27 @@ export default function App() {
       let alreadyShown=false;
       try{alreadyShown=localStorage.getItem(morningKey)===today;}catch(e){}
       if(!alreadyShown){
-        const defaultMsgs=["สวัสดีตอนเช้า ขอให้วันนี้ราบรื่น","เริ่มต้นวันใหม่อย่างมั่นใจ","ขอให้วันนี้สำเร็จตามแผน","วันนี้อีกหนึ่งก้าวสู่ความสำเร็จ","ทำวันนี้ให้ดีที่สุด","งานดี เริ่มที่วันนี้","พร้อมลุยงานวันนี้หรือยัง","วันนี้ต้องดีกว่าเมื่อวาน","ทุกงานวันนี้มีความหมาย","ขอให้วันนี้เป็นวันที่ดี"];
-        const msgs=(gs2.messages&&gs2.messages.length>0)?gs2.messages:defaultMsgs;
-        const dayOfYear=Math.floor((now2-new Date(now2.getFullYear(),0,0))/86400000);
+        const defaultMsgs2=["สวัสดีตอนเช้า ขอให้วันนี้ราบรื่น","เริ่มต้นวันใหม่อย่างมั่นใจ","ขอให้วันนี้สำเร็จตามแผน","วันนี้อีกหนึ่งก้าวสู่ความสำเร็จ","ทำวันนี้ให้ดีที่สุด","งานดี เริ่มที่วันนี้","พร้อมลุยงานวันนี้หรือยัง","วันนี้ต้องดีกว่าเมื่อวาน","ทุกงานวันนี้มีความหมาย","ขอให้วันนี้เป็นวันที่ดี"];
+        // Check date overrides first (MM-DD format)
+        const mmdd=`${String(now2.getMonth()+1).padStart(2,"0")}-${String(now2.getDate()).padStart(2,"0")}`;
+        const dateOv=(gs2.dateOverrides||[]).find(ov=>ov.dateKey===mmdd);
+        let msgs, chosenEffectId;
+        if(dateOv&&dateOv.messages.length>0){
+          msgs=dateOv.messages;
+          chosenEffectId=dateOv.effectId||null;
+        } else {
+          msgs=(gs2.messages&&gs2.messages.length>0)?gs2.messages:defaultMsgs2;
+          chosenEffectId=null;
+        }
+        // Pick random message
         const userName=data.team.find(m=>m.id===authedUserId)?.name||"";
-        const greeting=msgs[dayOfYear%msgs.length]+(userName?" คุณ"+userName:"");
-        // Set effect from settings
-        const efId=gs2.effectId||"sunrise";
+        const greeting=msgs[Math.floor(Math.random()*msgs.length)]+(userName?" คุณ"+userName:"");
+        // Pick effect: date override > fixed mode > random
+        const effectKeys=Object.keys(EFFECTS_MAP);
+        let efId;
+        if(chosenEffectId&&EFFECTS_MAP[chosenEffectId]){efId=chosenEffectId;}
+        else if((gs2.effectMode||"random")==="fixed"){efId=gs2.effectId||"sunrise";}
+        else{efId=effectKeys[Math.floor(Math.random()*effectKeys.length)];}
         setGreetingEffect(EFFECTS_MAP[efId]||EFFECTS_MAP.sunrise);
         setMorningGreeting(greeting);
         try{localStorage.setItem(morningKey,today);}catch(e){}

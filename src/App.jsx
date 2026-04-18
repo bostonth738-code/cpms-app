@@ -2084,6 +2084,10 @@ function MktBudgetPage({data,setData,role,isMobileMode}) {
   const [chartYear,setChartYear]=useState(now.getFullYear());
   const [cmpFrom,setCmpFrom]=useState(`${now.getFullYear()}-01`);
   const [cmpTo,setCmpTo]=useState(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`);
+  const [summaryType,setSummaryType]=useState("monthly");
+  const [summaryQtr,setSummaryQtr]=useState(Math.ceil((now.getMonth()+1)/3));
+  const [pdfPreviewHtml,setPdfPreviewHtml]=useState(null);
+  const [exportLoading,setExportLoading]=useState(false);
   const channels=["Facebook Ads","TikTok Ads","LINE Ads","Google Ads","จ้าง Influencer","ออฟไลน์ ป้ายโฆษณา"];
   const chColors=["#3b82f6","#000000","#22c55e","#f59e0b","#a855f7","#ef4444"];
   const budgets=data.marketingBudget||[];
@@ -2138,6 +2142,70 @@ function MktBudgetPage({data,setData,role,isMobileMode}) {
     return result;
   }
 
+  // Summary data helper
+  function getSummaryData(){
+    if(summaryType==="monthly"){
+      return{items:cur.items,label:`${thMonthsFull[mo]} พ.ศ. ${y+543}`,fileName:`งบการตลาด_${thMonthsFull[mo]}${y+543}`};
+    }
+    if(summaryType==="quarterly"){
+      const qS=(summaryQtr-1)*3+1,qE=summaryQtr*3;
+      const rd=getRangeData(`${chartYear}-${String(qS).padStart(2,"0")}`,`${chartYear}-${String(qE).padStart(2,"0")}`);
+      const items=channels.map(ch=>({channel:ch,budget:rd.reduce((s,r)=>{const it=r.items.find(x=>x.channel===ch);return s+(it?Number(it.budget)||0:0);},0),actual:rd.reduce((s,r)=>{const it=r.items.find(x=>x.channel===ch);return s+(it?Number(it.actual)||0:0);},0)}));
+      return{items,label:`ไตรมาส ${summaryQtr}/${chartYear+543} (${thMonths[qS]}—${thMonths[qE]} ${chartYear+543})`,fileName:`งบการตลาด_Q${summaryQtr}_ปี${chartYear+543}`,months:rd};
+    }
+    const yd=getYearData(chartYear);
+    const items=channels.map(ch=>({channel:ch,budget:yd.reduce((s,m)=>{const it=m.items.find(x=>x.channel===ch);return s+(it?Number(it.budget)||0:0);},0),actual:yd.reduce((s,m)=>{const it=m.items.find(x=>x.channel===ch);return s+(it?Number(it.actual)||0:0);},0)}));
+    return{items,label:`ประจำปี พ.ศ. ${chartYear+543}`,fileName:`งบการตลาด_ปี${chartYear+543}`,months:yd};
+  }
+
+  // Build PDF HTML template
+  function buildBudgetPdfHtml(){
+    const sd=getSummaryData();
+    const totB=sd.items.reduce((s,it)=>s+(it.budget||0),0);
+    const totA=sd.items.reduce((s,it)=>s+(it.actual||0),0);
+    const remain=totB-totA;
+    const pct=totB?((totA/totB)*100).toFixed(1):"0";
+    const dateStr=new Date().toLocaleDateString("th-TH",{year:"numeric",month:"long",day:"numeric"});
+    let sa=0;
+    const slices=sd.items.filter(it=>it.actual>0).map(it=>{
+      const ci=channels.indexOf(it.channel);const frac=totA>0?it.actual/totA:0;const ang=frac*360;const lg=ang>180?1:0;
+      const r=d=>d*Math.PI/180;const x1=50+40*Math.cos(r(sa-90)),y1=50+40*Math.sin(r(sa-90));
+      const x2=50+40*Math.cos(r(sa+ang-90)),y2=50+40*Math.sin(r(sa+ang-90));
+      const p=`M50,50 L${x1.toFixed(2)},${y1.toFixed(2)} A40,40 0 ${lg} 1 ${x2.toFixed(2)},${y2.toFixed(2)} Z`;sa+=ang;
+      return`<path d="${p}" fill="${chColors[ci>=0?ci:0]}"/>`;
+    }).join("");
+    const maxVal=Math.max(...sd.items.map(it=>Math.max(it.budget||0,it.actual||0)),1);
+    const bars=sd.items.map((it,i)=>{
+      const bH=((it.budget||0)/maxVal)*120,aH=((it.actual||0)/maxVal)*120,x=i*130+20;
+      return`<rect x="${x}" y="${140-bH}" width="45" height="${bH}" fill="#3b82f6" opacity="0.3" rx="3"/><rect x="${x+50}" y="${140-aH}" width="45" height="${aH}" fill="${chColors[i]}" rx="3"/><text x="${x+47}" y="158" text-anchor="middle" font-size="9" fill="#8b949e">${it.channel.split(" ")[0]}</text>`;
+    }).join("");
+    let monthlySection="";
+    if(sd.months&&sd.months.length>1){
+      const mRows=sd.months.map(m=>{
+        const tB=m.totalBudget||0,tA=m.totalActual||0,diff=tB-tA,p2=tB?((tA/tB)*100).toFixed(1):"0";
+        return`<tr style="border-bottom:1px solid #21262d;"><td style="padding:10px 16px;font-weight:600;color:#e6edf3;">${thMonthsFull[m.month]} ${(m.year||chartYear)+543}</td><td style="text-align:right;padding:10px 16px;color:#8b949e;">฿${fmtMoney(tB)}</td><td style="text-align:right;padding:10px 16px;color:#e6edf3;font-weight:600;">฿${fmtMoney(tA)}</td><td style="text-align:right;padding:10px 16px;color:${diff<0?"#ef4444":"#22c55e"};font-weight:600;">${diff<0?"+":"−"}฿${fmtMoney(Math.abs(diff))}</td><td style="text-align:right;padding:10px 16px;color:${Number(p2)>100?"#ef4444":Number(p2)>80?"#f59e0b":"#22c55e"};font-weight:600;">${p2}%</td></tr>`;
+      }).join("");
+      monthlySection=`<div style="background:#161b22;border:1px solid #30363d;border-radius:12px;overflow:hidden;margin-bottom:24px;"><div style="padding:14px 20px;border-bottom:1px solid #30363d;"><div style="font-size:14px;font-weight:700;color:#e6edf3;">📅 สรุปรายเดือน</div></div><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:#1c2128;"><th style="text-align:left;padding:10px 16px;color:#8b949e;font-weight:600;border-bottom:1px solid #30363d;">เดือน</th><th style="text-align:right;padding:10px 16px;color:#8b949e;font-weight:600;border-bottom:1px solid #30363d;">งบประมาณ</th><th style="text-align:right;padding:10px 16px;color:#8b949e;font-weight:600;border-bottom:1px solid #30363d;">ใช้จริง</th><th style="text-align:right;padding:10px 16px;color:#8b949e;font-weight:600;border-bottom:1px solid #30363d;">ส่วนต่าง</th><th style="text-align:right;padding:10px 16px;color:#8b949e;font-weight:600;border-bottom:1px solid #30363d;">% ใช้ไป</th></tr></thead><tbody>${mRows}</tbody></table></div>`;
+    }
+    return{html:`<div style="width:900px;font-family:'Segoe UI',Tahoma,sans-serif;background:#0d1117;color:#e6edf3;overflow:hidden;"><div style="background:linear-gradient(135deg,#1a56db,#3b82f6,#60a5fa);padding:32px 40px;"><div style="font-size:28px;font-weight:800;color:#fff;">💰 สรุปงบประมาณการตลาด</div><div style="font-size:16px;color:rgba(255,255,255,0.9);margin-top:6px;">${sd.label}</div><div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:4px;">CPMS — Construction Project Management System</div></div><div style="padding:28px 40px;"><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;"><div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:18px;text-align:center;"><div style="font-size:11px;color:#8b949e;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">งบประมาณรวม</div><div style="font-size:22px;font-weight:800;color:#3b82f6;">฿${fmtMoney(totB)}</div></div><div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:18px;text-align:center;"><div style="font-size:11px;color:#8b949e;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">ใช้จ่ายจริง</div><div style="font-size:22px;font-weight:800;color:${totA>totB?"#ef4444":"#22c55e"};">฿${fmtMoney(totA)}</div></div><div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:18px;text-align:center;"><div style="font-size:11px;color:#8b949e;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">คงเหลือ</div><div style="font-size:22px;font-weight:800;color:${remain<0?"#ef4444":"#22c55e"};">฿${fmtMoney(Math.abs(remain))}</div><div style="font-size:10px;color:${remain<0?"#ef4444":"#8b949e"};margin-top:2px;">${remain<0?"เกินงบ":"ภายในงบ"}</div></div><div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:18px;text-align:center;"><div style="font-size:11px;color:#8b949e;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">ใช้ไปแล้ว</div><div style="font-size:22px;font-weight:800;color:${Number(pct)>100?"#ef4444":Number(pct)>80?"#f59e0b":"#22c55e"};">${pct}%</div></div></div><div style="background:#161b22;border:1px solid #30363d;border-radius:12px;overflow:hidden;margin-bottom:24px;"><div style="padding:14px 20px;border-bottom:1px solid #30363d;"><div style="font-size:14px;font-weight:700;color:#e6edf3;">📊 รายละเอียดตามช่องทาง</div></div><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:#1c2128;"><th style="text-align:left;padding:12px 20px;color:#8b949e;font-weight:600;border-bottom:1px solid #30363d;">ช่องทาง</th><th style="text-align:right;padding:12px 20px;color:#8b949e;font-weight:600;border-bottom:1px solid #30363d;">งบประมาณ</th><th style="text-align:right;padding:12px 20px;color:#8b949e;font-weight:600;border-bottom:1px solid #30363d;">ใช้จริง</th><th style="text-align:right;padding:12px 20px;color:#8b949e;font-weight:600;border-bottom:1px solid #30363d;">ส่วนต่าง</th><th style="text-align:right;padding:12px 20px;color:#8b949e;font-weight:600;border-bottom:1px solid #30363d;">สัดส่วน</th><th style="text-align:center;padding:12px 20px;color:#8b949e;font-weight:600;border-bottom:1px solid #30363d;">สถานะ</th></tr></thead><tbody>${sd.items.map((it,i)=>{const ci=channels.indexOf(it.channel);const diff=it.budget-it.actual;const ratio=totA>0?((it.actual/totA)*100).toFixed(1):"0";const over=it.actual>it.budget;return`<tr style="border-bottom:1px solid #21262d;"><td style="padding:12px 20px;"><div style="display:flex;align-items:center;gap:10px;"><div style="width:12px;height:12px;border-radius:4px;background:${chColors[ci>=0?ci:i]};flex-shrink:0;"></div><span style="font-weight:600;color:#e6edf3;">${it.channel}</span></div></td><td style="text-align:right;padding:12px 20px;color:#8b949e;">฿${fmtMoney(it.budget)}</td><td style="text-align:right;padding:12px 20px;color:#e6edf3;font-weight:600;">฿${fmtMoney(it.actual)}</td><td style="text-align:right;padding:12px 20px;color:${over?"#ef4444":"#22c55e"};font-weight:600;">${over?"+":"−"}฿${fmtMoney(Math.abs(diff))}</td><td style="text-align:right;padding:12px 20px;color:#8b949e;">${ratio}%</td><td style="text-align:center;padding:12px 20px;"><span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:${over?"rgba(239,68,68,0.15)":"rgba(34,197,94,0.15)"};color:${over?"#ef4444":"#22c55e"};">${over?"เกินงบ":"ภายในงบ"}</span></td></tr>`;}).join("")}<tr style="background:#1c2128;"><td style="padding:12px 20px;font-weight:800;color:#e6edf3;">รวมทั้งหมด</td><td style="text-align:right;padding:12px 20px;font-weight:800;color:#3b82f6;">฿${fmtMoney(totB)}</td><td style="text-align:right;padding:12px 20px;font-weight:800;color:#e6edf3;">฿${fmtMoney(totA)}</td><td style="text-align:right;padding:12px 20px;font-weight:800;color:${remain<0?"#ef4444":"#22c55e"};">${remain<0?"+":"−"}฿${fmtMoney(Math.abs(remain))}</td><td style="text-align:right;padding:12px 20px;color:#8b949e;">100%</td><td></td></tr></tbody></table></div><div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:24px;"><div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:20px;"><div style="font-size:13px;font-weight:700;color:#e6edf3;margin-bottom:12px;text-align:center;">สัดส่วนค่าใช้จ่าย</div><svg viewBox="0 0 100 100" width="160" height="160" style="display:block;margin:0 auto;">${slices}<circle cx="50" cy="50" r="22" fill="#0d1117"/></svg><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;justify-content:center;">${sd.items.filter(it=>it.actual>0).map(it=>{const ci=channels.indexOf(it.channel);return`<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#8b949e;"><div style="width:8px;height:8px;border-radius:2px;background:${chColors[ci>=0?ci:0]};"></div>${it.channel}</div>`;}).join("")}</div></div><div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:20px;"><div style="font-size:13px;font-weight:700;color:#e6edf3;margin-bottom:12px;text-align:center;">งบประมาณ vs ใช้จริง</div><svg viewBox="0 0 810 170" width="100%" preserveAspectRatio="xMidYMid meet">${bars}</svg><div style="display:flex;gap:16px;justify-content:center;margin-top:8px;"><div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#8b949e;"><div style="width:10px;height:10px;border-radius:2px;background:#3b82f6;opacity:0.3;"></div>งบประมาณ</div><div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#8b949e;"><div style="width:10px;height:10px;border-radius:2px;background:#3b82f6;"></div>ใช้จริง</div></div></div></div>${monthlySection}<div style="padding-top:14px;border-top:1px solid #30363d;display:flex;justify-content:space-between;align-items:center;"><div style="font-size:10px;color:#8b949e;">CPMS — Construction Project Management System</div><div style="font-size:10px;color:#8b949e;">พิมพ์เมื่อ ${dateStr}</div></div></div></div>`,fileName:sd.fileName};
+  }
+
+  async function exportBudgetPDF(){
+    setExportLoading(true);
+    try{
+      const{html,fileName}=buildBudgetPdfHtml();
+      const wrap=document.createElement("div");wrap.style.cssText="position:fixed;left:-9999px;top:0;z-index:-1;";wrap.innerHTML=html;document.body.appendChild(wrap);
+      const canvas=await html2canvas(wrap,{scale:2,useCORS:true,logging:false,backgroundColor:"#0d1117",windowWidth:960});document.body.removeChild(wrap);
+      const imgData=canvas.toDataURL("image/jpeg",0.95);const pdf=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+      const pw=pdf.internal.pageSize.getWidth(),pgH=pdf.internal.pageSize.getHeight();const iw=pw-16;const ih=(canvas.height*iw)/canvas.width;
+      let yOff=8;pdf.addImage(imgData,"JPEG",8,yOff,iw,ih);let remaining=ih+yOff-pgH;
+      while(remaining>0){pdf.addPage();yOff-=pgH;pdf.addImage(imgData,"JPEG",8,yOff,iw,ih);remaining-=pgH;}
+      dlBlob(pdf.output("blob"),`${fileName}.pdf`);
+    }catch(e){alert("เกิดข้อผิดพลาด: "+e.message);}
+    setExportLoading(false);
+  }
+  function previewBudgetPDF(){const{html}=buildBudgetPdfHtml();setPdfPreviewHtml(html);}
+
   // Available years
   const allYears=[...new Set(budgets.map(b=>Number(b.month.split("-")[0])))].sort();
   if(!allYears.includes(now.getFullYear()))allYears.push(now.getFullYear());
@@ -2153,8 +2221,8 @@ function MktBudgetPage({data,setData,role,isMobileMode}) {
       </div>
       {/* TAB BUTTONS */}
       <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
-        {[{k:"month",l:"📅 รายเดือน"},{k:"chart",l:"📊 กราฟรายปี"},{k:"compare",l:"📈 เปรียบเทียบ"}].map(t=>(
-          <Btn key={t.k} size="sm" variant={viewMode===t.k?"default":"ghost"} onClick={()=>setViewMode(t.k)} style={viewMode===t.k?{background:C.blue,color:"#fff"}:{}}>{t.l}</Btn>
+        {[{k:"month",l:"📅 รายเดือน"},{k:"chart",l:"📊 กราฟรายปี"},{k:"compare",l:"📈 เปรียบเทียบ"},{k:"summary",l:"📋 สรุปรายงาน"}].map(t=>(
+          <Btn key={t.k} size="sm" variant={viewMode===t.k?"default":"ghost"} onClick={()=>setViewMode(t.k)} style={viewMode===t.k?{background:t.k==="summary"?"#8b5cf6":C.blue,color:"#fff"}:{}}>{t.l}</Btn>
         ))}
       </div>
 
@@ -2432,6 +2500,101 @@ function MktBudgetPage({data,setData,role,isMobileMode}) {
         </>;
       })()}
 
+      {/* ═══ SUMMARY REPORT VIEW ═══ */}
+      {viewMode==="summary"&&<>
+        <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
+          {[{k:"monthly",l:"📅 รายเดือน"},{k:"quarterly",l:"📊 รายไตรมาส"},{k:"yearly",l:"📈 รายปี"}].map(t=>(
+            <Btn key={t.k} size="sm" variant={summaryType===t.k?"default":"ghost"} onClick={()=>setSummaryType(t.k)} style={summaryType===t.k?{background:"#8b5cf6",color:"#fff"}:{}}>{t.l}</Btn>
+          ))}
+          <div style={{flex:1}}/>
+          {summaryType==="monthly"&&<>
+            <Btn size="sm" variant="ghost" onClick={()=>changeMonth(-1)}>◀</Btn>
+            <span style={{fontSize:14,fontWeight:700,color:C.text}}>{thMonthsFull[mo]} {y+543}</span>
+            <Btn size="sm" variant="ghost" onClick={()=>changeMonth(1)}>▶</Btn>
+          </>}
+          {summaryType==="quarterly"&&<div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <select value={summaryQtr} onChange={e=>setSummaryQtr(Number(e.target.value))} style={{background:"#0d1117",border:`1px solid ${C.border}`,borderRadius:6,color:C.text,padding:"6px 10px",fontSize:13}}>
+              <option value={1}>Q1 (ม.ค.—มี.ค.)</option><option value={2}>Q2 (เม.ย.—มิ.ย.)</option><option value={3}>Q3 (ก.ค.—ก.ย.)</option><option value={4}>Q4 (ต.ค.—ธ.ค.)</option>
+            </select>
+            <select value={chartYear} onChange={e=>setChartYear(Number(e.target.value))} style={{background:"#0d1117",border:`1px solid ${C.border}`,borderRadius:6,color:C.text,padding:"6px 10px",fontSize:13}}>
+              {allYears.map(yr=><option key={yr} value={yr}>{yr+543}</option>)}
+            </select>
+          </div>}
+          {summaryType==="yearly"&&<select value={chartYear} onChange={e=>setChartYear(Number(e.target.value))} style={{background:"#0d1117",border:`1px solid ${C.border}`,borderRadius:6,color:C.text,padding:"6px 10px",fontSize:13}}>
+            {allYears.map(yr=><option key={yr} value={yr}>{yr+543}</option>)}
+          </select>}
+        </div>
+        {(()=>{
+          const sd=getSummaryData();
+          const totB=sd.items.reduce((s,it)=>s+(it.budget||0),0);
+          const totA=sd.items.reduce((s,it)=>s+(it.actual||0),0);
+          const remain=totB-totA;
+          const pct=totB?((totA/totB)*100).toFixed(1):"0";
+          return<>
+            <Card style={{marginBottom:16,padding:20}}>
+              <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:4}}>📋 {sd.label}</div>
+              <div style={{fontSize:12,color:C.muted}}>สรุปงบประมาณการตลาดสำหรับนำเสนอในที่ประชุม</div>
+            </Card>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12,marginBottom:16}}>
+              <Card style={{padding:16,textAlign:"center"}}><div style={{fontSize:11,color:C.muted}}>งบประมาณรวม</div><div style={{fontSize:20,fontWeight:800,color:C.blue,marginTop:4}}>฿{fmtMoney(totB)}</div></Card>
+              <Card style={{padding:16,textAlign:"center"}}><div style={{fontSize:11,color:C.muted}}>ใช้จ่ายจริง</div><div style={{fontSize:20,fontWeight:800,color:totA>totB?C.red:C.green,marginTop:4}}>฿{fmtMoney(totA)}</div></Card>
+              <Card style={{padding:16,textAlign:"center"}}><div style={{fontSize:11,color:C.muted}}>คงเหลือ</div><div style={{fontSize:20,fontWeight:800,color:remain<0?C.red:C.green,marginTop:4}}>฿{fmtMoney(Math.abs(remain))}</div><div style={{fontSize:10,color:remain<0?C.red:C.muted}}>{remain<0?"เกินงบ":"ภายในงบ"}</div></Card>
+              <Card style={{padding:16,textAlign:"center"}}><div style={{fontSize:11,color:C.muted}}>ใช้ไปแล้ว</div><div style={{fontSize:20,fontWeight:800,color:Number(pct)>100?C.red:Number(pct)>80?C.orange:C.green,marginTop:4}}>{pct}%</div></Card>
+            </div>
+            <Card style={{marginBottom:16,overflow:"hidden"}}>
+              <div style={{padding:"14px 16px",borderBottom:`1px solid ${C.border}`,fontWeight:700,fontSize:14,color:C.text}}>📊 รายละเอียดตามช่องทาง</div>
+              <div style={{overflowX:"auto"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                  <thead><tr style={{background:"rgba(255,255,255,0.03)"}}>
+                    <th style={{textAlign:"left",padding:"10px 16px",color:C.muted,fontWeight:600}}>ช่องทาง</th>
+                    <th style={{textAlign:"right",padding:"10px 16px",color:C.muted,fontWeight:600}}>งบประมาณ</th>
+                    <th style={{textAlign:"right",padding:"10px 16px",color:C.muted,fontWeight:600}}>ใช้จริง</th>
+                    <th style={{textAlign:"right",padding:"10px 16px",color:C.muted,fontWeight:600}}>ส่วนต่าง</th>
+                    <th style={{textAlign:"center",padding:"10px 16px",color:C.muted,fontWeight:600}}>สถานะ</th>
+                  </tr></thead>
+                  <tbody>
+                    {sd.items.map((it,i)=>{const ci=channels.indexOf(it.channel);const diff=it.budget-it.actual;const over=it.actual>it.budget;return<tr key={i} style={{borderBottom:`1px solid ${C.border}`}}>
+                      <td style={{padding:"10px 16px"}}><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:10,height:10,borderRadius:3,background:chColors[ci>=0?ci:i],flexShrink:0}}/><span style={{fontWeight:600,color:C.text}}>{it.channel}</span></div></td>
+                      <td style={{textAlign:"right",padding:"10px 16px",color:C.muted}}>฿{fmtMoney(it.budget)}</td>
+                      <td style={{textAlign:"right",padding:"10px 16px",color:C.text,fontWeight:600}}>฿{fmtMoney(it.actual)}</td>
+                      <td style={{textAlign:"right",padding:"10px 16px",color:over?C.red:C.green,fontWeight:600}}>{over?"+":"−"}฿{fmtMoney(Math.abs(diff))}</td>
+                      <td style={{textAlign:"center",padding:"10px 16px"}}><span style={{display:"inline-block",padding:"2px 8px",borderRadius:10,fontSize:11,fontWeight:600,background:over?"rgba(239,68,68,0.15)":"rgba(34,197,94,0.15)",color:over?C.red:C.green}}>{over?"เกินงบ":"ภายในงบ"}</span></td>
+                    </tr>;})}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+            {sd.months&&sd.months.length>1&&<Card style={{marginBottom:16,overflow:"hidden"}}>
+              <div style={{padding:"14px 16px",borderBottom:`1px solid ${C.border}`,fontWeight:700,fontSize:14,color:C.text}}>📅 สรุปรายเดือน</div>
+              <div style={{overflowX:"auto"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                  <thead><tr style={{background:"rgba(255,255,255,0.03)"}}>
+                    <th style={{textAlign:"left",padding:"10px 16px",color:C.muted,fontWeight:600}}>เดือน</th>
+                    <th style={{textAlign:"right",padding:"10px 16px",color:C.muted,fontWeight:600}}>งบประมาณ</th>
+                    <th style={{textAlign:"right",padding:"10px 16px",color:C.muted,fontWeight:600}}>ใช้จริง</th>
+                    <th style={{textAlign:"right",padding:"10px 16px",color:C.muted,fontWeight:600}}>ส่วนต่าง</th>
+                    <th style={{textAlign:"right",padding:"10px 16px",color:C.muted,fontWeight:600}}>% ใช้ไป</th>
+                  </tr></thead>
+                  <tbody>
+                    {sd.months.map((m,i)=>{const diff=m.totalBudget-m.totalActual;const p2=m.totalBudget?((m.totalActual/m.totalBudget)*100).toFixed(1):"0";return<tr key={i} style={{borderBottom:`1px solid ${C.border}`}}>
+                      <td style={{padding:"10px 16px",fontWeight:600,color:C.text}}>{thMonthsFull[m.month]} {(m.year||chartYear)+543}</td>
+                      <td style={{textAlign:"right",padding:"10px 16px",color:C.muted}}>฿{fmtMoney(m.totalBudget)}</td>
+                      <td style={{textAlign:"right",padding:"10px 16px",color:C.text,fontWeight:600}}>฿{fmtMoney(m.totalActual)}</td>
+                      <td style={{textAlign:"right",padding:"10px 16px",color:diff<0?C.red:C.green,fontWeight:600}}>{diff<0?"+":"−"}฿{fmtMoney(Math.abs(diff))}</td>
+                      <td style={{textAlign:"right",padding:"10px 16px",color:Number(p2)>100?C.red:Number(p2)>80?C.orange:C.green,fontWeight:600}}>{p2}%</td>
+                    </tr>;})}
+                  </tbody>
+                </table>
+              </div>
+            </Card>}
+            <div style={{display:"flex",gap:12,justifyContent:"center",marginTop:20}}>
+              <Btn onClick={previewBudgetPDF} style={{background:"#8b5cf6"}}>👁️ พรีวิว PDF</Btn>
+              <Btn onClick={exportBudgetPDF} disabled={exportLoading}>{exportLoading?"⏳ กำลังสร้าง...":"📥 ดาวน์โหลด PDF"}</Btn>
+            </div>
+          </>;
+        })()}
+      </>}
+
       {/* EDIT MODAL */}
       {editMdl&&(
         <Mdl title={`💰 งบการตลาด — ${thMonthsFull[mo]} ${y+543}`} onClose={()=>setEditMdl(false)} footer={<><Btn variant="ghost" onClick={()=>setEditMdl(false)}>ยกเลิก</Btn><Btn onClick={save}>💾 บันทึก</Btn></>}>
@@ -2448,11 +2611,17 @@ function MktBudgetPage({data,setData,role,isMobileMode}) {
           </div>
         </Mdl>
       )}
+      {/* PDF PREVIEW MODAL */}
+      {pdfPreviewHtml&&(
+        <Mdl title="👁️ พรีวิว PDF สรุปงบการตลาด" onClose={()=>setPdfPreviewHtml(null)} footer={<><Btn variant="ghost" onClick={()=>setPdfPreviewHtml(null)}>ปิด</Btn><Btn onClick={exportBudgetPDF} disabled={exportLoading}>{exportLoading?"⏳ กำลังสร้าง...":"📥 ดาวน์โหลด PDF"}</Btn></>}>
+          <div style={{maxHeight:"70vh",overflow:"auto",borderRadius:8,border:`1px solid ${C.border}`}}>
+            <div dangerouslySetInnerHTML={{__html:pdfPreviewHtml}}/>
+          </div>
+        </Mdl>
+      )}
     </div>
   );
 }
-
-// ── Customer Data (Walk-in) Page ──────────────────────────────
 function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
   const canEdit=["owner","marketing","sales"].includes(role);
   const [editMdl,setEditMdl]=useState(null);
@@ -3318,7 +3487,7 @@ function MktResultPage({data,setData,role,isMobileMode}) {
       pdf.addImage(imgData,"JPEG",10,yOff,iw,ih);
       let remaining=ih+yOff-pgH;
       while(remaining>0){pdf.addPage();yOff-=pgH;pdf.addImage(imgData,"JPEG",10,yOff,iw,ih);remaining-=pgH;}
-      dlBlob(pdf.output("blob"),"ผลลัพธ์การตลาด.pdf");
+      dlBlob(pdf.output("blob"),`ผลลัพธ์การตลาด_${fmtRange(chartFrom,chartTo).replace(/\s*—\s*/g,"-").replace(/ /g,"")}.pdf`);
     }catch(e){alert("เกิดข้อผิดพลาด: "+e.message);}
     setExportLoading(false);
   }
@@ -3371,7 +3540,7 @@ function MktResultPage({data,setData,role,isMobileMode}) {
       `;
       const canvas=await html2canvas(wrap,{scale:2,useCORS:true,allowTaint:true,logging:false,backgroundColor:"#0d1117",windowWidth:1100});
       document.body.removeChild(wrap);
-      canvas.toBlob(blob=>{if(blob)dlBlob(blob,"ผลลัพธ์การตลาด.png");setExportLoading(false);},"image/png");
+      canvas.toBlob(blob=>{if(blob)dlBlob(blob,`ผลลัพธ์การตลาด_${fmtRange(chartFrom,chartTo).replace(/\s*—\s*/g,"-").replace(/ /g,"")}.png`);setExportLoading(false);},"image/png");
     }catch(e){alert("เกิดข้อผิดพลาด: "+e.message);setExportLoading(false);}
   }
 

@@ -423,12 +423,12 @@ function Sidebar({page,setPage,role,data,authedUserId,isMobileMode,onLogout,onCh
   const pendingPwChanges=data.team.filter(t=>t.pendingPassword).length;
   const settingsBadge=pendingMembers+pendingPwChanges;
   const navByRole={
-    owner:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"Dashboard"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"finance",icon:"💹",label:"Finance"},{id:"costPage",icon:"💰",label:"ต้นทุนค่าใช้จ่าย"},{id:"analytics",icon:"📊",label:"Analytics"},{id:"team",icon:"👥",label:"Team"},{id:"marketing",icon:"🏠",label:"บ้านและจอง"},{id:"transferredHouses",icon:"🏡",label:"บ้านที่โอนแล้ว"},{id:"customerData",icon:"👤",label:"ข้อมูลลูกค้า"},{id:"mktResult",icon:"📊",label:"ผลลัพธ์"},{id:"mktBudget",icon:"💰",label:"งบการตลาด"},{id:"settings",icon:"⚙️",label:"ตั้งค่า",badge:settingsBadge}],
+    owner:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"Dashboard"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"finance",icon:"💹",label:"Finance"},{id:"costPage",icon:"💰",label:"ต้นทุนค่าใช้จ่าย"},{id:"analytics",icon:"📊",label:"Analytics"},{id:"team",icon:"👥",label:"Team"},{id:"customerData",icon:"👤",label:"ข้อมูลลูกค้า"},{id:"marketing",icon:"🏠",label:"บ้านและจอง"},{id:"transferredHouses",icon:"🏡",label:"บ้านที่โอนแล้ว"},{id:"mktResult",icon:"📊",label:"ผลลัพธ์"},{id:"mktBudget",icon:"💰",label:"งบการตลาด"},{id:"settings",icon:"⚙️",label:"ตั้งค่า",badge:settingsBadge}],
     engineer:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"บ้านที่ดูแล"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"costPage",icon:"💰",label:"ต้นทุนค่าใช้จ่าย"},{id:"analytics",icon:"📊",label:"Analytics"},{id:"team",icon:"👥",label:"ทีมงาน"},{id:"settings",icon:"⚙️",label:"ตั้งค่า"}],
     foreman:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"บ้านที่ดูแล"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"team",icon:"👥",label:"ทีมงาน"}],
     purchasing:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"ภาพรวม"},{id:"costPage",icon:"💰",label:"ต้นทุนค่าใช้จ่าย"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"team",icon:"👥",label:"ทีมงาน"}],
-    marketing:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"marketing",icon:"🏠",label:"บ้านและจอง"},{id:"transferredHouses",icon:"🏡",label:"บ้านที่โอนแล้ว"},{id:"customerData",icon:"👤",label:"ข้อมูลลูกค้า"},{id:"mktResult",icon:"📊",label:"ผลลัพธ์"},{id:"mktBudget",icon:"💰",label:"งบการตลาด"},{id:"team",icon:"👥",label:"ทีมงาน"}],
-    sales:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"marketing",icon:"🏠",label:"บ้านและจอง"},{id:"transferredHouses",icon:"🏡",label:"บ้านที่โอนแล้ว"},{id:"customerData",icon:"👤",label:"ข้อมูลลูกค้า"},{id:"mktResult",icon:"📊",label:"ผลลัพธ์"},{id:"team",icon:"👥",label:"ทีมงาน"}],
+    marketing:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"customerData",icon:"👤",label:"ข้อมูลลูกค้า"},{id:"marketing",icon:"🏠",label:"บ้านและจอง"},{id:"transferredHouses",icon:"🏡",label:"บ้านที่โอนแล้ว"},{id:"mktResult",icon:"📊",label:"ผลลัพธ์"},{id:"mktBudget",icon:"💰",label:"งบการตลาด"},{id:"team",icon:"👥",label:"ทีมงาน"}],
+    sales:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"customerData",icon:"👤",label:"ข้อมูลลูกค้า"},{id:"marketing",icon:"🏠",label:"บ้านและจอง"},{id:"transferredHouses",icon:"🏡",label:"บ้านที่โอนแล้ว"},{id:"mktResult",icon:"📊",label:"ผลลัพธ์"},{id:"team",icon:"👥",label:"ทีมงาน"}],
   };
   const items=navByRole[role]||navByRole.owner;
   return (
@@ -2477,8 +2477,8 @@ function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
     if(r===0)return principal/n;
     return Math.round(principal*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1));
   }
-  function openAdd(){setForm({id:uid(),name:"",phone:"",age:"",occupation:"",income:"",walkInDate:new Date().toISOString().slice(0,10),channel:"",channels:[],channelOther:"",channelDetail:"",channelDetailOther:"",salesPerson:"",bookingDate:"",bookingHouseId:"",note:"",bankLoans:[],interestLevel:"",lookingForHouseType:"",houseStyle:"",houseFloors:"",bedroomConfig:"",workPlace:"",preferredArea:"",province:"",district:"",subDistrict:"",carInstallment:"",otherDebts:"",numberOfChildren:"",maritalStatus:"",notBookedReason:""});setEditMdl("add");}
-  function openEdit(c){const chs=c.channels||(c.channel?[c.channel]:[]);setForm({...c,channels:chs,channelOther:c.channelOther||"",bankLoans:c.bankLoans||[],interestLevel:c.interestLevel||"",lookingForHouseType:c.lookingForHouseType||"",houseStyle:c.houseStyle||"",houseFloors:c.houseFloors||"",bedroomConfig:c.bedroomConfig||"",workPlace:c.workPlace||"",preferredArea:c.preferredArea||"",province:c.province||"",district:c.district||"",subDistrict:c.subDistrict||"",carInstallment:c.carInstallment||"",otherDebts:c.otherDebts||"",numberOfChildren:c.numberOfChildren||"",maritalStatus:c.maritalStatus||"",notBookedReason:c.notBookedReason||""});setEditMdl("edit");}
+  function openAdd(){setForm({id:uid(),name:"",phone:"",age:"",occupation:"",income:"",walkInDate:new Date().toISOString().slice(0,10),channel:"",channels:[],channelOther:"",channelDetail:"",channelDetailOther:"",salesPerson:"",bookingDate:"",bookingHouseId:"",note:"",bankLoans:[],interestLevel:"",lookingForHouseType:"",houseStyle:"",houseFloors:"",bedroomConfig:"",workPlace:"",preferredArea:"",searchZone:"",province:"",district:"",subDistrict:"",carInstallment:"",otherDebts:"",numberOfChildren:"",maritalStatus:"",notBookedReason:"",promotion:""});setEditMdl("add");}
+  function openEdit(c){const chs=c.channels||(c.channel?[c.channel]:[]);setForm({...c,channels:chs,channelOther:c.channelOther||"",bankLoans:c.bankLoans||[],interestLevel:c.interestLevel||"",lookingForHouseType:c.lookingForHouseType||"",houseStyle:c.houseStyle||"",houseFloors:c.houseFloors||"",bedroomConfig:c.bedroomConfig||"",workPlace:c.workPlace||"",preferredArea:c.preferredArea||"",searchZone:c.searchZone||"",province:c.province||"",district:c.district||"",subDistrict:c.subDistrict||"",carInstallment:c.carInstallment||"",otherDebts:c.otherDebts||"",numberOfChildren:c.numberOfChildren||"",maritalStatus:c.maritalStatus||"",notBookedReason:c.notBookedReason||"",promotion:c.promotion||""});setEditMdl("edit");}
   function addBank(){setForm(f=>({...f,bankLoans:[...(f.bankLoans||[]),{id:uid(),bankName:"",promoName:"",rate1:"",rate2:"",rate3:"",loanAmount:"",loanYears:30}]}));}
   function removeBank(id){setForm(f=>({...f,bankLoans:f.bankLoans.filter(b=>b.id!==id)}));}
   function updateBank(id,key,val){setForm(f=>({...f,bankLoans:f.bankLoans.map(b=>b.id===id?{...b,[key]:val}:b)}));}
@@ -2508,15 +2508,20 @@ function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
     setPdfLoading2(true);
     const linked=getLinkedHouseData(c.bookingHouseId);
     const houseTypeStr=[c.houseStyle,c.houseFloors,c.bedroomConfig].filter(Boolean).join(" / ")||(c.lookingForHouseType||"");
-    const areaStr=[c.subDistrict,c.district,c.province].filter(Boolean).join(", ")||(c.preferredArea||"");
+    const areaStr=c.searchZone||[c.subDistrict,c.district,c.province].filter(Boolean).join(", ")||(c.preferredArea||"");
+    const projectName=linked?data.projects.find(p=>p.id===linked.house.projectId)?.name||"":"";
+    const promoText=c.promotion||"";
     const el=document.createElement("div");
     el.style.cssText="position:fixed;left:-9999px;top:0;width:794px;background:#fff;padding:48px 44px;font-family:'Noto Sans Thai',sans-serif;color:#1a1a1a;line-height:1.6;";
     el.innerHTML=`
       <div style="text-align:center;margin-bottom:32px;padding-bottom:24px;border-bottom:3px solid #2563eb;">
         <div style="font-size:28px;font-weight:800;color:#2563eb;">📋 ข้อมูลลูกค้า</div>
+        ${projectName?`<div style="font-size:14px;color:#1e3a5f;margin-top:6px;font-weight:600;">โครงการ ${projectName}</div>`:""}
         <div style="font-size:14px;color:#6b7280;margin-top:8px;">ระบบ CPMS — ${new Date().toLocaleDateString("th-TH",{year:"numeric",month:"long",day:"numeric"})}</div>
         <div style="font-size:12px;color:#6b7280;margin-top:4px;">วัน Walk-in: ${c.walkInDate||"—"}${c.bookingDate?` | วันจอง: ${c.bookingDate}`:""}</div>
       </div>
+      ${linked?`<div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:16px;padding:20px;margin-bottom:24px;border:1px solid #86efac;"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;"><div><div style="font-size:11px;color:#15803d;font-weight:700;text-transform:uppercase;">ข้อมูลบ้านที่จอง</div><div style="font-size:22px;font-weight:900;color:#166534;margin-top:4px;">🏡 บ้าน ${linked.house.name}</div></div>${linked.customer?.price?`<div style="text-align:right;"><div style="font-size:11px;color:#15803d;font-weight:700;">ราคาบ้าน</div><div style="font-size:26px;font-weight:900;color:#166534;">฿${Number(linked.customer.price).toLocaleString()}</div></div>`:""}</div></div>`:""}
+      ${promoText?`<div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border-radius:16px;padding:18px;margin-bottom:24px;border:1px solid #fbbf24;"><div style="font-size:14px;font-weight:800;color:#92400e;margin-bottom:6px;">🏷️ โปรโมชั่น/ของแถม</div><div style="font-size:13px;color:#78350f;">${promoText}</div></div>`:""}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
         <div style="background:#f8fafc;border-radius:12px;padding:16px;border:1px solid #e2e8f0;">
           <div style="font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700;">ข้อมูลส่วนตัว</div>
@@ -2561,8 +2566,9 @@ function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
     setPdfLoading2(true);
     const linked=getLinkedHouseData(c.bookingHouseId);
     const housePromos=linked?.customer?.promotionItems||(linked?.customer?.promotion?[{id:1,text:linked.customer.promotion}]:[]);
+    const custPromo=c.promotion||"";
     const houseTypeStr=[c.houseStyle,c.houseFloors,c.bedroomConfig].filter(Boolean).join(" / ")||(c.lookingForHouseType||"");
-    const areaStr=[c.subDistrict,c.district,c.province].filter(Boolean).join(", ")||(c.preferredArea||"");
+    const areaStr=c.searchZone||[c.subDistrict,c.district,c.province].filter(Boolean).join(", ")||(c.preferredArea||"");
     const projectName=linked?data.projects.find(p=>p.id===linked.house.projectId)?.name||"":"";
     const el=document.createElement("div");
     el.style.cssText="position:fixed;left:-9999px;top:0;width:794px;background:#fff;padding:0;font-family:'Noto Sans Thai',sans-serif;color:#1a1a1a;line-height:1.6;";
@@ -2597,6 +2603,13 @@ function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
         <div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border-radius:16px;padding:20px;margin-bottom:24px;border:1px solid #fbbf24;">
           <div style="font-size:14px;font-weight:800;color:#92400e;margin-bottom:10px;">🏷️ โปรโมชั่นพิเศษ</div>
           ${housePromos.map((p,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;${i>0?"border-top:1px solid #fde68a;":""}"><div style="width:24px;height:24px;border-radius:50%;background:#f59e0b;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;">${i+1}</div><div style="font-size:13px;color:#78350f;font-weight:600;">${p.text}</div></div>`).join("")}
+          ${custPromo?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid #fde68a;font-size:13px;color:#78350f;">🎁 ${custPromo}</div>`:""}
+        </div>
+        `:""}
+        ${!housePromos.length&&custPromo?`
+        <div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border-radius:16px;padding:20px;margin-bottom:24px;border:1px solid #fbbf24;">
+          <div style="font-size:14px;font-weight:800;color:#92400e;margin-bottom:10px;">🏷️ โปรโมชั่นพิเศษ</div>
+          <div style="font-size:13px;color:#78350f;font-weight:600;">🎁 ${custPromo}</div>
         </div>
         `:""}
         ${(c.bankLoans||[]).length>0?`
@@ -2838,17 +2851,10 @@ function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
             </FG>
           </div>
           <div style={{fontSize:13,fontWeight:700,color:C.muted,marginTop:12,marginBottom:6}}>📍 โซน/พื้นที่ที่สนใจ</div>
-          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr 1fr",gap:12}}>
-            <FG label="จังหวัด">
-              <FSel value={form.province} onChange={e=>setForm(f=>({...f,province:e.target.value,district:"",subDistrict:""}))}>
-                <option value="">— เลือกจังหวัด —</option>
-                {thaiProvinces.map(p=><option key={p} value={p}>{p}</option>)}
-              </FSel>
-            </FG>
-            <FG label="อำเภอ/เขต"><FIn value={form.district} onChange={e=>setForm(f=>({...f,district:e.target.value}))} placeholder="พิมพ์ชื่ออำเภอ/เขต"/></FG>
-            <FG label="ตำบล/แขวง"><FIn value={form.subDistrict} onChange={e=>setForm(f=>({...f,subDistrict:e.target.value}))} placeholder="พิมพ์ชื่อตำบล/แขวง"/></FG>
-          </div>
+          <FG label="โซนที่กำลังหาบ้าน"><FIn value={form.searchZone||""} onChange={e=>setForm(f=>({...f,searchZone:e.target.value}))} placeholder="เช่น โซนตลาด, โซนหนองไผ่ล้อม, โซนบางแสน"/></FG>
           <FG label="ที่ทำงาน/สถานที่ทำงาน"><FIn value={form.workPlace} onChange={e=>setForm(f=>({...f,workPlace:e.target.value}))} placeholder="เช่น บริษัท ABC อ.เมือง จ.ชลบุรี"/></FG>
+          <div style={{fontSize:13,fontWeight:700,color:C.muted,marginTop:12,marginBottom:6}}>🏷️ โปรโมชั่น/ของแถม</div>
+          <FG label="โปรโมชั่นสำหรับลูกค้า"><FIn value={form.promotion||""} onChange={e=>setForm(f=>({...f,promotion:e.target.value}))} rows={2} placeholder="เช่น ฟรีเครื่องปรับอากาศ 3 ตัว, ฟรีเฟอร์นิเจอร์ครบชุด, ส่วนลดพิเศษ 50,000 บาท"/></FG>
           {form.interestLevel&&form.interestLevel!=="จอง"&&(
             <FG label="📝 สาเหตุที่ยังไม่จอง / หมายเหตุติดตาม"><FIn value={form.notBookedReason||""} onChange={e=>setForm(f=>({...f,notBookedReason:e.target.value}))} rows={2} placeholder="เช่น ลูกค้าไปถามพ่อแม่, จะกลับมาดูอีกที, รอเปรียบเทียบโครงการอื่น..."/></FG>
           )}
@@ -2918,13 +2924,25 @@ function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
         </Mdl>
         );
       })()}
-      {pdfPreview&&(
+      {pdfPreview&&(()=>{
+        const pvLinked=getLinkedHouseData(pdfPreview.bookingHouseId);
+        const pvProjName=pvLinked?data.projects.find(p=>p.id===pvLinked.house.projectId)?.name||"":"";
+        const pvPromo=pdfPreview.promotion||"";
+        return(
         <Mdl title="👁 พรีวิว PDF ข้อมูลลูกค้า" onClose={()=>setPdfPreview(null)} footer={<><Btn variant="ghost" onClick={()=>setPdfPreview(null)}>ปิด</Btn><Btn onClick={()=>{exportCustPDF(pdfPreview);setPdfPreview(null);}} disabled={pdfLoading2}>{pdfLoading2?"⏳ กำลังสร้าง...":"📄 ดาวน์โหลด PDF"}</Btn></>}>
           <div style={{background:"#fff",color:"#1a1a1a",borderRadius:12,padding:20,maxHeight:"60vh",overflowY:"auto"}}>
             <div style={{textAlign:"center",marginBottom:20,paddingBottom:16,borderBottom:"3px solid #2563eb"}}>
               <div style={{fontSize:22,fontWeight:800,color:"#2563eb"}}>📋 ข้อมูลลูกค้า</div>
+              {pvProjName&&<div style={{fontSize:14,color:"#1e3a5f",marginTop:4,fontWeight:600}}>โครงการ {pvProjName}</div>}
               <div style={{fontSize:11,color:"#6b7280",marginTop:4}}>วัน Walk-in: {pdfPreview.walkInDate||"—"}{pdfPreview.bookingDate?` | วันจอง: ${pdfPreview.bookingDate}`:""}</div>
             </div>
+            {pvLinked&&<div style={{background:"linear-gradient(135deg,#f0fdf4,#dcfce7)",borderRadius:12,padding:16,marginBottom:16,border:"1px solid #86efac"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
+                <div><div style={{fontSize:10,color:"#15803d",fontWeight:700}}>ข้อมูลบ้านที่จอง</div><div style={{fontSize:18,fontWeight:900,color:"#166534",marginTop:3}}>🏡 บ้าน {pvLinked.house.name}</div></div>
+                {pvLinked.customer?.price&&<div style={{fontSize:20,fontWeight:900,color:"#166534"}}>฿{fmtMoney(Number(pvLinked.customer.price))}</div>}
+              </div>
+            </div>}
+            {pvPromo&&<div style={{background:"linear-gradient(135deg,#fffbeb,#fef3c7)",borderRadius:10,padding:14,marginBottom:14,border:"1px solid #fbbf24"}}><div style={{fontSize:11,fontWeight:700,color:"#92400e"}}>🏷️ โปรโมชั่น/ของแถม</div><div style={{fontSize:13,marginTop:6,color:"#78350f"}}>{pvPromo}</div></div>}
             <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:14,marginBottom:16}}>
               <div style={{background:"#f8fafc",borderRadius:10,padding:14}}>
                 <div style={{fontSize:10,color:"#6b7280",fontWeight:700,textTransform:"uppercase"}}>ข้อมูลส่วนตัว</div>
@@ -2940,8 +2958,8 @@ function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
                 {pdfPreview.interestLevel&&<div style={{fontSize:14,fontWeight:600,marginTop:6,color:INTEREST_COL[pdfPreview.interestLevel]==="green"?"#16a34a":INTEREST_COL[pdfPreview.interestLevel]==="red"?"#dc2626":INTEREST_COL[pdfPreview.interestLevel]==="orange"?"#ea580c":"#2563eb"}}>⭐ {pdfPreview.interestLevel}</div>}
                 {(pdfPreview.houseStyle||pdfPreview.houseFloors||pdfPreview.bedroomConfig)&&<div style={{fontSize:12,marginTop:4}}>🏠 {[pdfPreview.houseStyle,pdfPreview.houseFloors,pdfPreview.bedroomConfig].filter(Boolean).join(" / ")}</div>}
                 {!pdfPreview.houseStyle&&pdfPreview.lookingForHouseType&&<div style={{fontSize:12,marginTop:4}}>🏠 {pdfPreview.lookingForHouseType}</div>}
-                {(pdfPreview.province||pdfPreview.district||pdfPreview.subDistrict)&&<div style={{fontSize:12,marginTop:2}}>📍 {[pdfPreview.subDistrict,pdfPreview.district,pdfPreview.province].filter(Boolean).join(", ")}</div>}
-                {!pdfPreview.province&&pdfPreview.preferredArea&&<div style={{fontSize:12,marginTop:2}}>📍 {pdfPreview.preferredArea}</div>}
+                {pdfPreview.searchZone&&<div style={{fontSize:12,marginTop:2}}>📍 โซน: {pdfPreview.searchZone}</div>}
+                {!pdfPreview.searchZone&&(pdfPreview.province||pdfPreview.district||pdfPreview.subDistrict)&&<div style={{fontSize:12,marginTop:2}}>📍 {[pdfPreview.subDistrict,pdfPreview.district,pdfPreview.province].filter(Boolean).join(", ")}</div>}
                 {(pdfPreview.channels||[]).length>0&&<div style={{fontSize:12,marginTop:4}}>📢 ช่องทาง: {pdfPreview.channels.join(", ")}{pdfPreview.channelOther?` (${pdfPreview.channelOther})`:""}</div>}
                 {pdfPreview.salesPerson&&<div style={{fontSize:12,marginTop:2}}>👤 เซลล์: {pdfPreview.channelDetail||pdfPreview.salesPerson}</div>}
               </div>
@@ -2974,7 +2992,8 @@ function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
             {pdfPreview.note&&<div style={{background:"#f8fafc",borderRadius:10,padding:14}}><div style={{fontSize:10,fontWeight:700,color:"#6b7280"}}>หมายเหตุ</div><div style={{fontSize:12,marginTop:6}}>{pdfPreview.note}</div></div>}
           </div>
         </Mdl>
-      )}
+        );
+      })()}
       {custPdfPreview&&(()=>{
         const linked=getLinkedHouseData(custPdfPreview.bookingHouseId);
         const housePromos=linked?.customer?.promotionItems||(linked?.customer?.promotion?[{id:1,text:linked.customer.promotion}]:[]);
@@ -3125,7 +3144,24 @@ function MktResultPage({data,setData,role,isMobileMode}) {
     setData(d=>{
       const dr=d.dailyResults||[];
       const idx=dr.findIndex(r=>r.date===cleaned.date);
-      return{...d,dailyResults:idx>=0?dr.map((r,i)=>i===idx?cleaned:r):[...dr,cleaned]};
+      const newDR=idx>=0?dr.map((r,i)=>i===idx?cleaned:r):[...dr,cleaned];
+      // Auto-sync daily totals → monthly totals
+      const [dy,dm]=cleaned.date.split("-").map(Number);
+      const monthKey=`${dy}-${String(dm).padStart(2,"0")}`;
+      const daysInMonth=new Date(dy,dm,0).getDate();
+      const monthDaily=Array.from({length:daysInMonth},(_,i)=>{
+        const ds=`${dy}-${String(dm).padStart(2,"0")}-${String(i+1).padStart(2,"0")}`;
+        if(ds===cleaned.date)return cleaned;
+        return newDR.find(r=>r.date===ds)||{};
+      });
+      const monthSum={month:monthKey,note:""};
+      metrics.forEach(m=>{monthSum[m.key]=monthDaily.reduce((s,dd)=>s+(Number(dd[m.key])||0),0);});
+      const mr=d.monthlyResults||[];
+      const mIdx=mr.findIndex(r=>r.month===monthKey);
+      const existingNote=mIdx>=0?mr[mIdx].note||"":"";
+      monthSum.note=existingNote;
+      const newMR=mIdx>=0?mr.map((r,i)=>i===mIdx?{...r,...monthSum}:r):[...mr,monthSum];
+      return{...d,dailyResults:newDR,monthlyResults:newMR};
     });
     setDailyMdl(null);
   }
@@ -3200,12 +3236,143 @@ function MktResultPage({data,setData,role,isMobileMode}) {
   }
 
   async function exportPDF(){
-    setExportLoading(true);const el=chartRef.current;if(!el){setExportLoading(false);return;}
-    try{const canvas=await html2canvas(el,{scale:2,useCORS:true,allowTaint:true,logging:false,backgroundColor:"#0d1117",windowWidth:900});const imgData=canvas.toDataURL("image/jpeg",.95);const pdf=new jsPDF("l","mm","a4");const pw=pdf.internal.pageSize.getWidth();const ph=pdf.internal.pageSize.getHeight();const iw=pw-20;const ih=(canvas.height*iw)/canvas.width;pdf.addImage(imgData,"JPEG",10,10,iw,Math.min(ih,ph-20));if(ih>ph-20){let left=ih-(ph-20);while(left>0){pdf.addPage();pdf.addImage(imgData,"JPEG",10,-(ih-left),iw,ih);left-=ph-20;}}dlBlob(pdf.output("blob"),"ผลลัพธ์การตลาด.pdf");}catch(e){alert("เกิดข้อผิดพลาด: "+e.message);}setExportLoading(false);
+    setExportLoading(true);
+    try{
+      const pts=genPts(chartFrom,chartTo,gran);
+      const totals=sumM(pts);
+      const rangeStr=fmtRange(chartFrom,chartTo);
+      const granLabel=gran==="day"?"รายวัน":gran==="week"?"รายสัปดาห์":gran==="month"?"รายเดือน":"รายปี";
+      const dateStr=new Date().toLocaleDateString("th-TH",{year:"numeric",month:"long",day:"numeric"});
+      // Build offscreen template
+      const wrap=document.createElement("div");
+      wrap.style.cssText="position:fixed;left:-9999px;top:0;width:1100px;background:#fff;color:#1a1a1a;padding:40px;font-family:sans-serif;";
+      document.body.appendChild(wrap);
+      // SVG bar chart for inbox
+      const cW=1020;const cH=200;
+      const n=pts.length;
+      const inboxMax=Math.max(1,...pts.map(d=>(d.fbInbox||0)+(d.tiktokCloudInbox||0)+(d.tiktokBossInbox||0)+(d.lineInbox||0)));
+      const resultMax=Math.max(1,...pts.flatMap(d=>[(d.walkIn||0),(d.bookings||0),(d.transfers||0)]));
+      function makeSVG(keys,mx,h){
+        const colors={fbInbox:"#3b82f6",tiktokCloudInbox:"#06b6d4",tiktokBossInbox:"#8b5cf6",lineInbox:"#22c55e",walkIn:"#f59e0b",bookings:"#ec4899",transfers:"#a78bfa",totalInbox:"#3b82f6"};
+        let svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${cW}" height="${h+30}" viewBox="0 0 ${cW} ${h+30}">`;
+        [0,.25,.5,.75,1].forEach(p=>{const yp=h-(p*h);svg+=`<line x1="0" y1="${yp}" x2="${cW}" y2="${yp}" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="4,4"/><text x="2" y="${yp-3}" fill="#9ca3af" font-size="8">${fmtMoney(Math.round(mx*p))}</text>`;});
+        const gx=i=>(i/Math.max(1,n-1))*(cW-40)+20;
+        const gy=v=>h-(v/mx)*h;
+        keys.forEach(k=>{
+          if(n<2)return;
+          const path=pts.map((d,i)=>`${i===0?"M":"L"}${gx(i)},${gy(d[k]||0)}`).join(" ");
+          svg+=`<path d="${path}" fill="none" stroke="${colors[k]||"#3b82f6"}" stroke-width="2.5" opacity="0.9"/>`;
+          if(n<=60)pts.forEach((d,i)=>{svg+=`<circle cx="${gx(i)}" cy="${gy(d[k]||0)}" r="${n>31?1.5:3}" fill="${colors[k]||"#3b82f6"}"/>`;});
+        });
+        const step=n>60?Math.ceil(n/15):n>31?Math.ceil(n/10):1;
+        pts.forEach((d,i)=>{if(i%step===0||i===n-1)svg+=`<text x="${gx(i)}" y="${h+14}" text-anchor="middle" fill="#9ca3af" font-size="${n>60?5:n>31?7:9}">${d.short||d.label}</text>`;});
+        svg+=`</svg>`;return svg;
+      }
+      const inboxSVG=makeSVG(["fbInbox","tiktokCloudInbox","tiktokBossInbox","lineInbox"],inboxMax,cH);
+      const resultSVG=makeSVG(["walkIn","bookings","transfers"],resultMax,160);
+      wrap.innerHTML=`
+        <div style="text-align:center;margin-bottom:28px;padding-bottom:18px;border-bottom:3px solid #2563eb">
+          <div style="font-size:26px;font-weight:800;color:#2563eb">📊 รายงานผลลัพธ์การตลาด</div>
+          <div style="font-size:14px;color:#1e3a5f;margin-top:6px;font-weight:600">${rangeStr} · ${granLabel} · ${pts.length} จุดข้อมูล</div>
+          <div style="font-size:11px;color:#9ca3af;margin-top:6px">ระบบ CPMS — ${dateStr}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px">
+          <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:12px;padding:18px;text-align:center;border:1px solid #93c5fd"><div style="font-size:10px;color:#2563eb;font-weight:700">📨 รวม Inbox ทั้งหมด</div><div style="font-size:28px;font-weight:900;color:#1e40af;margin-top:8px">${fmtMoney(totals.totalInbox)}</div></div>
+          <div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border-radius:12px;padding:18px;text-align:center;border:1px solid #fbbf24"><div style="font-size:10px;color:#92400e;font-weight:700">🚶 Walk-in</div><div style="font-size:28px;font-weight:900;color:#92400e;margin-top:8px">${fmtMoney(totals.walkIn||0)}</div></div>
+          <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:12px;padding:18px;text-align:center;border:1px solid #86efac"><div style="font-size:10px;color:#166534;font-weight:700">📝 ยอดจอง</div><div style="font-size:28px;font-weight:900;color:#166534;margin-top:8px">${fmtMoney(totals.bookings||0)} หลัง</div></div>
+          <div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:12px;padding:18px;text-align:center;border:1px solid #c4b5fd"><div style="font-size:10px;color:#5b21b6;font-weight:700">✅ โอนแล้ว</div><div style="font-size:28px;font-weight:900;color:#5b21b6;margin-top:8px">${fmtMoney(totals.transfers||0)} หลัง</div></div>
+        </div>
+        <div style="margin-bottom:24px">
+          <div style="font-size:15px;font-weight:700;color:#1e3a5f;margin-bottom:4px">📨 Inbox ทุกช่องทาง</div>
+          <div style="display:flex;gap:14px;margin-bottom:10px">
+            ${[{k:"fbInbox",l:"Facebook",c:"#3b82f6"},{k:"tiktokCloudInbox",l:"TikTok Cloud",c:"#06b6d4"},{k:"tiktokBossInbox",l:"TikTok Boss",c:"#8b5cf6"},{k:"lineInbox",l:"LINE",c:"#22c55e"}].map(m=>`<div style="display:flex;align-items:center;gap:4px;font-size:10px"><div style="width:10px;height:10px;border-radius:2px;background:${m.c}"></div><span style="color:#6b7280">${m.l}: <strong style="color:${m.c}">${fmtMoney(totals[m.k]||0)}</strong></span></div>`).join("")}
+          </div>
+          ${inboxSVG}
+        </div>
+        <div style="margin-bottom:24px">
+          <div style="font-size:15px;font-weight:700;color:#1e3a5f;margin-bottom:4px">🏠 Walk-in / จอง / โอน</div>
+          <div style="display:flex;gap:14px;margin-bottom:10px">
+            ${[{k:"walkIn",l:"Walk-in",c:"#f59e0b"},{k:"bookings",l:"จอง",c:"#ec4899"},{k:"transfers",l:"โอน",c:"#a78bfa"}].map(m=>`<div style="display:flex;align-items:center;gap:4px;font-size:10px"><div style="width:10px;height:10px;border-radius:2px;background:${m.c}"></div><span style="color:#6b7280">${m.l}: <strong style="color:${m.c}">${fmtMoney(totals[m.k]||0)}</strong></span></div>`).join("")}
+          </div>
+          ${resultSVG}
+        </div>
+        <div style="font-size:15px;font-weight:700;color:#1e3a5f;margin-bottom:10px">📋 ตารางสรุป</div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
+          <thead><tr><th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:#6b7280;border-bottom:2px solid #e2e8f0;background:#f8fafc">${gran==="day"?"วัน":gran==="week"?"สัปดาห์":gran==="month"?"เดือน":"ปี"}</th>${metrics.map(m=>`<th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;color:${m.color};border-bottom:2px solid #e2e8f0;background:#f8fafc">${m.icon} ${m.label}</th>`).join("")}<th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;color:#2563eb;border-bottom:2px solid #e2e8f0;background:#f8fafc">รวม Inbox</th></tr></thead>
+          <tbody>${pts.map((d,i)=>{const ti=(d.fbInbox||0)+(d.tiktokCloudInbox||0)+(d.tiktokBossInbox||0)+(d.lineInbox||0);return`<tr style="border-bottom:1px solid #e2e8f0;background:${i%2===0?"#fff":"#f8fafc"}"><td style="padding:6px 10px;font-size:11px;font-weight:600">${d.label}</td>${metrics.map(m=>`<td style="padding:6px 10px;text-align:right;font-size:11px">${d[m.key]||0}</td>`).join("")}<td style="padding:6px 10px;text-align:right;font-size:11px;font-weight:700;color:#2563eb">${ti}</td></tr>`;}).join("")}
+          <tr style="background:#eff6ff;font-weight:700"><td style="padding:8px 10px;font-size:12px">รวมทั้งหมด</td>${metrics.map(m=>`<td style="padding:8px 10px;text-align:right;font-size:12px;color:${m.color};font-weight:800">${fmtMoney(totals[m.key]||0)}</td>`).join("")}<td style="padding:8px 10px;text-align:right;font-size:13px;color:#2563eb;font-weight:800">${fmtMoney(totals.totalInbox)}</td></tr>
+          </tbody>
+        </table>
+        <div style="padding-top:16px;border-top:2px solid #e2e8f0;display:flex;justify-content:space-between;font-size:10px;color:#9ca3af">
+          <span>เอกสารจัดทำโดยระบบ CPMS</span>
+          <span>ข้อมูล ณ วันที่ ${dateStr}</span>
+        </div>
+      `;
+      const canvas=await html2canvas(wrap,{scale:2,useCORS:true,allowTaint:true,logging:false,backgroundColor:"#ffffff",windowWidth:1100});
+      document.body.removeChild(wrap);
+      const imgData=canvas.toDataURL("image/jpeg",.95);
+      const pdf=new jsPDF("l","mm","a4");
+      const pw=pdf.internal.pageSize.getWidth();const pgH=pdf.internal.pageSize.getHeight();
+      const iw=pw-20;const ih=(canvas.height*iw)/canvas.width;
+      let yOff=10;
+      pdf.addImage(imgData,"JPEG",10,yOff,iw,ih);
+      let remaining=ih+yOff-pgH;
+      while(remaining>0){pdf.addPage();yOff-=pgH;pdf.addImage(imgData,"JPEG",10,yOff,iw,ih);remaining-=pgH;}
+      dlBlob(pdf.output("blob"),"ผลลัพธ์การตลาด.pdf");
+    }catch(e){alert("เกิดข้อผิดพลาด: "+e.message);}
+    setExportLoading(false);
   }
   async function exportImage(){
-    setExportLoading(true);const el=chartRef.current;if(!el){setExportLoading(false);return;}
-    try{const canvas=await html2canvas(el,{scale:2,useCORS:true,allowTaint:true,logging:false,backgroundColor:"#0d1117",windowWidth:900});canvas.toBlob(blob=>{if(blob)dlBlob(blob,"ผลลัพธ์การตลาด.png");setExportLoading(false);},"image/png");}catch(e){alert("เกิดข้อผิดพลาด: "+e.message);setExportLoading(false);}
+    setExportLoading(true);
+    try{
+      const pts=genPts(chartFrom,chartTo,gran);
+      const totals=sumM(pts);
+      const rangeStr=fmtRange(chartFrom,chartTo);
+      const granLabel=gran==="day"?"รายวัน":gran==="week"?"รายสัปดาห์":gran==="month"?"รายเดือน":"รายปี";
+      const dateStr=new Date().toLocaleDateString("th-TH",{year:"numeric",month:"long",day:"numeric"});
+      const wrap=document.createElement("div");
+      wrap.style.cssText="position:fixed;left:-9999px;top:0;width:1100px;background:#0d1117;color:#e6edf3;padding:40px;font-family:sans-serif;";
+      document.body.appendChild(wrap);
+      const cW=1020;
+      const n=pts.length;
+      const inboxMax=Math.max(1,...pts.map(d=>(d.fbInbox||0)+(d.tiktokCloudInbox||0)+(d.tiktokBossInbox||0)+(d.lineInbox||0)));
+      const resultMax=Math.max(1,...pts.flatMap(d=>[(d.walkIn||0),(d.bookings||0),(d.transfers||0)]));
+      function makeSVGDark(keys,mx,h){
+        const colors={fbInbox:"#3b82f6",tiktokCloudInbox:"#06b6d4",tiktokBossInbox:"#8b5cf6",lineInbox:"#22c55e",walkIn:"#f59e0b",bookings:"#ec4899",transfers:"#a78bfa"};
+        let svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${cW}" height="${h+30}" viewBox="0 0 ${cW} ${h+30}">`;
+        [0,.25,.5,.75,1].forEach(p=>{const yp=h-(p*h);svg+=`<line x1="0" y1="${yp}" x2="${cW}" y2="${yp}" stroke="#30363d" stroke-width="0.5" stroke-dasharray="4,4"/><text x="2" y="${yp-3}" fill="#8b949e" font-size="8">${fmtMoney(Math.round(mx*p))}</text>`;});
+        const gx=i=>(i/Math.max(1,n-1))*(cW-40)+20;const gy=v=>h-(v/mx)*h;
+        keys.forEach(k=>{if(n<2)return;const path=pts.map((d,i)=>`${i===0?"M":"L"}${gx(i)},${gy(d[k]||0)}`).join(" ");svg+=`<path d="${path}" fill="none" stroke="${colors[k]||"#3b82f6"}" stroke-width="2.5" opacity="0.9"/>`;if(n<=60)pts.forEach((d,i)=>{svg+=`<circle cx="${gx(i)}" cy="${gy(d[k]||0)}" r="${n>31?1.5:3}" fill="${colors[k]||"#3b82f6"}"/>`;});});
+        const step=n>60?Math.ceil(n/15):n>31?Math.ceil(n/10):1;
+        pts.forEach((d,i)=>{if(i%step===0||i===n-1)svg+=`<text x="${gx(i)}" y="${h+14}" text-anchor="middle" fill="#8b949e" font-size="${n>60?5:n>31?7:9}">${d.short||d.label}</text>`;});
+        svg+=`</svg>`;return svg;
+      }
+      wrap.innerHTML=`
+        <div style="text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #3b82f6">
+          <div style="font-size:26px;font-weight:800;color:#58a6ff">📊 ผลลัพธ์การตลาด</div>
+          <div style="font-size:14px;color:#c9d1d9;margin-top:6px">${rangeStr} · ${granLabel}</div>
+          <div style="font-size:11px;color:#8b949e;margin-top:4px">CPMS — ${dateStr}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px">
+          <div style="background:#161b22;border-radius:12px;padding:18px;text-align:center;border:1px solid #30363d"><div style="font-size:10px;color:#8b949e;font-weight:700">📨 รวม Inbox</div><div style="font-size:28px;font-weight:900;color:#58a6ff;margin-top:8px">${fmtMoney(totals.totalInbox)}</div></div>
+          <div style="background:#161b22;border-radius:12px;padding:18px;text-align:center;border:1px solid #30363d"><div style="font-size:10px;color:#8b949e;font-weight:700">🚶 Walk-in</div><div style="font-size:28px;font-weight:900;color:#f59e0b;margin-top:8px">${fmtMoney(totals.walkIn||0)}</div></div>
+          <div style="background:#161b22;border-radius:12px;padding:18px;text-align:center;border:1px solid #30363d"><div style="font-size:10px;color:#8b949e;font-weight:700">📝 จอง</div><div style="font-size:28px;font-weight:900;color:#3fb950;margin-top:8px">${fmtMoney(totals.bookings||0)} หลัง</div></div>
+          <div style="background:#161b22;border-radius:12px;padding:18px;text-align:center;border:1px solid #30363d"><div style="font-size:10px;color:#8b949e;font-weight:700">✅ โอน</div><div style="font-size:28px;font-weight:900;color:#a78bfa;margin-top:8px">${fmtMoney(totals.transfers||0)} หลัง</div></div>
+        </div>
+        <div style="margin-bottom:20px">
+          <div style="font-size:14px;font-weight:700;color:#c9d1d9;margin-bottom:8px">📨 Inbox ทุกช่องทาง</div>
+          ${makeSVGDark(["fbInbox","tiktokCloudInbox","tiktokBossInbox","lineInbox"],inboxMax,200)}
+        </div>
+        <div style="margin-bottom:20px">
+          <div style="font-size:14px;font-weight:700;color:#c9d1d9;margin-bottom:8px">🏠 Walk-in / จอง / โอน</div>
+          ${makeSVGDark(["walkIn","bookings","transfers"],resultMax,160)}
+        </div>
+        <div style="padding-top:12px;border-top:1px solid #30363d;text-align:center;font-size:10px;color:#8b949e">CPMS — ${dateStr}</div>
+      `;
+      const canvas=await html2canvas(wrap,{scale:2,useCORS:true,allowTaint:true,logging:false,backgroundColor:"#0d1117",windowWidth:1100});
+      document.body.removeChild(wrap);
+      canvas.toBlob(blob=>{if(blob)dlBlob(blob,"ผลลัพธ์การตลาด.png");setExportLoading(false);},"image/png");
+    }catch(e){alert("เกิดข้อผิดพลาด: "+e.message);setExportLoading(false);}
   }
 
   const chartPts=genPts(chartFrom,chartTo,gran);
@@ -3533,16 +3700,67 @@ function CostPage({data,setData,role,isMobileMode}) {
 
   async function exportCostPDF(){
     setExportLoading(true);
-    const el=costRef.current;if(!el){setExportLoading(false);return;}
     try{
-      const canvas=await html2canvas(el,{scale:2,useCORS:true,allowTaint:true,logging:false,backgroundColor:"#0d1117",windowWidth:900});
+      // Build offscreen div for PDF
+      const wrap=document.createElement("div");
+      wrap.style.cssText="position:fixed;left:-9999px;top:0;width:900px;background:#fff;color:#1a1a1a;padding:32px;font-family:sans-serif;";
+      document.body.appendChild(wrap);
+      const pName=proj?.name||"โครงการ";
+      const dateStr=new Date().toLocaleDateString("th-TH",{year:"numeric",month:"long",day:"numeric"});
+      wrap.innerHTML=`
+        <div style="text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #2563eb">
+          <div style="font-size:24px;font-weight:800;color:#2563eb">💰 รายงานต้นทุนและค่าใช้จ่าย</div>
+          <div style="font-size:16px;font-weight:600;color:#1e3a5f;margin-top:6px">${pName}</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:6px">ระบบ CPMS — ${dateStr}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:24px">
+          <div style="background:#f8fafc;border-radius:10px;padding:16px;text-align:center"><div style="font-size:10px;color:#6b7280;font-weight:700">BOQ รวม</div><div style="font-size:18px;font-weight:800;color:#2563eb;margin-top:6px">฿${fmtMoney(grandBoq)}</div></div>
+          <div style="background:#f8fafc;border-radius:10px;padding:16px;text-align:center"><div style="font-size:10px;color:#6b7280;font-weight:700">จ่ายจริง</div><div style="font-size:18px;font-weight:800;color:${grandActual>grandBoq?"#ef4444":"#22c55e"};margin-top:6px">฿${fmtMoney(grandActual)}</div></div>
+          <div style="background:#f8fafc;border-radius:10px;padding:16px;text-align:center"><div style="font-size:10px;color:#6b7280;font-weight:700">สาธารณูปโภค</div><div style="font-size:18px;font-weight:800;color:#f59e0b;margin-top:6px">฿${fmtMoney(infraActual)}</div></div>
+          <div style="background:#f8fafc;border-radius:10px;padding:16px;text-align:center"><div style="font-size:10px;color:#6b7280;font-weight:700">ส่วนต่าง</div><div style="font-size:18px;font-weight:800;color:${grandActual>grandBoq?"#ef4444":"#22c55e"};margin-top:6px">${grandActual>grandBoq?"+":""}฿${fmtMoney(Math.abs(grandBoq-grandActual))}</div></div>
+        </div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:12px;color:#1e3a5f">📋 สรุปต้นทุนรายบ้าน</div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
+          <thead><tr>${["บ้าน","ลูกค้า","BOQ","จ่ายจริง","ส่วนต่าง","สถานะ"].map(h=>`<th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:#6b7280;border-bottom:2px solid #e2e8f0;background:#f8fafc">${h}</th>`).join("")}</tr></thead>
+          <tbody>${houseSummary.map(h=>`<tr style="border-bottom:1px solid #e2e8f0">
+            <td style="padding:8px 10px;font-size:12px;font-weight:600">${h.name}</td>
+            <td style="padding:8px 10px;font-size:12px;color:#6b7280">${h.customer}</td>
+            <td style="padding:8px 10px;font-size:12px;color:#2563eb">฿${fmtMoney(h.boq)}</td>
+            <td style="padding:8px 10px;font-size:12px;font-weight:700;color:${h.actual>h.boq?"#ef4444":"#22c55e"}">฿${fmtMoney(h.actual)}</td>
+            <td style="padding:8px 10px;font-size:12px;color:${h.diff>0?"#ef4444":"#22c55e"};font-weight:700">${h.diff>0?"+":""}฿${fmtMoney(Math.abs(h.diff))}</td>
+            <td style="padding:8px 10px"><span style="padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;background:${h.diff>0?"#fef2f2":"#f0fdf4"};color:${h.diff>0?"#ef4444":"#22c55e"}">${h.diff>0?"เกินงบ":"ปกติ"}</span></td>
+          </tr>`).join("")}</tbody>
+        </table>
+        ${infraItems.length>0?`
+        <div style="font-size:15px;font-weight:700;margin-bottom:12px;color:#1e3a5f">🏗️ รายการสาธารณูปโภค</div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
+          <thead><tr>${["รายการ","หน่วย","จำนวน","BOQ/หน่วย","จริง/หน่วย","รวม BOQ","รวมจริง"].map(h=>`<th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:#6b7280;border-bottom:2px solid #e2e8f0;background:#f8fafc">${h}</th>`).join("")}</tr></thead>
+          <tbody>${infraItems.map(it=>`<tr style="border-bottom:1px solid #e2e8f0">
+            <td style="padding:6px 10px;font-size:11px">${it.name}</td>
+            <td style="padding:6px 10px;font-size:11px;color:#6b7280">${it.unit}</td>
+            <td style="padding:6px 10px;font-size:11px">${fmtMoney(it.qty)}</td>
+            <td style="padding:6px 10px;font-size:11px;color:#2563eb">฿${fmtMoney(it.boqPrice)}</td>
+            <td style="padding:6px 10px;font-size:11px;color:${it.actualPrice>it.boqPrice?"#ef4444":"#22c55e"}">฿${fmtMoney(it.actualPrice)}</td>
+            <td style="padding:6px 10px;font-size:11px">฿${fmtMoney(it.qty*it.boqPrice)}</td>
+            <td style="padding:6px 10px;font-size:11px;font-weight:700">฿${fmtMoney(it.qty*it.actualPrice)}</td>
+          </tr>`).join("")}</tbody>
+        </table>`:""}
+        <div style="padding-top:16px;border-top:2px solid #e2e8f0;display:flex;justify-content:space-between;font-size:10px;color:#9ca3af">
+          <span>เอกสารจัดทำโดยระบบ CPMS</span>
+          <span>ข้อมูล ณ วันที่ ${dateStr}</span>
+        </div>
+      `;
+      const canvas=await html2canvas(wrap,{scale:2,useCORS:true,allowTaint:true,logging:false,backgroundColor:"#ffffff",windowWidth:900});
+      document.body.removeChild(wrap);
       const imgData=canvas.toDataURL("image/jpeg",0.95);
       const pdf=new jsPDF("p","mm","a4");
-      const pw=pdf.internal.pageSize.getWidth();const ph=pdf.internal.pageSize.getHeight();
+      const pw=pdf.internal.pageSize.getWidth();const pgH=pdf.internal.pageSize.getHeight();
       const iw=pw-20;const ih=(canvas.height*iw)/canvas.width;
-      let pos=10;pdf.addImage(imgData,"JPEG",10,pos,iw,Math.min(ih,ph-20));
-      let left=ih-(ph-20);while(left>0){pdf.addPage();pos=10;pdf.addImage(imgData,"JPEG",10,-(ph-20)+(ih-left+20),iw,ih);left-=(ph-20);}
-      dlBlob(pdf.output("blob"),`ต้นทุน_${proj?.name||"โครงการ"}.pdf`);
+      let yOff=10;
+      pdf.addImage(imgData,"JPEG",10,yOff,iw,ih);
+      let remaining=ih+yOff-pgH;
+      while(remaining>0){pdf.addPage();yOff-=pgH;pdf.addImage(imgData,"JPEG",10,yOff,iw,ih);remaining-=pgH;}
+      dlBlob(pdf.output("blob"),`ต้นทุน_${pName}.pdf`);
     }catch(e){alert("เกิดข้อผิดพลาด: "+e.message);}
     setExportLoading(false);
   }
@@ -3648,11 +3866,6 @@ function CostPage({data,setData,role,isMobileMode}) {
         wpItems.forEach(w=>{const wk=getWeekKey(w.date);if(!weekGroups[wk])weekGroups[wk]={key:wk,items:[],matTotal:0,laborTotal:0};weekGroups[wk].items.push(w);weekGroups[wk].matTotal+=Number(w.amount)||0;weekGroups[wk].laborTotal+=Number(w.laborAmount)||0;});
         const weekList=Object.values(weekGroups);
         const dayNames=["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
-        // Generate Wed/Sat schedule for the selected month
-        const [yr,mo]=wpMonth.split("-").map(Number);
-        const schedDates=[];
-        for(let d=1;d<=new Date(yr,mo,0).getDate();d++){const dt=new Date(yr,mo-1,d);const day=dt.getDay();if(day===3||day===6)schedDates.push(dt.toISOString().slice(0,10));}
-        const enteredDates=new Set(wpItems.map(w=>w.date));
         return(
         <div>
           {/* KPI Cards */}
@@ -3670,23 +3883,6 @@ function CostPage({data,setData,role,isMobileMode}) {
                 <FIn type="month" value={wpMonth} onChange={e=>setWpMonth(e.target.value)} style={{width:160,padding:"6px 10px",fontSize:12}}/>
               </div>
               {canEdit&&<Btn size="sm" onClick={()=>openAddWP()}>+ เพิ่มรายการจ่าย</Btn>}
-            </div>
-            <div style={{fontSize:11,color:C.muted,marginBottom:12,padding:"8px 12px",background:C.faint,borderRadius:8}}>
-              📌 <strong>กำหนดโอนเงิน:</strong> ทุกวัน<strong style={{color:C.blue}}>พุธ</strong>และ<strong style={{color:C.green}}>เสาร์</strong> — ค่าวัสดุ (ซื้อของ) + ค่าแรงผู้รับเหมา แต่ละครั้ง
-            </div>
-            {/* Schedule Overview */}
-            <div style={{marginBottom:16}}>
-              <div style={{fontSize:12,fontWeight:700,color:C.muted,marginBottom:8}}>📅 ตารางจ่ายเงินประจำเดือน</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                {schedDates.map(sd=>{const filled=enteredDates.has(sd);const dt=new Date(sd);const dayName=dayNames[dt.getDay()];const isWed=dt.getDay()===3;return(
-                  <div key={sd} onClick={()=>{if(canEdit&&!filled)openAddWP(sd);else if(filled){const wp=wpItems.find(w=>w.date===sd);if(wp)openEditWP(wp);}}} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${filled?C.green:C.border}`,background:filled?"rgba(34,197,94,0.08)":"transparent",cursor:"pointer",textAlign:"center",minWidth:64}}>
-                    <div style={{fontSize:9,color:isWed?C.blue:C.green,fontWeight:700}}>{dayName}</div>
-                    <div style={{fontSize:12,color:C.text,fontWeight:600}}>{dt.getDate()}</div>
-                    {filled&&<div style={{fontSize:8,color:C.green}}>✓</div>}
-                    {!filled&&<div style={{fontSize:8,color:C.muted}}>—</div>}
-                  </div>
-                );})}
-              </div>
             </div>
             {/* Weekly groups */}
             {weekList.length===0&&<div style={{textAlign:"center",padding:30,color:C.muted}}>ยังไม่มีข้อมูลรายจ่ายในเดือนนี้<br/><span style={{fontSize:11}}>กดปุ่มด้านบนหรือคลิกที่วันที่เพื่อเพิ่ม</span></div>}
@@ -3949,7 +4145,7 @@ function CostPage({data,setData,role,isMobileMode}) {
         <Alrt type="info">📌 ระบุยอดเงินที่โอนจ่ายในวันนี้ — แยกยอด "ค่าวัสดุ" (ซื้อของ) และ "ค่าแรง" (ผู้รับเหมา)</Alrt>
         <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
           <FG label="📅 วันที่จ่ายเงิน"><FIn type="date" value={wpForm.date||""} onChange={e=>{const d=new Date(e.target.value);const dayNames=["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];setWpForm(f=>({...f,date:e.target.value,dayName:dayNames[d.getDay()]}));}}/></FG>
-          <FG label="วัน">{(()=>{const dayNames=["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];const d=wpForm.date?new Date(wpForm.date):new Date();const dayIdx=d.getDay();const isPayDay=dayIdx===3||dayIdx===6;return<div style={{padding:"10px 14px",background:isPayDay?"rgba(34,197,94,0.1)":"rgba(239,68,68,0.1)",borderRadius:8,border:`1px solid ${isPayDay?C.green:C.red}`,fontSize:13,fontWeight:700,color:isPayDay?C.green:C.red}}>{dayNames[dayIdx]} {isPayDay?"✓ วันโอนเงิน":"⚠ ไม่ใช่วันพุธ/เสาร์"}</div>;})()}</FG>
+          <FG label="วัน">{(()=>{const dayNames=["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];const d=wpForm.date?new Date(wpForm.date):new Date();const dayIdx=d.getDay();return<div style={{padding:"10px 14px",background:"rgba(59,130,246,0.1)",borderRadius:8,border:`1px solid ${C.blue}`,fontSize:13,fontWeight:700,color:C.blue}}>{dayNames[dayIdx]}</div>;})()}</FG>
         </div>
         <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
           <FG label="🛒 ยอดค่าวัสดุ (ซื้อของ)"><FIn type="number" value={wpForm.amount||""} onChange={e=>setWpForm(f=>({...f,amount:e.target.value}))} placeholder="เช่น 50000"/></FG>

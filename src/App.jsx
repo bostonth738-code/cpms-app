@@ -5140,11 +5140,49 @@ function SettingsPage({data,setData,role}) {
   const [selectedProj,setSelectedProj]=useState(null);
   const [showNewHouse,setShowNewHouse]=useState(false);
   const [newHouse,setNewHouse]=useState({name:"",customer:"",start:"",days:180,boq:1800000,templateId:1,foreman:"",engineer:""});
+  // Greeting settings state
+  const gs=data.greetingSettings||{messages:[],effectId:"sunrise",soundMode:"tts",soundUrl:"",ttsEnabled:true,celebrationEnabled:true};
+  const [greetForm,setGreetForm]=useState(gs);
+  const [newMsg,setNewMsg]=useState("");
+  const [previewEffect,setPreviewEffect]=useState(null);
+  // 30 Greeting Effects Library
+  const GREETING_EFFECTS=[
+    {id:"sunrise",name:"🌅 พระอาทิตย์ขึ้น",emoji:"☀️",bg:"linear-gradient(135deg,#0f172a,#1e3a5f,#0f172a)",border:"#f59e0b",particles:"⭐",particleCount:30,anim:"greetSun",cardAnim:"greetBounce",shadow:"rgba(245,158,11,.3)"},
+    {id:"cherry",name:"🌸 ซากุระ",emoji:"🌸",bg:"linear-gradient(135deg,#1a0a1e,#2d1441,#1a0a1e)",border:"#ec4899",particles:"🌸",particleCount:35,anim:"greetFloat",cardAnim:"greetBounce",shadow:"rgba(236,72,153,.3)"},
+    {id:"ocean",name:"🌊 คลื่นทะเล",emoji:"🌊",bg:"linear-gradient(135deg,#0a192f,#0d3b66,#0a192f)",border:"#06b6d4",particles:"🫧",particleCount:25,anim:"greetFloat",cardAnim:"greetSlideUp",shadow:"rgba(6,182,212,.3)"},
+    {id:"stars",name:"⭐ คืนพราวดาว",emoji:"✨",bg:"linear-gradient(135deg,#0d0d2b,#1a1a4e,#0d0d2b)",border:"#a855f7",particles:"⭐",particleCount:40,anim:"greetTwinkle",cardAnim:"greetBounce",shadow:"rgba(168,85,247,.3)"},
+    {id:"rainbow",name:"🌈 สายรุ้ง",emoji:"🌈",bg:"linear-gradient(135deg,#1a0000,#001a33,#001a00)",border:"#f97316",particles:"🎨",particleCount:30,anim:"greetFloat",cardAnim:"greetBounce",shadow:"rgba(249,115,22,.3)"},
+    {id:"forest",name:"🌿 ป่าเขียว",emoji:"🌲",bg:"linear-gradient(135deg,#0a1f0a,#1a3a1a,#0a1f0a)",border:"#22c55e",particles:"🍃",particleCount:25,anim:"greetFloat",cardAnim:"greetSlideUp",shadow:"rgba(34,197,94,.3)"},
+    {id:"fire",name:"🔥 เปลวเพลิง",emoji:"🔥",bg:"linear-gradient(135deg,#1a0000,#3d0000,#1a0000)",border:"#ef4444",particles:"🔥",particleCount:20,anim:"greetFlicker",cardAnim:"greetBounce",shadow:"rgba(239,68,68,.3)"},
+    {id:"snow",name:"❄️ หิมะ",emoji:"❄️",bg:"linear-gradient(135deg,#0d1b2a,#1b3045,#0d1b2a)",border:"#93c5fd",particles:"❄️",particleCount:35,anim:"greetSnow",cardAnim:"greetBounce",shadow:"rgba(147,197,253,.3)"},
+    {id:"butterfly",name:"🦋 ผีเสื้อ",emoji:"🦋",bg:"linear-gradient(135deg,#1a0a2e,#2d1b4e,#1a0a2e)",border:"#c084fc",particles:"🦋",particleCount:15,anim:"greetFloat",cardAnim:"greetSlideUp",shadow:"rgba(192,132,252,.3)"},
+    {id:"rocket",name:"🚀 จรวด",emoji:"🚀",bg:"linear-gradient(135deg,#0a0a2e,#1a1a5e,#0a0a2e)",border:"#3b82f6",particles:"💫",particleCount:30,anim:"greetTwinkle",cardAnim:"greetBounce",shadow:"rgba(59,130,246,.3)"},
+    {id:"hearts",name:"💖 หัวใจ",emoji:"💕",bg:"linear-gradient(135deg,#2d0a1a,#4a1a2e,#2d0a1a)",border:"#f43f5e",particles:"💗",particleCount:25,anim:"greetFloat",cardAnim:"greetBounce",shadow:"rgba(244,63,94,.3)"},
+    {id:"music",name:"🎵 เสียงเพลง",emoji:"🎶",bg:"linear-gradient(135deg,#1a0f2e,#2e1a4e,#1a0f2e)",border:"#8b5cf6",particles:"🎵",particleCount:20,anim:"greetFloat",cardAnim:"greetSlideUp",shadow:"rgba(139,92,246,.3)"},
+    {id:"diamond",name:"💎 เพชร",emoji:"💎",bg:"linear-gradient(135deg,#0a1a2e,#1a3a5e,#0a1a2e)",border:"#38bdf8",particles:"💎",particleCount:18,anim:"greetTwinkle",cardAnim:"greetBounce",shadow:"rgba(56,189,248,.3)"},
+    {id:"crown",name:"👑 มงกุฎ",emoji:"👑",bg:"linear-gradient(135deg,#1a1500,#3a2e00,#1a1500)",border:"#fbbf24",particles:"✨",particleCount:30,anim:"greetTwinkle",cardAnim:"greetBounce",shadow:"rgba(251,191,36,.3)"},
+    {id:"moon",name:"🌙 พระจันทร์",emoji:"🌙",bg:"linear-gradient(135deg,#0a0a2e,#1a1a3e,#0a0a2e)",border:"#fcd34d",particles:"⭐",particleCount:35,anim:"greetTwinkle",cardAnim:"greetSlideUp",shadow:"rgba(252,211,77,.3)"},
+    {id:"coffee",name:"☕ กาแฟ",emoji:"☕",bg:"linear-gradient(135deg,#1a0f00,#3a2400,#1a0f00)",border:"#d97706",particles:"☕",particleCount:12,anim:"greetFloat",cardAnim:"greetBounce",shadow:"rgba(217,119,6,.3)"},
+    {id:"thunder",name:"⚡ สายฟ้า",emoji:"⚡",bg:"linear-gradient(135deg,#0a0a1a,#1a1a3a,#0a0a1a)",border:"#eab308",particles:"⚡",particleCount:15,anim:"greetFlicker",cardAnim:"greetBounce",shadow:"rgba(234,179,8,.3)"},
+    {id:"party",name:"🎊 ปาร์ตี้",emoji:"🎉",bg:"linear-gradient(135deg,#1a0a2e,#2e1a3e,#1a0a2e)",border:"#e879f9",particles:"🎊",particleCount:30,anim:"greetFloat",cardAnim:"greetBounce",shadow:"rgba(232,121,249,.3)"},
+    {id:"balloon",name:"🎈 บอลลูน",emoji:"🎈",bg:"linear-gradient(135deg,#0a1a2e,#1a2e4e,#0a1a2e)",border:"#60a5fa",particles:"🎈",particleCount:20,anim:"greetFloat",cardAnim:"greetSlideUp",shadow:"rgba(96,165,250,.3)"},
+    {id:"flower",name:"🌺 ดอกไม้",emoji:"🌺",bg:"linear-gradient(135deg,#1a0a1a,#2e1a2e,#1a0a1a)",border:"#f472b6",particles:"🌼",particleCount:25,anim:"greetFloat",cardAnim:"greetBounce",shadow:"rgba(244,114,182,.3)"},
+    {id:"lotus",name:"🪷 ดอกบัว",emoji:"🪷",bg:"linear-gradient(135deg,#0f1a1a,#1a3030,#0f1a1a)",border:"#f9a8d4",particles:"🪷",particleCount:15,anim:"greetFloat",cardAnim:"greetSlideUp",shadow:"rgba(249,168,212,.3)"},
+    {id:"dragon",name:"🐉 มังกร",emoji:"🐉",bg:"linear-gradient(135deg,#0a0a00,#1a1a0a,#0a0a00)",border:"#ef4444",particles:"🔥",particleCount:20,anim:"greetFlicker",cardAnim:"greetBounce",shadow:"rgba(239,68,68,.3)"},
+    {id:"crystal",name:"🔮 คริสตัล",emoji:"🔮",bg:"linear-gradient(135deg,#1a0a2e,#2e1a4e,#1a0a2e)",border:"#a78bfa",particles:"💠",particleCount:22,anim:"greetTwinkle",cardAnim:"greetBounce",shadow:"rgba(167,139,250,.3)"},
+    {id:"lantern",name:"🏮 โคมจีน",emoji:"🏮",bg:"linear-gradient(135deg,#1a0000,#3a0a0a,#1a0000)",border:"#dc2626",particles:"🏮",particleCount:15,anim:"greetFloat",cardAnim:"greetSlideUp",shadow:"rgba(220,38,38,.3)"},
+    {id:"maple",name:"🍁 ใบเมเปิล",emoji:"🍁",bg:"linear-gradient(135deg,#1a0f00,#2e1500,#1a0f00)",border:"#ea580c",particles:"🍁",particleCount:25,anim:"greetSnow",cardAnim:"greetBounce",shadow:"rgba(234,88,12,.3)"},
+    {id:"galaxy",name:"🌌 กาแลกซี",emoji:"🌌",bg:"linear-gradient(135deg,#050510,#0a0a2e,#050510)",border:"#818cf8",particles:"✨",particleCount:45,anim:"greetTwinkle",cardAnim:"greetBounce",shadow:"rgba(129,140,248,.3)"},
+    {id:"tropical",name:"🌴 ทรอปิคอล",emoji:"🌴",bg:"linear-gradient(135deg,#0a1a0f,#1a3a1f,#0a1a0f)",border:"#4ade80",particles:"🌿",particleCount:20,anim:"greetFloat",cardAnim:"greetSlideUp",shadow:"rgba(74,222,128,.3)"},
+    {id:"gift",name:"🎁 ของขวัญ",emoji:"🎁",bg:"linear-gradient(135deg,#1a0a1e,#2e1a3e,#1a0a1e)",border:"#f43f5e",particles:"🎁",particleCount:18,anim:"greetFloat",cardAnim:"greetBounce",shadow:"rgba(244,63,94,.3)"},
+    {id:"wave",name:"👋 ทักทาย",emoji:"👋",bg:"linear-gradient(135deg,#0f172a,#1e3a5f,#0f172a)",border:"#3b82f6",particles:"👋",particleCount:15,anim:"greetFloat",cardAnim:"greetBounce",shadow:"rgba(59,130,246,.3)"},
+    {id:"sparkle",name:"✨ ประกายแวววาว",emoji:"✨",bg:"linear-gradient(135deg,#1a1500,#2e2800,#1a1500)",border:"#fbbf24",particles:"✨",particleCount:40,anim:"greetTwinkle",cardAnim:"greetBounce",shadow:"rgba(251,191,36,.3)"}
+  ];
   return (
     <div style={{padding:24}}>
       <div style={{marginBottom:20}}><div style={{fontSize:22,fontWeight:700,color:C.text}}>⚙️ ตั้งค่าระบบ</div><div style={{fontSize:13,color:C.muted,marginTop:2}}>จัดการโครงการ เทมเพลท หมวดงาน และการแจ้งเตือน</div></div>
       <div style={{display:"flex",gap:2,background:"#0d1117",borderRadius:10,padding:3,marginBottom:20,border:`1px solid ${C.border}`,width:"fit-content"}}>
-        {[["projects","🏢 โครงการ"],["templates","🏠 เทมเพลทบ้าน"],["phases","📋 15 หมวดงาน"],["employees","👥 ทีมงาน"],["notifications","🔔 Notifications"]].map(([id,label])=><button key={id} onClick={()=>setTab(id)} style={{padding:"5px 13px",borderRadius:8,border:"none",background:tab===id?C.panel:"transparent",color:tab===id?C.blue:C.muted,fontSize:12,fontWeight:600,cursor:"pointer"}}>{label}</button>)}
+        {[["projects","🏢 โครงการ"],["templates","🏠 เทมเพลทบ้าน"],["phases","📋 15 หมวดงาน"],["employees","👥 ทีมงาน"],["notifications","🔔 Notifications"],["greeting","🌅 คำทักทาย"]].map(([id,label])=><button key={id} onClick={()=>setTab(id)} style={{padding:"5px 13px",borderRadius:8,border:"none",background:tab===id?C.panel:"transparent",color:tab===id?C.blue:C.muted,fontSize:12,fontWeight:600,cursor:"pointer"}}>{label}</button>)}
       </div>
       {tab==="projects"&&(
         <>
@@ -5540,6 +5578,93 @@ function SettingsPage({data,setData,role}) {
             ))}
           </div>
         </Card>
+      )}
+      {tab==="greeting"&&(
+        <div style={{maxWidth:700}}>
+          <Card style={{padding:20,marginBottom:16}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>🌅 ตั้งค่าคำทักทายตอนเช้า</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:16}}>กำหนดข้อความ เอฟเฟกกราฟฟิก และเสียงที่จะแสดงเมื่อเปิดแอปตอนเช้า</div>
+            {/* Toggle TTS */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 0",borderBottom:`1px solid ${C.border}`}}>
+              <div><div style={{fontSize:12,fontWeight:600,color:C.text}}>🔊 เปิด/ปิดเสียง TTS</div><div style={{fontSize:11,color:C.muted,marginTop:1}}>อ่านข้อความทักทายด้วย Text-to-Speech</div></div>
+              <label style={{position:"relative",width:40,height:22,cursor:"pointer",display:"block",flexShrink:0}}>
+                <input type="checkbox" checked={greetForm.ttsEnabled!==false} onChange={e=>setGreetForm(f=>({...f,ttsEnabled:e.target.checked}))} style={{opacity:0,width:0,height:0,position:"absolute"}}/>
+                <span style={{position:"absolute",inset:0,background:greetForm.ttsEnabled!==false?C.blue:C.faint,borderRadius:22,transition:".2s"}}/>
+                <span style={{position:"absolute",width:16,height:16,top:3,left:greetForm.ttsEnabled!==false?21:3,background:"#fff",borderRadius:"50%",transition:".2s"}}/>
+              </label>
+            </div>
+            {/* Toggle celebration */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 0",borderBottom:`1px solid ${C.border}`}}>
+              <div><div style={{fontSize:12,fontWeight:600,color:C.text}}>🎉 เปิด/ปิดอนิเมชั่นยินดียอดจอง</div><div style={{fontSize:11,color:C.muted,marginTop:1}}>แสดงอนิเมชั่นเมื่อมียอดจองใหม่</div></div>
+              <label style={{position:"relative",width:40,height:22,cursor:"pointer",display:"block",flexShrink:0}}>
+                <input type="checkbox" checked={greetForm.celebrationEnabled!==false} onChange={e=>setGreetForm(f=>({...f,celebrationEnabled:e.target.checked}))} style={{opacity:0,width:0,height:0,position:"absolute"}}/>
+                <span style={{position:"absolute",inset:0,background:greetForm.celebrationEnabled!==false?C.blue:C.faint,borderRadius:22,transition:".2s"}}/>
+                <span style={{position:"absolute",width:16,height:16,top:3,left:greetForm.celebrationEnabled!==false?21:3,background:"#fff",borderRadius:"50%",transition:".2s"}}/>
+              </label>
+            </div>
+            {/* Sound URL */}
+            <div style={{padding:"12px 0",borderBottom:`1px solid ${C.border}`}}>
+              <div style={{fontSize:12,fontWeight:600,color:C.text,marginBottom:6}}>🎵 เสียงประกอบ (URL mp3) — ไม่บังคับ</div>
+              <div style={{fontSize:11,color:C.muted,marginBottom:8}}>ใส่ URL ไฟล์เสียง mp3 เพื่อเล่นแทน/เพิ่มเติมจาก TTS</div>
+              <FIn value={greetForm.soundUrl||""} onChange={e=>setGreetForm(f=>({...f,soundUrl:e.target.value}))} placeholder="https://example.com/greeting.mp3"/>
+              {greetForm.soundUrl&&<Btn size="sm" variant="ghost" style={{marginTop:6}} onClick={()=>{try{new Audio(greetForm.soundUrl).play();}catch(e){alert("ไม่สามารถเล่นเสียงได้");}}}>▶️ ทดสอบเสียง</Btn>}
+            </div>
+          </Card>
+          {/* Custom Messages */}
+          <Card style={{padding:20,marginBottom:16}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>💬 ข้อความทักทาย</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:12}}>เพิ่มข้อความที่ต้องการแสดงตอนเช้า (ถ้าไม่เพิ่ม จะใช้ข้อความ default)</div>
+            <div style={{display:"flex",gap:8,marginBottom:12}}>
+              <FIn value={newMsg} onChange={e=>setNewMsg(e.target.value)} placeholder="พิมพ์ข้อความทักทายใหม่..." style={{flex:1}} onKeyDown={e=>{if(e.key==="Enter"&&newMsg.trim()){setGreetForm(f=>({...f,messages:[...(f.messages||[]),newMsg.trim()]}));setNewMsg("");}}}/>
+              <Btn size="sm" onClick={()=>{if(newMsg.trim()){setGreetForm(f=>({...f,messages:[...(f.messages||[]),newMsg.trim()]}));setNewMsg("");}}} disabled={!newMsg.trim()}>+ เพิ่ม</Btn>
+            </div>
+            {(greetForm.messages||[]).length>0?(
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {greetForm.messages.map((m,i)=>(
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:8,background:"#0d1117",borderRadius:8,padding:"8px 12px",border:`1px solid ${C.border}`}}>
+                    <span style={{fontSize:13,color:C.text,flex:1}}>{m}</span>
+                    <button onClick={()=>setGreetForm(f=>({...f,messages:f.messages.filter((_,j)=>j!==i)}))} style={{background:"none",border:"none",color:C.red,cursor:"pointer",fontSize:14,padding:0}}>✕</button>
+                  </div>
+                ))}
+              </div>
+            ):(
+              <div style={{fontSize:12,color:C.muted,fontStyle:"italic"}}>ยังไม่มีข้อความกำหนดเอง — จะใช้ข้อความ default 10 ข้อความ</div>
+            )}
+          </Card>
+          {/* 30 Effects Grid */}
+          <Card style={{padding:20,marginBottom:16}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>🎨 เลือกเอฟเฟกกราฟฟิก ({GREETING_EFFECTS.length} แบบ)</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:14}}>คลิกเพื่อเลือก กดพรีวิวเพื่อดูตัวอย่าง</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
+              {GREETING_EFFECTS.map(ef=>{
+                const sel=greetForm.effectId===ef.id;
+                return(
+                  <div key={ef.id} style={{position:"relative",background:ef.bg,borderRadius:12,padding:"14px 8px",textAlign:"center",border:`2px solid ${sel?ef.border:C.border}`,cursor:"pointer",transition:".2s",boxShadow:sel?`0 0 16px ${ef.shadow}`:"none"}} onClick={()=>setGreetForm(f=>({...f,effectId:ef.id}))}>
+                    {sel&&<div style={{position:"absolute",top:4,right:4,width:18,height:18,borderRadius:9,background:C.green,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#000",fontWeight:800}}>✓</div>}
+                    <div style={{fontSize:28}}>{ef.emoji}</div>
+                    <div style={{fontSize:10,fontWeight:600,color:"#e6edf3",marginTop:4}}>{ef.name}</div>
+                    <button onClick={e=>{e.stopPropagation();setPreviewEffect(ef);setTimeout(()=>setPreviewEffect(null),4000);}} style={{marginTop:6,fontSize:9,background:"rgba(255,255,255,0.1)",border:"none",color:"#93c5fd",borderRadius:6,padding:"3px 8px",cursor:"pointer"}}>👁 พรีวิว</button>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+          <Btn style={{width:"100%"}} onClick={()=>{setData(d=>({...d,greetingSettings:{...greetForm}}));alert("บันทึกการตั้งค่าคำทักทายเรียบร้อย!");}}>💾 บันทึกการตั้งค่าคำทักทาย</Btn>
+          {/* Preview modal */}
+          {previewEffect&&(
+            <div style={{position:"fixed",inset:0,zIndex:9998,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.75)",backdropFilter:"blur(6px)"}} onClick={()=>setPreviewEffect(null)}>
+              <div style={{background:previewEffect.bg,borderRadius:28,padding:"56px 72px",textAlign:"center",border:`2px solid ${previewEffect.border}`,boxShadow:`0 0 100px ${previewEffect.shadow}, 0 0 40px ${previewEffect.shadow} inset`,maxWidth:520,width:"90%",animation:`${previewEffect.cardAnim} .7s cubic-bezier(.34,1.56,.64,1)`}} onClick={e=>e.stopPropagation()}>
+                <div style={{fontSize:56,marginBottom:8,animation:`${previewEffect.anim} 2s ease-in-out infinite`}}>{previewEffect.emoji}</div>
+                <div style={{fontSize:15,color:"rgba(255,255,255,0.8)",fontWeight:600,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Good Morning</div>
+                <div style={{fontSize:24,fontWeight:800,color:"#fff",lineHeight:1.5,marginBottom:12}}>สวัสดีตอนเช้า ขอให้วันนี้ราบรื่น</div>
+                <div style={{width:60,height:3,background:`linear-gradient(90deg,${previewEffect.border},rgba(255,255,255,0.5),${previewEffect.border})`,borderRadius:2,margin:"0 auto 16px"}}/>
+                <div style={{fontSize:12,color:"#6b7280"}}>แตะเพื่อปิด</div>
+              </div>
+              {Array.from({length:previewEffect.particleCount}).map((_,i)=><div key={i} style={{position:"absolute",left:`${5+Math.random()*90}%`,top:`${5+Math.random()*90}%`,fontSize:8+Math.random()*14,opacity:0,animation:`${previewEffect.anim} ${1.5+Math.random()*2}s ease-in-out ${Math.random()*2}s infinite`}}>{previewEffect.particles}</div>)}
+              <style>{`@keyframes greetBounce{0%{transform:scale(.2) translateY(40px);opacity:0}60%{transform:scale(1.03) translateY(-4px)}100%{transform:scale(1) translateY(0);opacity:1}}@keyframes greetSlideUp{0%{transform:translateY(80px);opacity:0}60%{transform:translateY(-6px)}100%{transform:translateY(0);opacity:1}}@keyframes greetSun{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.1) rotate(10deg)}}@keyframes greetFloat{0%{opacity:0;transform:translateY(10px)}25%{opacity:.9}50%{opacity:.9;transform:translateY(-10px)}75%{opacity:.7}100%{opacity:0;transform:translateY(10px)}}@keyframes greetTwinkle{0%,100%{opacity:0;transform:scale(.3)}50%{opacity:1;transform:scale(1.1)}}@keyframes greetFlicker{0%,100%{opacity:.3;transform:scale(.8)}25%{opacity:1;transform:scale(1.1)}50%{opacity:.6;transform:scale(.95)}75%{opacity:1;transform:scale(1.05)}}@keyframes greetSnow{0%{opacity:0;transform:translateY(-20px) rotate(0)}50%{opacity:.9}100%{opacity:0;transform:translateY(40px) rotate(360deg)}}`}</style>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
@@ -6683,73 +6808,83 @@ export default function App() {
   const [changePwForm,setChangePwForm]=useState({newPw:"",confirm:"",showNew:false,showConfirm:false,err:"",sent:false});
   const [bookingCelebration,setBookingCelebration]=useState(null);
   const [morningGreeting,setMorningGreeting]=useState(null);
+  const [greetingEffect,setGreetingEffect]=useState(null);
   const [prevBookingAlertCount,setPrevBookingAlertCount]=useState(()=>(data.bookingAlerts||[]).length);
+
+  // 30 Greeting Effects (same as SettingsPage)
+  const EFFECTS_MAP={sunrise:{emoji:"☀️",bg:"linear-gradient(135deg,#0f172a,#1e3a5f,#0f172a)",border:"#f59e0b",particles:"⭐",particleCount:30,anim:"greetSun",cardAnim:"greetBounce",shadow:"rgba(245,158,11,.3)"},cherry:{emoji:"🌸",bg:"linear-gradient(135deg,#1a0a1e,#2d1441,#1a0a1e)",border:"#ec4899",particles:"🌸",particleCount:35,anim:"greetFloat",cardAnim:"greetBounce",shadow:"rgba(236,72,153,.3)"},ocean:{emoji:"🌊",bg:"linear-gradient(135deg,#0a192f,#0d3b66,#0a192f)",border:"#06b6d4",particles:"🫧",particleCount:25,anim:"greetFloat",cardAnim:"greetSlideUp",shadow:"rgba(6,182,212,.3)"},stars:{emoji:"✨",bg:"linear-gradient(135deg,#0d0d2b,#1a1a4e,#0d0d2b)",border:"#a855f7",particles:"⭐",particleCount:40,anim:"greetTwinkle",cardAnim:"greetBounce",shadow:"rgba(168,85,247,.3)"},rainbow:{emoji:"🌈",bg:"linear-gradient(135deg,#1a0000,#001a33,#001a00)",border:"#f97316",particles:"🎨",particleCount:30,anim:"greetFloat",cardAnim:"greetBounce",shadow:"rgba(249,115,22,.3)"},forest:{emoji:"🌲",bg:"linear-gradient(135deg,#0a1f0a,#1a3a1a,#0a1f0a)",border:"#22c55e",particles:"🍃",particleCount:25,anim:"greetFloat",cardAnim:"greetSlideUp",shadow:"rgba(34,197,94,.3)"},fire:{emoji:"🔥",bg:"linear-gradient(135deg,#1a0000,#3d0000,#1a0000)",border:"#ef4444",particles:"🔥",particleCount:20,anim:"greetFlicker",cardAnim:"greetBounce",shadow:"rgba(239,68,68,.3)"},snow:{emoji:"❄️",bg:"linear-gradient(135deg,#0d1b2a,#1b3045,#0d1b2a)",border:"#93c5fd",particles:"❄️",particleCount:35,anim:"greetSnow",cardAnim:"greetBounce",shadow:"rgba(147,197,253,.3)"},butterfly:{emoji:"🦋",bg:"linear-gradient(135deg,#1a0a2e,#2d1b4e,#1a0a2e)",border:"#c084fc",particles:"🦋",particleCount:15,anim:"greetFloat",cardAnim:"greetSlideUp",shadow:"rgba(192,132,252,.3)"},rocket:{emoji:"🚀",bg:"linear-gradient(135deg,#0a0a2e,#1a1a5e,#0a0a2e)",border:"#3b82f6",particles:"💫",particleCount:30,anim:"greetTwinkle",cardAnim:"greetBounce",shadow:"rgba(59,130,246,.3)"},hearts:{emoji:"💕",bg:"linear-gradient(135deg,#2d0a1a,#4a1a2e,#2d0a1a)",border:"#f43f5e",particles:"💗",particleCount:25,anim:"greetFloat",cardAnim:"greetBounce",shadow:"rgba(244,63,94,.3)"},music:{emoji:"🎶",bg:"linear-gradient(135deg,#1a0f2e,#2e1a4e,#1a0f2e)",border:"#8b5cf6",particles:"🎵",particleCount:20,anim:"greetFloat",cardAnim:"greetSlideUp",shadow:"rgba(139,92,246,.3)"},diamond:{emoji:"💎",bg:"linear-gradient(135deg,#0a1a2e,#1a3a5e,#0a1a2e)",border:"#38bdf8",particles:"💎",particleCount:18,anim:"greetTwinkle",cardAnim:"greetBounce",shadow:"rgba(56,189,248,.3)"},crown:{emoji:"👑",bg:"linear-gradient(135deg,#1a1500,#3a2e00,#1a1500)",border:"#fbbf24",particles:"✨",particleCount:30,anim:"greetTwinkle",cardAnim:"greetBounce",shadow:"rgba(251,191,36,.3)"},moon:{emoji:"🌙",bg:"linear-gradient(135deg,#0a0a2e,#1a1a3e,#0a0a2e)",border:"#fcd34d",particles:"⭐",particleCount:35,anim:"greetTwinkle",cardAnim:"greetSlideUp",shadow:"rgba(252,211,77,.3)"},coffee:{emoji:"☕",bg:"linear-gradient(135deg,#1a0f00,#3a2400,#1a0f00)",border:"#d97706",particles:"☕",particleCount:12,anim:"greetFloat",cardAnim:"greetBounce",shadow:"rgba(217,119,6,.3)"},thunder:{emoji:"⚡",bg:"linear-gradient(135deg,#0a0a1a,#1a1a3a,#0a0a1a)",border:"#eab308",particles:"⚡",particleCount:15,anim:"greetFlicker",cardAnim:"greetBounce",shadow:"rgba(234,179,8,.3)"},party:{emoji:"🎉",bg:"linear-gradient(135deg,#1a0a2e,#2e1a3e,#1a0a2e)",border:"#e879f9",particles:"🎊",particleCount:30,anim:"greetFloat",cardAnim:"greetBounce",shadow:"rgba(232,121,249,.3)"},balloon:{emoji:"🎈",bg:"linear-gradient(135deg,#0a1a2e,#1a2e4e,#0a1a2e)",border:"#60a5fa",particles:"🎈",particleCount:20,anim:"greetFloat",cardAnim:"greetSlideUp",shadow:"rgba(96,165,250,.3)"},flower:{emoji:"🌺",bg:"linear-gradient(135deg,#1a0a1a,#2e1a2e,#1a0a1a)",border:"#f472b6",particles:"🌼",particleCount:25,anim:"greetFloat",cardAnim:"greetBounce",shadow:"rgba(244,114,182,.3)"},lotus:{emoji:"🪷",bg:"linear-gradient(135deg,#0f1a1a,#1a3030,#0f1a1a)",border:"#f9a8d4",particles:"🪷",particleCount:15,anim:"greetFloat",cardAnim:"greetSlideUp",shadow:"rgba(249,168,212,.3)"},dragon:{emoji:"🐉",bg:"linear-gradient(135deg,#0a0a00,#1a1a0a,#0a0a00)",border:"#ef4444",particles:"🔥",particleCount:20,anim:"greetFlicker",cardAnim:"greetBounce",shadow:"rgba(239,68,68,.3)"},crystal:{emoji:"🔮",bg:"linear-gradient(135deg,#1a0a2e,#2e1a4e,#1a0a2e)",border:"#a78bfa",particles:"💠",particleCount:22,anim:"greetTwinkle",cardAnim:"greetBounce",shadow:"rgba(167,139,250,.3)"},lantern:{emoji:"🏮",bg:"linear-gradient(135deg,#1a0000,#3a0a0a,#1a0000)",border:"#dc2626",particles:"🏮",particleCount:15,anim:"greetFloat",cardAnim:"greetSlideUp",shadow:"rgba(220,38,38,.3)"},maple:{emoji:"🍁",bg:"linear-gradient(135deg,#1a0f00,#2e1500,#1a0f00)",border:"#ea580c",particles:"🍁",particleCount:25,anim:"greetSnow",cardAnim:"greetBounce",shadow:"rgba(234,88,12,.3)"},galaxy:{emoji:"🌌",bg:"linear-gradient(135deg,#050510,#0a0a2e,#050510)",border:"#818cf8",particles:"✨",particleCount:45,anim:"greetTwinkle",cardAnim:"greetBounce",shadow:"rgba(129,140,248,.3)"},tropical:{emoji:"🌴",bg:"linear-gradient(135deg,#0a1a0f,#1a3a1f,#0a1a0f)",border:"#4ade80",particles:"🌿",particleCount:20,anim:"greetFloat",cardAnim:"greetSlideUp",shadow:"rgba(74,222,128,.3)"},gift:{emoji:"🎁",bg:"linear-gradient(135deg,#1a0a1e,#2e1a3e,#1a0a1e)",border:"#f43f5e",particles:"🎁",particleCount:18,anim:"greetFloat",cardAnim:"greetBounce",shadow:"rgba(244,63,94,.3)"},wave:{emoji:"👋",bg:"linear-gradient(135deg,#0f172a,#1e3a5f,#0f172a)",border:"#3b82f6",particles:"👋",particleCount:15,anim:"greetFloat",cardAnim:"greetBounce",shadow:"rgba(59,130,246,.3)"},sparkle:{emoji:"✨",bg:"linear-gradient(135deg,#1a1500,#2e2800,#1a1500)",border:"#fbbf24",particles:"✨",particleCount:40,anim:"greetTwinkle",cardAnim:"greetBounce",shadow:"rgba(251,191,36,.3)"}};
 
   // Auto-save data to localStorage
   useEffect(()=>{saveData(data);},[data]);
   useEffect(()=>{try{localStorage.setItem(STORAGE_ROLE,role);}catch(e){}},[role]);
   useEffect(()=>{try{localStorage.setItem("cpms_loggedin",JSON.stringify(loggedIn));}catch(e){}},[loggedIn]);
   useEffect(()=>{try{localStorage.setItem("cpms_authed_uid",JSON.stringify(authedUserId));}catch(e){}},[authedUserId]);
-  // Show booking celebration on login when there are unviewed booking alerts
+
+  // Helper: check if booking alert was already shown (localStorage-based for permanence)
+  function isBookingShown(alertId){try{const shown=JSON.parse(localStorage.getItem("cpms_booking_shown")||"{}");return!!shown[alertId];}catch(e){return false;}}
+  function markBookingShown(alertId){try{const shown=JSON.parse(localStorage.getItem("cpms_booking_shown")||"{}");shown[alertId]=true;localStorage.setItem("cpms_booking_shown",JSON.stringify(shown));}catch(e){}}
+
+  // Helper: show celebration with TTS
+  function showCelebration(a){
+    const gs2=data.greetingSettings||{};
+    if(gs2.celebrationEnabled===false)return;
+    setBookingCelebration(a);
+    try{const u=new SpeechSynthesisUtterance("ยินดีด้วย! บ้าน "+a.houseName+" ติดจองแล้ว!");u.lang="th-TH";u.rate=1;u.pitch=1.1;speechSynthesis.speak(u);}catch(e){}
+    markBookingShown(a.id);
+    setData(d=>({...d,notificationViewed:{...d.notificationViewed,[`booking-${a.id}`]:true}}));
+    setTimeout(()=>setBookingCelebration(null),6000);
+  }
+
+  // Morning greeting + delayed celebration — on login
   useEffect(()=>{
-    if(!loggedIn)return;
-    const alerts=(data.bookingAlerts||[]).filter(a=>!data.notificationViewed?.[`booking-${a.id}`]);
-    if(alerts.length>0){
-      const a=alerts[alerts.length-1];
-      setBookingCelebration(a);
-      // Play celebration sound
-      try{const u=new SpeechSynthesisUtterance("ยินดีด้วย! บ้าน "+a.houseName+" ติดจองแล้ว!");u.lang="th-TH";u.rate=1;u.pitch=1.1;speechSynthesis.speak(u);}catch(e){}
-      // Mark as viewed so it only shows once
-      setData(d=>({...d,notificationViewed:{...d.notificationViewed,[`booking-${a.id}`]:true}}));
-      setTimeout(()=>setBookingCelebration(null),6000);
+    if(!loggedIn||!authedUserId)return;
+    const gs2=data.greetingSettings||{};
+    const now2=new Date();
+    const today=now2.toISOString().slice(0,10);
+    const morningKey="cpms_morning_"+authedUserId;
+    let greetingShown=false;
+    // Morning greeting — once per day after 8 AM
+    if(now2.getHours()>=8){
+      let alreadyShown=false;
+      try{alreadyShown=localStorage.getItem(morningKey)===today;}catch(e){}
+      if(!alreadyShown){
+        const defaultMsgs=["สวัสดีตอนเช้า ขอให้วันนี้ราบรื่น","เริ่มต้นวันใหม่อย่างมั่นใจ","ขอให้วันนี้สำเร็จตามแผน","วันนี้อีกหนึ่งก้าวสู่ความสำเร็จ","ทำวันนี้ให้ดีที่สุด","งานดี เริ่มที่วันนี้","พร้อมลุยงานวันนี้หรือยัง","วันนี้ต้องดีกว่าเมื่อวาน","ทุกงานวันนี้มีความหมาย","ขอให้วันนี้เป็นวันที่ดี"];
+        const msgs=(gs2.messages&&gs2.messages.length>0)?gs2.messages:defaultMsgs;
+        const dayOfYear=Math.floor((now2-new Date(now2.getFullYear(),0,0))/86400000);
+        const userName=data.team.find(m=>m.id===authedUserId)?.name||"";
+        const greeting=msgs[dayOfYear%msgs.length]+(userName?" คุณ"+userName:"");
+        // Set effect from settings
+        const efId=gs2.effectId||"sunrise";
+        setGreetingEffect(EFFECTS_MAP[efId]||EFFECTS_MAP.sunrise);
+        setMorningGreeting(greeting);
+        try{localStorage.setItem(morningKey,today);}catch(e){}
+        // TTS
+        if(gs2.ttsEnabled!==false){try{const u=new SpeechSynthesisUtterance(greeting);u.lang="th-TH";u.rate=0.95;u.pitch=1.05;speechSynthesis.speak(u);}catch(e){}}
+        // Custom sound
+        if(gs2.soundUrl){try{new Audio(gs2.soundUrl).play();}catch(e){}}
+        greetingShown=true;
+        setTimeout(()=>setMorningGreeting(null),5000);
+      }
     }
-  },[loggedIn]);
-  // Detect new booking alerts while already logged in (real-time for active users)
+    // Booking celebration — with delay if greeting was shown
+    const unviewed=(data.bookingAlerts||[]).filter(a=>!isBookingShown(a.id));
+    if(unviewed.length>0){
+      const a=unviewed[unviewed.length-1];
+      const delay=greetingShown?10000:500;
+      setTimeout(()=>showCelebration(a),delay);
+    }
+  },[loggedIn,authedUserId]);
+
+  // Detect new booking alerts while already logged in (real-time)
   useEffect(()=>{
     if(!loggedIn)return;
     const currentCount=(data.bookingAlerts||[]).length;
     if(currentCount>prevBookingAlertCount){
-      const alerts=data.bookingAlerts||[];
-      const a=alerts[alerts.length-1];
-      if(a&&!data.notificationViewed?.[`booking-${a.id}`]){
-        setBookingCelebration(a);
-        try{const u=new SpeechSynthesisUtterance("ยินดีด้วย! บ้าน "+a.houseName+" ติดจองแล้ว!");u.lang="th-TH";u.rate=1;u.pitch=1.1;speechSynthesis.speak(u);}catch(e){}
-        setData(d=>({...d,notificationViewed:{...d.notificationViewed,[`booking-${a.id}`]:true}}));
-        setTimeout(()=>setBookingCelebration(null),6000);
-      }
+      const a=(data.bookingAlerts||[])[currentCount-1];
+      if(a&&!isBookingShown(a.id)){showCelebration(a);}
     }
     setPrevBookingAlertCount(currentCount);
   },[data.bookingAlerts]);
-  // Morning greeting — once per day after 8 AM
-  useEffect(()=>{
-    if(!loggedIn||!authedUserId)return;
-    const now=new Date();
-    if(now.getHours()<8)return;
-    const today=now.toISOString().slice(0,10);
-    const key="cpms_morning_"+authedUserId;
-    try{if(localStorage.getItem(key)===today)return;}catch(e){}
-    const msgs=[
-      "สวัสดีตอนเช้า ขอให้วันนี้ราบรื่น",
-      "เริ่มต้นวันใหม่อย่างมั่นใจ",
-      "ขอให้วันนี้สำเร็จตามแผน",
-      "วันนี้อีกหนึ่งก้าวสู่ความสำเร็จ",
-      "ทำวันนี้ให้ดีที่สุด",
-      "งานดี เริ่มที่วันนี้",
-      "พร้อมลุยงานวันนี้หรือยัง",
-      "วันนี้ต้องดีกว่าเมื่อวาน",
-      "ทุกงานวันนี้มีความหมาย",
-      "ขอให้วันนี้เป็นวันที่ดี"
-    ];
-    const dayOfYear=Math.floor((now-new Date(now.getFullYear(),0,0))/86400000);
-    const msgIdx=dayOfYear%msgs.length;
-    const userName=data.team.find(m=>m.id===authedUserId)?.name||"";
-    const greeting=msgs[msgIdx]+(userName?" คุณ"+userName:"");
-    setMorningGreeting(greeting);
-    try{localStorage.setItem(key,today);}catch(e){}
-    // Speak the greeting
-    try{const u=new SpeechSynthesisUtterance(greeting);u.lang="th-TH";u.rate=0.95;u.pitch=1.05;speechSynthesis.speak(u);}catch(e){}
-    setTimeout(()=>setMorningGreeting(null),5000);
-  },[loggedIn,authedUserId]);
 
   function handleLogin(memberId,memberRole){
     setLoggedIn(true);
@@ -6983,19 +7118,21 @@ export default function App() {
         </div>
       </div>
       {changePwModal}
-      {morningGreeting&&(
+      {morningGreeting&&(()=>{
+        const ef=greetingEffect||EFFECTS_MAP.sunrise;
+        return(
         <div style={{position:"fixed",inset:0,zIndex:9998,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.75)",backdropFilter:"blur(6px)"}} onClick={()=>setMorningGreeting(null)}>
-          <div style={{background:"linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#0f172a 100%)",borderRadius:28,padding:isMobileMode?"36px 24px":"56px 72px",textAlign:"center",border:"2px solid #3b82f6",boxShadow:"0 0 100px rgba(59,130,246,.3), 0 0 40px rgba(59,130,246,.15) inset",maxWidth:520,width:"90%",animation:"greetBounce .7s cubic-bezier(.34,1.56,.64,1)"}} onClick={e=>e.stopPropagation()}>
-            <div style={{fontSize:56,marginBottom:8,animation:"greetSun 2s ease-in-out infinite"}}>☀️</div>
-            <div style={{fontSize:isMobileMode?13:15,color:"#60a5fa",fontWeight:600,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Good Morning</div>
+          <div style={{background:ef.bg,borderRadius:28,padding:isMobileMode?"36px 24px":"56px 72px",textAlign:"center",border:`2px solid ${ef.border}`,boxShadow:`0 0 100px ${ef.shadow}, 0 0 40px ${ef.shadow} inset`,maxWidth:520,width:"90%",animation:`${ef.cardAnim} .7s cubic-bezier(.34,1.56,.64,1)`}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:56,marginBottom:8,animation:`${ef.anim} 2s ease-in-out infinite`}}>{ef.emoji}</div>
+            <div style={{fontSize:isMobileMode?13:15,color:"rgba(255,255,255,0.8)",fontWeight:600,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Good Morning</div>
             <div style={{fontSize:isMobileMode?20:26,fontWeight:800,color:"#fff",lineHeight:1.5,marginBottom:12}}>{morningGreeting}</div>
-            <div style={{width:60,height:3,background:"linear-gradient(90deg,#3b82f6,#60a5fa,#3b82f6)",borderRadius:2,margin:"0 auto 16px"}}/>
+            <div style={{width:60,height:3,background:`linear-gradient(90deg,${ef.border},rgba(255,255,255,0.5),${ef.border})`,borderRadius:2,margin:"0 auto 16px"}}/>
             <div style={{fontSize:12,color:"#6b7280"}}>แตะเพื่อปิด</div>
           </div>
-          {Array.from({length:30}).map((_,i)=><div key={i} style={{position:"absolute",left:`${10+Math.random()*80}%`,top:`${10+Math.random()*80}%`,width:2+Math.random()*3,height:2+Math.random()*3,background:"#60a5fa",borderRadius:"50%",opacity:0,animation:`greetStar ${1.5+Math.random()*2}s ease-in-out ${Math.random()*2}s infinite`}}/>)}
-          <style>{`@keyframes greetBounce{0%{transform:scale(.2) translateY(40px);opacity:0}60%{transform:scale(1.03) translateY(-4px)}100%{transform:scale(1) translateY(0);opacity:1}}@keyframes greetSun{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.1) rotate(10deg)}}@keyframes greetStar{0%,100%{opacity:0;transform:scale(.5)}50%{opacity:.8;transform:scale(1.2)}}`}</style>
-        </div>
-      )}
+          {Array.from({length:ef.particleCount}).map((_,i)=><div key={i} style={{position:"absolute",left:`${5+Math.random()*90}%`,top:`${5+Math.random()*90}%`,fontSize:8+Math.random()*14,opacity:0,animation:`${ef.anim} ${1.5+Math.random()*2}s ease-in-out ${Math.random()*2}s infinite`}}>{ef.particles}</div>)}
+          <style>{`@keyframes greetBounce{0%{transform:scale(.2) translateY(40px);opacity:0}60%{transform:scale(1.03) translateY(-4px)}100%{transform:scale(1) translateY(0);opacity:1}}@keyframes greetSlideUp{0%{transform:translateY(80px);opacity:0}60%{transform:translateY(-6px)}100%{transform:translateY(0);opacity:1}}@keyframes greetSun{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.1) rotate(10deg)}}@keyframes greetFloat{0%{opacity:0;transform:translateY(10px)}25%{opacity:.9}50%{opacity:.9;transform:translateY(-10px)}75%{opacity:.7}100%{opacity:0;transform:translateY(10px)}}@keyframes greetTwinkle{0%,100%{opacity:0;transform:scale(.3)}50%{opacity:1;transform:scale(1.1)}}@keyframes greetFlicker{0%,100%{opacity:.3;transform:scale(.8)}25%{opacity:1;transform:scale(1.1)}50%{opacity:.6;transform:scale(.95)}75%{opacity:1;transform:scale(1.05)}}@keyframes greetSnow{0%{opacity:0;transform:translateY(-20px) rotate(0)}50%{opacity:.9}100%{opacity:0;transform:translateY(40px) rotate(360deg)}}`}</style>
+        </div>);
+      })()}
       {bookingCelebration&&(()=>{
         const a=bookingCelebration;
         const colors=["#fbbf24","#ef4444","#3b82f6","#10b981","#a855f7","#f97316","#ec4899"];

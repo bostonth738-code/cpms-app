@@ -1700,16 +1700,28 @@ function MarketingPage({data,setData,role,isMobileMode}) {
   const [editMdl,setEditMdl]=useState(null);
   const [form,setForm]=useState({});
   const [pdfLoading,setPdfLoading]=useState(null);
+  const [showConfetti,setShowConfetti]=useState(false);
   const canEdit=["owner","marketing","sales"].includes(role);
   const PCOL={50:C.red,75:C.orange,100:C.green};
+  const salesMembers=data.team.filter(t=>t.role==="sales"&&t.status==="active");
+  const bankOpts=["ธอส. (GHB)","กสิกรไทย (KBank)","กรุงไทย (KTB)","ไทยพาณิชย์ (SCB)","กรุงเทพ (BBL)","ทหารไทยธนชาต (TTB)","กรุงศรี (BAY)","ออมสิน (GSB)","เกียรตินาคินภัทร (KKP)","ซีไอเอ็มบี (CIMB)","อื่นๆ"];
+  function calcMth(principal,annualRate,years){if(!principal||!annualRate||!years)return 0;const r=annualRate/100/12;const n=years*12;if(r===0)return principal/n;return Math.round(principal*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1));}
   function openEdit(house){
-    const c=data.customers.find(c=>c.houseId===house.id)||{houseId:house.id,name:"",phone:"",type:"loan",bank:"",preApproved:false,prob:50,note:"",price:"",promotionItems:[],booked:false,isModelHouse:false};
-    setForm({...c,price:c.price||"",promotionItems:c.promotionItems||(c.promotion?[{id:uid(),text:c.promotion}]:[]),booked:c.booked||false,isModelHouse:c.isModelHouse||false});
+    const c=data.customers.find(c=>c.houseId===house.id)||{houseId:house.id,name:"",phone:"",type:"loan",bank:"",preApproved:false,prob:50,note:"",price:"",promotionItems:[],booked:false,isModelHouse:false,bankLoans:[],salesPersons:[]};
+    const bl=c.bankLoans||[];
+    const migratedBL=bl.length===0&&c.bank?[{id:uid(),bankName:c.bank,promoName:"",rate1:"",rate2:"",rate3:"",loanAmount:"",loanYears:30}]:bl;
+    setForm({...c,price:c.price||"",promotionItems:c.promotionItems||(c.promotion?[{id:uid(),text:c.promotion}]:[]),booked:c.booked||false,isModelHouse:c.isModelHouse||false,bankLoans:migratedBL,salesPersons:c.salesPersons||[]});
     setEditMdl(house);
   }
   function addPromoItem(){setForm(f=>({...f,promotionItems:[...f.promotionItems,{id:uid(),text:""}]}));}
   function removePromoItem(id){setForm(f=>({...f,promotionItems:f.promotionItems.filter(p=>p.id!==id)}));}
   function updatePromoItem(id,text){setForm(f=>({...f,promotionItems:f.promotionItems.map(p=>p.id===id?{...p,text}:p)}));}
+  function addBankLoan(){setForm(f=>({...f,bankLoans:[...(f.bankLoans||[]),{id:uid(),bankName:"",promoName:"",rate1:"",rate2:"",rate3:"",loanAmount:"",loanYears:30}]}));}
+  function removeBankLoan(id){setForm(f=>({...f,bankLoans:f.bankLoans.filter(b=>b.id!==id)}));}
+  function updateBankLoan(id,key,val){setForm(f=>({...f,bankLoans:f.bankLoans.map(b=>b.id===id?{...b,[key]:val}:b)}));}
+  function addSalesPerson(){setForm(f=>({...f,salesPersons:[...(f.salesPersons||[]),""]}));}
+  function removeSalesPerson(i){setForm(f=>({...f,salesPersons:f.salesPersons.filter((_,idx)=>idx!==i)}));}
+  function updateSalesPerson(i,val){setForm(f=>({...f,salesPersons:f.salesPersons.map((s,idx)=>idx===i?val:s)}));}
   function save(){
     const wasBooked=data.customers.find(c=>c.houseId===form.houseId)?.booked||false;
     const nowBooked=form.booked;
@@ -1719,10 +1731,11 @@ function MarketingPage({data,setData,role,isMobileMode}) {
       if(!wasBooked&&nowBooked){
         const h=d.houses.find(h=>h.id===form.houseId);
         const me=d.team.find(t=>t.role===role&&t.status==="active");
-        newAlerts=[...newAlerts,{id:uid(),houseId:form.houseId,houseName:h?.name||"",customerName:form.name,bookedBy:me?.name||ROLE_LBL[role],date:new Date().toISOString().slice(0,10)}];
+        newAlerts=[...newAlerts,{id:uid(),houseId:form.houseId,houseName:h?.name||"",customerName:form.name,bookedBy:me?.name||ROLE_LBL[role],salesPersons:form.salesPersons||[],date:new Date().toISOString().slice(0,10)}];
       }
       return{...d,bookingAlerts:newAlerts,customers:e?d.customers.map(c=>c.houseId===form.houseId?form:c):[...d.customers,form],houses:d.houses.map(h=>h.id===form.houseId?{...h,customer:form.name}:h)};
     });
+    if(!wasBooked&&nowBooked){setShowConfetti(true);setTimeout(()=>setShowConfetti(false),4000);}
     setEditMdl(null);
   }
   async function exportPDF(house){
@@ -1821,6 +1834,8 @@ function MarketingPage({data,setData,role,isMobileMode}) {
                 <div style={{fontSize:13,color:C.text,marginBottom:4}}>{c?.name||<span style={{color:C.muted}}>— ว่าง</span>}</div>
                 {c?.phone&&<div style={{fontSize:11,marginBottom:4}}><a href={`tel:${c.phone}`} style={{color:C.blue,textDecoration:"none"}}>📞 {c.phone}</a></div>}
                 {c?.price&&<div style={{fontSize:12,color:C.blue,fontWeight:700}}>💰 ฿{fmtMoney(Number(c.price))}</div>}
+                {(c?.salesPersons||[]).length>0&&<div style={{fontSize:11,color:C.muted,marginTop:2}}>👤 เซลล์: {c.salesPersons.join(", ")}</div>}
+                {(c?.bankLoans||[]).length>0&&<div style={{fontSize:11,color:C.blue,marginTop:2}}>🏦 {c.bankLoans.map(b=>b.bankName).join(", ")}</div>}
                 {promoItems.length>0&&<div style={{marginTop:4}}>{promoItems.map((p,i)=><div key={p.id} style={{fontSize:11,color:C.orange}}>  {i+1}. {p.text}</div>)}</div>}
                 <div style={{display:"flex",alignItems:"center",gap:7,marginTop:6}}>
                   <div style={{flex:1,height:5,background:C.faint,borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${h.pct}%`,background:C.blue,borderRadius:3}}/></div>
@@ -1833,7 +1848,7 @@ function MarketingPage({data,setData,role,isMobileMode}) {
       ):(
       <Card>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr>{["บ้าน","สถานะ","ลูกค้า","ราคา","โปรโมชั่น","ประเภท","% โอกาส","ก่อสร้าง","เหลือ",""].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",borderBottom:`1px solid ${C.border}`,background:"#0d1117",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
+          <thead><tr>{["บ้าน","สถานะ","ลูกค้า","ราคา","โปรโมชั่น","ธนาคาร","% โอกาส","ก่อสร้าง","เหลือ",""].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",borderBottom:`1px solid ${C.border}`,background:"#0d1117",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
           <tbody>
             {data.houses.map(h=>{
               const c=data.customers.find(cu=>cu.houseId===h.id);
@@ -1843,10 +1858,10 @@ function MarketingPage({data,setData,role,isMobileMode}) {
                 <tr key={h.id} style={{borderBottom:`1px solid ${C.border}`}} onMouseEnter={e=>e.currentTarget.style.background=C.panel} onMouseLeave={e=>e.currentTarget.style.background=""}>
                   <td style={{padding:"9px 12px"}}><Tag color="blue">{h.name}</Tag>{c?.isModelHouse&&<Tag color="orange" style={{marginLeft:4}}>ตัวอย่าง</Tag>}<div style={{fontSize:10,color:C.muted,marginTop:2}}>{data.projects.find(p=>p.id===h.projectId)?.name}</div></td>
                   <td style={{padding:"9px 12px"}}>{c?.booked?<Tag color="green">ติดจอง</Tag>:<Tag color="gray">ว่าง</Tag>}</td>
-                  <td style={{padding:"9px 12px"}}><div style={{fontSize:13,color:C.text}}>{c?.name||<span style={{color:C.muted}}>—</span>}</div>{c?.phone&&<div style={{fontSize:11}}><a href={`tel:${c.phone}`} onClick={e=>e.stopPropagation()} style={{color:C.blue,textDecoration:"none"}}>📞 {c.phone}</a></div>}</td>
+                  <td style={{padding:"9px 12px"}}><div style={{fontSize:13,color:C.text}}>{c?.name||<span style={{color:C.muted}}>—</span>}</div>{c?.phone&&<div style={{fontSize:11}}><a href={`tel:${c.phone}`} onClick={e=>e.stopPropagation()} style={{color:C.blue,textDecoration:"none"}}>📞 {c.phone}</a></div>}{(c?.salesPersons||[]).length>0&&<div style={{fontSize:10,color:C.muted,marginTop:2}}>👤 {c.salesPersons.join(", ")}</div>}</td>
                   <td style={{padding:"9px 12px",fontSize:13,fontWeight:700,color:C.blue}}>{c?.price?`฿${fmtMoney(Number(c.price))}`:"—"}</td>
                   <td style={{padding:"9px 12px",fontSize:12,maxWidth:200}}>{promoItems.length>0?promoItems.map((p,i)=><div key={p.id} style={{color:C.orange,fontSize:11}}>{i+1}. {p.text}</div>):"—"}</td>
-                  <td style={{padding:"9px 12px"}}>{c?<Tag color={c.type==="cash"?"green":"blue"}>{c.type==="cash"?"💵 สด":`🏦 ${c.bank||"กู้"}`}</Tag>:"—"}</td>
+                  <td style={{padding:"9px 12px"}}>{c?(c.type==="cash"?<Tag color="green">💵 สด</Tag>:(c.bankLoans||[]).length>0?<div>{c.bankLoans.map(b=><div key={b.id} style={{fontSize:11,color:C.blue}}>🏦 {b.bankName}</div>)}</div>:c.bank?<Tag color="blue">🏦 {c.bank}</Tag>:<Tag color="blue">🏦 กู้</Tag>):"—"}</td>
                   <td style={{padding:"9px 12px"}}>{c?<span style={{fontSize:13,fontWeight:700,color:PCOL[c.prob]}}>{c.prob}%</span>:"—"}</td>
                   <td style={{padding:"9px 12px",minWidth:90}}><div style={{display:"flex",alignItems:"center",gap:7}}><div style={{flex:1,height:5,background:C.faint,borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${h.pct}%`,background:C.blue,borderRadius:3}}/></div><span style={{fontSize:11,fontWeight:700,color:C.blue}}>{h.pct}%</span></div></td>
                   <td style={{padding:"9px 12px",fontSize:12,color:dl<0?C.red:dl<30?C.orange:C.muted}}>{h.status==="completed"?"✓":dl<0?`เกิน ${Math.abs(dl)} วัน`:`${dl} วัน`}</td>
@@ -1885,10 +1900,51 @@ function MarketingPage({data,setData,role,isMobileMode}) {
             <FG label="ชื่อ-นามสกุล"><FIn value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></FG>
             <FG label="เบอร์โทร"><FIn value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))}/></FG>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
-            <FG label="ประเภทการซื้อ"><FSel value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))}><option value="cash">💵 ซื้อสด</option><option value="loan">🏦 กู้ธนาคาร</option><option value="unknown">— ยังไม่ระบุ</option></FSel></FG>
-            {form.type==="loan"&&<FG label="ธนาคาร"><FIn value={form.bank} onChange={e=>setForm(f=>({...f,bank:e.target.value}))} placeholder="ชื่อธนาคาร..."/></FG>}
-          </div>
+          <FG label="ประเภทการซื้อ"><FSel value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))}><option value="cash">💵 ซื้อสด</option><option value="loan">🏦 กู้ธนาคาร</option><option value="unknown">— ยังไม่ระบุ</option></FSel></FG>
+          {form.type==="loan"&&(
+            <>
+              <div style={{fontSize:14,fontWeight:700,color:C.text,marginTop:12,marginBottom:8,paddingTop:12,borderTop:`1px solid ${C.border}`}}>🏦 ธนาคารที่ยื่นกู้ (เพิ่มได้ไม่จำกัด)</div>
+              {(form.bankLoans||[]).map((bank,bi)=>{
+                const loanAmt=bank.loanAmount?Number(bank.loanAmount):(form.price?Number(form.price):0);
+                const yrs=bank.loanYears?Number(bank.loanYears):30;
+                const pay1=calcMth(loanAmt,Number(bank.rate1)||0,yrs);
+                const pay2=calcMth(loanAmt,Number(bank.rate2)||0,yrs);
+                const pay3=calcMth(loanAmt,Number(bank.rate3)||0,yrs);
+                return(
+                  <Card key={bank.id} style={{padding:14,marginBottom:10,border:`1px solid ${C.border2}`}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                      <div style={{fontSize:13,fontWeight:700,color:C.blue}}>🏦 ธนาคารที่ {bi+1}</div>
+                      <Btn size="sm" variant="ghost" onClick={()=>removeBankLoan(bank.id)} style={{color:C.red}}>✕ ลบ</Btn>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:10}}>
+                      <FG label="ชื่อธนาคาร"><FSel value={bank.bankName} onChange={e=>updateBankLoan(bank.id,"bankName",e.target.value)}><option value="">— เลือกธนาคาร —</option>{bankOpts.map(b=><option key={b} value={b}>{b}</option>)}</FSel></FG>
+                      <FG label="โปรโมชั่นธนาคาร"><FIn value={bank.promoName} onChange={e=>updateBankLoan(bank.id,"promoName",e.target.value)} placeholder="เช่น โปรโมชั่นเพื่อคุณ"/></FG>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr 1fr",gap:10}}>
+                      <FG label="ดอกเบี้ยปีที่ 1 (%)"><FIn type="number" step="0.01" value={bank.rate1} onChange={e=>updateBankLoan(bank.id,"rate1",e.target.value)} placeholder="2.99"/></FG>
+                      <FG label="ดอกเบี้ยปีที่ 2 (%)"><FIn type="number" step="0.01" value={bank.rate2} onChange={e=>updateBankLoan(bank.id,"rate2",e.target.value)} placeholder="4.40"/></FG>
+                      <FG label="ดอกเบี้ยปีที่ 3+ (%)"><FIn type="number" step="0.01" value={bank.rate3} onChange={e=>updateBankLoan(bank.id,"rate3",e.target.value)} placeholder="5.95"/></FG>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:10}}>
+                      <FG label="ยอดกู้ (บาท)"><FIn type="number" value={bank.loanAmount} onChange={e=>updateBankLoan(bank.id,"loanAmount",e.target.value)} placeholder={form.price?`อ้างอิง ฿${fmtMoney(Number(form.price))}`:"ระบุยอดกู้"}/></FG>
+                      <FG label="ระยะเวลากู้ (ปี)"><FSel value={bank.loanYears} onChange={e=>updateBankLoan(bank.id,"loanYears",e.target.value)}>{Array.from({length:40},(_,i)=>i+1).map(y=><option key={y} value={y}>{y} ปี ({y*12} งวด)</option>)}</FSel></FG>
+                    </div>
+                    {loanAmt>0&&(Number(bank.rate1)>0||Number(bank.rate2)>0||Number(bank.rate3)>0)&&(
+                      <div style={{background:"linear-gradient(135deg,#1e3a5f,#0f172a)",borderRadius:10,padding:14,marginTop:8}}>
+                        <div style={{fontSize:12,fontWeight:700,color:C.muted,marginBottom:8}}>📊 ยอดผ่อน/เดือน (฿{fmtMoney(loanAmt)} / {yrs} ปี)</div>
+                        <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr 1fr",gap:10}}>
+                          {Number(bank.rate1)>0&&<div style={{textAlign:"center",padding:10,background:C.faint,borderRadius:8}}><div style={{fontSize:10,color:C.muted}}>ปีที่ 1 ({bank.rate1}%)</div><div style={{fontSize:18,fontWeight:800,color:C.green}}>฿{fmtMoney(pay1)}</div></div>}
+                          {Number(bank.rate2)>0&&<div style={{textAlign:"center",padding:10,background:C.faint,borderRadius:8}}><div style={{fontSize:10,color:C.muted}}>ปีที่ 2 ({bank.rate2}%)</div><div style={{fontSize:18,fontWeight:800,color:C.orange}}>฿{fmtMoney(pay2)}</div></div>}
+                          {Number(bank.rate3)>0&&<div style={{textAlign:"center",padding:10,background:C.faint,borderRadius:8}}><div style={{fontSize:10,color:C.muted}}>ปีที่ 3+ ({bank.rate3}%)</div><div style={{fontSize:18,fontWeight:800,color:C.blue}}>฿{fmtMoney(pay3)}</div></div>}
+                        </div>
+                      </div>
+                    )}
+                  </Card>
+                );
+              })}
+              <Btn size="sm" variant="ghost" onClick={addBankLoan} style={{color:C.blue,fontSize:12,marginBottom:12}}>+ เพิ่มธนาคาร</Btn>
+            </>
+          )}
           <FG label="% โอกาสซื้อ"><FSel value={form.prob} onChange={e=>setForm(f=>({...f,prob:+e.target.value}))}><option value={50}>50% — อาจกู้ไม่ผ่าน</option><option value={75}>75% — โอกาสสูง</option><option value={100}>100% — ซื้อสด / Pre-approved</option></FSel></FG>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",borderTop:`1px solid ${C.border}`,marginBottom:12}}>
             <span style={{fontSize:12,fontWeight:700,color:C.muted}}>Pre-approved แล้ว</span>
@@ -1898,9 +1954,37 @@ function MarketingPage({data,setData,role,isMobileMode}) {
               <span style={{position:"absolute",width:16,height:16,top:3,left:form.preApproved?21:3,background:"#fff",borderRadius:"50%",transition:".2s"}}/>
             </label>
           </div>
+          <div style={{fontSize:14,fontWeight:700,color:C.text,marginTop:12,marginBottom:8,paddingTop:12,borderTop:`1px solid ${C.border}`}}>👥 เซลล์ผู้พาลูกค้ามาจอง</div>
+          {(form.salesPersons||[]).map((sp,i)=>(
+            <div key={i} style={{display:"flex",gap:8,alignItems:"center",marginBottom:6}}>
+              <FSel value={sp} onChange={e=>updateSalesPerson(i,e.target.value)} style={{flex:1}}>
+                <option value="">— เลือกเซลล์ —</option>
+                {salesMembers.map(s=><option key={s.id} value={s.name}>{s.name}</option>)}
+                <option value="__other">อื่นๆ (พิมพ์เอง)</option>
+              </FSel>
+              {sp==="__other"&&<FIn value="" onChange={e=>updateSalesPerson(i,e.target.value)} placeholder="ชื่อเซลล์..." style={{flex:1}}/>}
+              <Btn size="sm" variant="ghost" onClick={()=>removeSalesPerson(i)} style={{color:C.red}}>✕</Btn>
+            </div>
+          ))}
+          <Btn size="sm" variant="ghost" onClick={addSalesPerson} style={{color:C.blue,fontSize:12,marginBottom:12}}>+ เพิ่มเซลล์</Btn>
           <FG label="หมายเหตุ"><FIn value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} rows={2} placeholder="บันทึกการติดตาม..."/></FG>
         </Mdl>
       )}
+      {showConfetti&&(()=>{
+        const colors=["#fbbf24","#ef4444","#3b82f6","#10b981","#a855f7","#f97316","#ec4899"];
+        return(
+          <div style={{position:"fixed",inset:0,zIndex:9999,pointerEvents:"none",overflow:"hidden"}}>
+            <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",background:"rgba(0,0,0,0.92)",borderRadius:20,padding:isMobileMode?"30px 24px":"40px 60px",textAlign:"center",pointerEvents:"auto",zIndex:1,border:"2px solid #fbbf24",boxShadow:"0 0 60px rgba(251,191,36,.3)",animation:"bookBounce .5s ease-out"}}>
+              <div style={{fontSize:60}}>🎉🏠🎊</div>
+              <div style={{fontSize:isMobileMode?20:26,fontWeight:800,color:"#fbbf24",marginTop:12}}>ยินดีด้วย!</div>
+              <div style={{fontSize:isMobileMode?14:18,color:"#fff",marginTop:8}}>บ้านติดจองเรียบร้อยแล้ว</div>
+              <div style={{fontSize:13,color:"#9ca3af",marginTop:12}}>ระบบแจ้งเตือนทุกคนแล้ว ✓</div>
+            </div>
+            {Array.from({length:50}).map((_,i)=><div key={i} style={{position:"absolute",left:`${(i*2)%100}%`,top:-10,width:`${6+i%6}px`,height:`${6+i%6}px`,background:colors[i%7],borderRadius:i%3?"50%":"2px",opacity:0,animation:`${i%2?"cFallL":"cFallR"} ${2+(i%4)*.5}s linear ${i*.06}s forwards`}}/>)}
+            <style>{`@keyframes cFallL{0%{top:-10px;opacity:1;transform:rotate(0)}25%{opacity:1}100%{top:105vh;opacity:0;transform:rotate(720deg) translateX(-60px)}}@keyframes cFallR{0%{top:-10px;opacity:1;transform:rotate(0)}25%{opacity:1}100%{top:105vh;opacity:0;transform:rotate(-720deg) translateX(60px)}}@keyframes bookBounce{0%{transform:translate(-50%,-50%) scale(.3);opacity:0}50%{transform:translate(-50%,-50%) scale(1.05)}100%{transform:translate(-50%,-50%) scale(1);opacity:1}}`}</style>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -1989,14 +2073,19 @@ function MktBudgetPage({data,setData,role,isMobileMode}) {
 }
 
 // ── Customer Data (Walk-in) Page ──────────────────────────────
-function CustomerDataPage({data,setData,role,isMobileMode}) {
+function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
   const canEdit=["owner","marketing","sales"].includes(role);
   const [editMdl,setEditMdl]=useState(null);
   const [form,setForm]=useState({});
+  const [pdfPreview,setPdfPreview]=useState(null);
+  const [pdfLoading2,setPdfLoading2]=useState(false);
+  const interestOpts=["ชอบบ้าน","ชอบบ้านแต่เครดิตไม่ถึง","ไม่ชอบบ้าน","จอง"];
+  const INTEREST_COL={"ชอบบ้าน":"green","ชอบบ้านแต่เครดิตไม่ถึง":"orange","ไม่ชอบบ้าน":"red","จอง":"blue"};
   const customers=data.walkInCustomers||[];
   const salesMembers=data.team.filter(t=>t.role==="sales"&&t.status==="active");
   const channelOpts=["Facebook","TikTok TheCloud","TikTok บ้านสไตล์บอส","Facebook เซลล์","เซลล์ตรง","LINE","Google","อื่นๆ"];
   const bankOpts=["ธอส. (GHB)","กสิกรไทย (KBank)","กรุงไทย (KTB)","ไทยพาณิชย์ (SCB)","กรุงเทพ (BBL)","ทหารไทยธนชาต (TTB)","กรุงศรี (BAY)","ออมสิน (GSB)","เกียรตินาคินภัทร (KKP)","ซีไอเอ็มบี (CIMB)","อื่นๆ"];
+  const maritalOpts=["โสด","แต่งงานแล้ว","หย่า/แยกทาง"];
   function calcMonthly(principal,annualRate,years){
     if(!principal||!annualRate||!years)return 0;
     const r=annualRate/100/12;
@@ -2004,18 +2093,78 @@ function CustomerDataPage({data,setData,role,isMobileMode}) {
     if(r===0)return principal/n;
     return Math.round(principal*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1));
   }
-  function openAdd(){setForm({id:uid(),name:"",phone:"",age:"",occupation:"",income:"",walkInDate:new Date().toISOString().slice(0,10),channel:"",channelDetail:"",channelDetailOther:"",salesPerson:"",bookingDate:"",bookingHouseId:"",note:"",bankLoans:[]});setEditMdl("add");}
-  function openEdit(c){setForm({...c,bankLoans:c.bankLoans||[]});setEditMdl("edit");}
+  function openAdd(){setForm({id:uid(),name:"",phone:"",age:"",occupation:"",income:"",walkInDate:new Date().toISOString().slice(0,10),channel:"",channelDetail:"",channelDetailOther:"",salesPerson:"",bookingDate:"",bookingHouseId:"",note:"",bankLoans:[],interestLevel:"",lookingForHouseType:"",workPlace:"",preferredArea:"",carInstallment:"",otherDebts:"",numberOfChildren:"",maritalStatus:""});setEditMdl("add");}
+  function openEdit(c){setForm({...c,bankLoans:c.bankLoans||[],interestLevel:c.interestLevel||"",lookingForHouseType:c.lookingForHouseType||"",workPlace:c.workPlace||"",preferredArea:c.preferredArea||"",carInstallment:c.carInstallment||"",otherDebts:c.otherDebts||"",numberOfChildren:c.numberOfChildren||"",maritalStatus:c.maritalStatus||""});setEditMdl("edit");}
   function addBank(){setForm(f=>({...f,bankLoans:[...(f.bankLoans||[]),{id:uid(),bankName:"",promoName:"",rate1:"",rate2:"",rate3:"",loanAmount:"",loanYears:30}]}));}
   function removeBank(id){setForm(f=>({...f,bankLoans:f.bankLoans.filter(b=>b.id!==id)}));}
   function updateBank(id,key,val){setForm(f=>({...f,bankLoans:f.bankLoans.map(b=>b.id===id?{...b,[key]:val}:b)}));}
   function save(){
+    const isBooking=form.interestLevel==="จอง"&&form.bookingHouseId;
     setData(d=>{
       const wc=d.walkInCustomers||[];
       const idx=wc.findIndex(c=>c.id===form.id);
-      return{...d,walkInCustomers:idx>=0?wc.map(c=>c.id===form.id?form:c):[...wc,form]};
+      let nd={...d,walkInCustomers:idx>=0?wc.map(c=>c.id===form.id?form:c):[...wc,form]};
+      if(isBooking){
+        const hId=Number(form.bookingHouseId);
+        const ec=nd.customers.find(c=>c.houseId===hId);
+        const cd={houseId:hId,name:form.name,phone:form.phone,type:"loan",bank:"",preApproved:false,prob:75,note:form.note||"",price:ec?.price||"",promotionItems:ec?.promotionItems||[],booked:true,isModelHouse:ec?.isModelHouse||false,bankLoans:form.bankLoans||[],salesPersons:ec?.salesPersons||[]};
+        nd={...nd,customers:ec?nd.customers.map(c=>c.houseId===hId?{...c,...cd}:c):[...nd.customers,cd],houses:nd.houses.map(h=>h.id===hId?{...h,customer:form.name}:h)};
+        if(!ec?.booked){
+          const h=nd.houses.find(h=>h.id===hId);
+          const me=nd.team.find(t=>t.role===role&&t.status==="active");
+          nd={...nd,bookingAlerts:[...(nd.bookingAlerts||[]),{id:uid(),houseId:hId,houseName:h?.name||"",customerName:form.name,bookedBy:me?.name||ROLE_LBL[role],salesPersons:[],date:new Date().toISOString().slice(0,10)}]};
+        }
+      }
+      return nd;
     });
     setEditMdl(null);
+    if(isBooking&&setPage)setPage("marketing");
+  }
+  async function exportCustPDF(c){
+    setPdfLoading2(true);
+    const linked=getLinkedHouseData(c.bookingHouseId);
+    const el=document.createElement("div");
+    el.style.cssText="position:fixed;left:-9999px;top:0;width:794px;background:#fff;padding:48px 44px;font-family:'Noto Sans Thai',sans-serif;color:#1a1a1a;line-height:1.6;";
+    el.innerHTML=`
+      <div style="text-align:center;margin-bottom:32px;padding-bottom:24px;border-bottom:3px solid #2563eb;">
+        <div style="font-size:28px;font-weight:800;color:#2563eb;">📋 ข้อมูลลูกค้า</div>
+        <div style="font-size:14px;color:#6b7280;margin-top:8px;">ระบบ CPMS — ${new Date().toLocaleDateString("th-TH",{year:"numeric",month:"long",day:"numeric"})}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+        <div style="background:#f8fafc;border-radius:12px;padding:16px;border:1px solid #e2e8f0;">
+          <div style="font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700;">ข้อมูลส่วนตัว</div>
+          <div style="font-size:18px;font-weight:700;margin-top:8px;">${c.name||"—"}</div>
+          <div style="margin-top:6px;font-size:13px;">📞 ${c.phone||"—"}</div>
+          <div style="margin-top:4px;font-size:13px;">อายุ: ${c.age||"—"} | อาชีพ: ${c.occupation||"—"}</div>
+          <div style="margin-top:4px;font-size:13px;">รายได้: ${c.income?"฿"+Number(c.income).toLocaleString():"—"}/เดือน</div>
+          ${c.maritalStatus?`<div style="margin-top:4px;font-size:13px;">สถานะ: ${c.maritalStatus} | บุตร: ${c.numberOfChildren||"—"} คน</div>`:""}
+        </div>
+        <div style="background:#f8fafc;border-radius:12px;padding:16px;border:1px solid #e2e8f0;">
+          <div style="font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700;">ความสนใจ & การค้นหา</div>
+          ${c.interestLevel?`<div style="margin-top:8px;font-size:14px;font-weight:600;">⭐ ${c.interestLevel}</div>`:""}
+          ${c.lookingForHouseType?`<div style="margin-top:6px;font-size:13px;">🏠 บ้านที่สนใจ: ${c.lookingForHouseType}</div>`:""}
+          ${c.preferredArea?`<div style="margin-top:4px;font-size:13px;">📍 โซนที่มองหา: ${c.preferredArea}</div>`:""}
+          ${c.workPlace?`<div style="margin-top:4px;font-size:13px;">💼 ที่ทำงาน: ${c.workPlace}</div>`:""}
+        </div>
+      </div>
+      ${c.carInstallment||c.otherDebts?`<div style="background:#fffbeb;border-radius:12px;padding:16px;border:1px solid #fef3c7;margin-bottom:24px;"><div style="font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700;">ภาระหนี้สิน</div>${c.carInstallment?`<div style="margin-top:8px;font-size:13px;">🚗 ค่าผ่อนรถ: ฿${Number(c.carInstallment).toLocaleString()}/เดือน</div>`:""}${c.otherDebts?`<div style="margin-top:4px;font-size:13px;">💳 หนี้อื่นๆ: ${c.otherDebts}</div>`:""}</div>`:""}
+      ${linked?`<div style="background:#f0fdf4;border-radius:12px;padding:16px;border:1px solid #bbf7d0;margin-bottom:24px;"><div style="font-size:11px;color:#6b7280;font-weight:700;">ข้อมูลการจอง</div><div style="margin-top:8px;font-size:16px;font-weight:700;color:#16a34a;">🏠 บ้าน ${linked.house.name}</div>${linked.customer?.price?`<div style="font-size:14px;color:#2563eb;font-weight:700;">ราคา: ฿${Number(linked.customer.price).toLocaleString()}</div>`:""}${c.bookingDate?`<div style="font-size:13px;">📅 วันจอง: ${c.bookingDate}</div>`:""}</div>`:""}
+      ${(c.bankLoans||[]).length>0?`<div style="margin-bottom:24px;"><div style="font-size:14px;font-weight:700;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #e2e8f0;">🏦 ธนาคารที่ยื่นกู้</div>${c.bankLoans.map((b,i)=>`<div style="background:#f8fafc;border-radius:10px;padding:14px;margin-bottom:8px;border:1px solid #e2e8f0;"><div style="font-weight:700;color:#2563eb;">ธนาคารที่ ${i+1}: ${b.bankName||"—"}</div>${b.promoName?`<div style="font-size:12px;color:#6b7280;">โปรโมชั่น: ${b.promoName}</div>`:""}${b.loanAmount?`<div style="font-size:12px;">ยอดกู้: ฿${Number(b.loanAmount).toLocaleString()} / ${b.loanYears||30} ปี</div>`:""}</div>`).join("")}</div>`:""}
+      ${c.note?`<div style="background:#f8fafc;border-radius:12px;padding:16px;border:1px solid #e2e8f0;margin-bottom:24px;"><div style="font-size:11px;color:#6b7280;font-weight:700;">หมายเหตุ</div><div style="margin-top:8px;font-size:13px;">${c.note}</div></div>`:""}
+      <div style="margin-top:36px;padding-top:18px;border-top:2px solid #e2e8f0;text-align:center;"><div style="color:#9ca3af;font-size:11px;">เอกสารโดยระบบ CPMS — ${new Date().toLocaleDateString("th-TH",{year:"numeric",month:"long",day:"numeric"})}</div></div>
+    `;
+    document.body.appendChild(el);
+    try{
+      const canvas=await html2canvas(el,{scale:2,useCORS:true,allowTaint:true,logging:false,windowWidth:794});
+      const imgData=canvas.toDataURL("image/jpeg",0.95);
+      const pdf=new jsPDF("p","mm","a4");
+      const pw=pdf.internal.pageSize.getWidth();const ph2=pdf.internal.pageSize.getHeight();
+      const iw=pw;const ih=(canvas.height*iw)/canvas.width;
+      let pos=0;pdf.addImage(imgData,"JPEG",0,pos,iw,ih);
+      let left=ih-ph2;while(left>0){pdf.addPage();pos-=ph2;pdf.addImage(imgData,"JPEG",0,pos,iw,ih);left-=ph2;}
+      dlBlob(pdf.output("blob"),`ข้อมูลลูกค้า_${c.name||"ลูกค้า"}.pdf`);
+    }catch(e){alert("เกิดข้อผิดพลาด: "+e.message);}
+    document.body.removeChild(el);setPdfLoading2(false);
   }
   function del(id){if(confirm("ลบข้อมูลลูกค้านี้?")){setData(d=>({...d,walkInCustomers:(d.walkInCustomers||[]).filter(c=>c.id!==id)}));}}
   function getLinkedHouseData(houseId){
@@ -2051,7 +2200,8 @@ function CustomerDataPage({data,setData,role,isMobileMode}) {
                 </div>
                 {c.phone&&<div style={{fontSize:12,marginBottom:2}}><a href={`tel:${c.phone}`} style={{color:C.blue,textDecoration:"none"}}>📞 {c.phone}</a></div>}
                 <div style={{fontSize:11,color:C.muted}}>Walk-in: {fmtDate(c.walkInDate)} | ช่องทาง: {c.channel}{c.channelDetail?` (${c.channelDetail})`:""}</div>
-                {linked&&<div style={{fontSize:11,color:C.green,marginTop:4}}>🏠 จองบ้าน {linked.house.name} · {fmtDate(c.bookingDate)}{linked.customer?.price?` · ฿${fmtMoney(Number(linked.customer.price))}`:""}</div>}
+                {c.interestLevel&&<div style={{marginTop:4}}><Tag color={INTEREST_COL[c.interestLevel]||"gray"}>{c.interestLevel}</Tag></div>}
+                {linked&&<div style={{fontSize:11,color:C.green,marginTop:4}}>🏠 {linked.house.name} · {fmtDate(c.bookingDate)}{linked.customer?.price?` · ฿${fmtMoney(Number(linked.customer.price))}`:""}</div>}
                 {promoItems.length>0&&<div style={{marginTop:4,padding:"6px 8px",background:C.faint,borderRadius:6}}><div style={{fontSize:10,fontWeight:700,color:C.orange,marginBottom:2}}>🏷️ โปรโมชั่นบ้าน:</div>{promoItems.map((p,i)=><div key={p.id} style={{fontSize:10,color:C.orange}}>{i+1}. {p.text}</div>)}</div>}
                 {(c.bankLoans||[]).length>0&&<div style={{marginTop:4}}><div style={{fontSize:10,fontWeight:700,color:C.blue}}>🏦 ธนาคาร: {c.bankLoans.map(b=>b.bankName).join(", ")}</div></div>}
               </Card>
@@ -2062,7 +2212,7 @@ function CustomerDataPage({data,setData,role,isMobileMode}) {
       <Card>
         <div style={{overflowX:"auto"}}>
         <table style={{width:"100%",borderCollapse:"collapse",minWidth:1050}}>
-          <thead><tr>{["ชื่อ","เบอร์โทร","อายุ","อาชีพ","รายได้","วัน Walk-in","ช่องทาง","จองบ้าน","โปรโมชั่นบ้าน","ธนาคารกู้","วันจอง",""].map(h=><th key={h} style={{padding:"8px 10px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
+          <thead><tr>{["ชื่อ","เบอร์โทร","อายุ","อาชีพ","รายได้","วัน Walk-in","ช่องทาง","ความสนใจ","โปรโมชั่นบ้าน","ธนาคารกู้","วันจอง",""].map(h=><th key={h} style={{padding:"8px 10px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
           <tbody>
             {customers.length===0&&<tr><td colSpan={12} style={{padding:20,textAlign:"center",color:C.muted}}>ยังไม่มีข้อมูลลูกค้า</td></tr>}
             {customers.map(c=>{
@@ -2077,7 +2227,7 @@ function CustomerDataPage({data,setData,role,isMobileMode}) {
                   <td style={{padding:"8px 10px",fontSize:12,color:C.muted}}>{c.income?`฿${fmtMoney(Number(c.income))}`:"—"}</td>
                   <td style={{padding:"8px 10px",fontSize:12,color:C.text}}>{fmtDate(c.walkInDate)}</td>
                   <td style={{padding:"8px 10px"}}><Tag color="blue">{c.channel||"—"}</Tag></td>
-                  <td style={{padding:"8px 10px"}}>{linked?<Tag color="green">{linked.house.name}{linked.customer?.price?` ฿${fmtMoney(Number(linked.customer.price))}`:""}</Tag>:"—"}</td>
+                  <td style={{padding:"8px 10px"}}>{c.interestLevel?<Tag color={INTEREST_COL[c.interestLevel]||"gray"}>{c.interestLevel}{linked?` 🏠${linked.house.name}`:""}</Tag>:"—"}</td>
                   <td style={{padding:"8px 10px",fontSize:11,maxWidth:180}}>{promoItems.length>0?promoItems.map((p,i)=><div key={p.id} style={{color:C.orange}}>{i+1}. {p.text}</div>):"—"}</td>
                   <td style={{padding:"8px 10px",fontSize:11}}>{(c.bankLoans||[]).length>0?c.bankLoans.map(b=><div key={b.id} style={{color:C.blue}}>{b.bankName}</div>):"—"}</td>
                   <td style={{padding:"8px 10px",fontSize:12,color:C.text}}>{c.bookingDate?fmtDate(c.bookingDate):"—"}</td>
@@ -2099,7 +2249,7 @@ function CustomerDataPage({data,setData,role,isMobileMode}) {
         const linked=getLinkedHouseData(form.bookingHouseId);
         const housePromos=linked?.customer?.promotionItems||(linked?.customer?.promotion?[{id:1,text:linked.customer.promotion}]:[]);
         return(
-        <Mdl title={editMdl==="add"?"➕ เพิ่มลูกค้า Walk-in":"✏️ แก้ไขข้อมูลลูกค้า"} onClose={()=>setEditMdl(null)} footer={<><Btn variant="ghost" onClick={()=>setEditMdl(null)}>ยกเลิก</Btn><Btn onClick={save}>💾 บันทึก</Btn></>}>
+        <Mdl title={editMdl==="add"?"➕ เพิ่มลูกค้า Walk-in":"✏️ แก้ไขข้อมูลลูกค้า"} onClose={()=>setEditMdl(null)} footer={<><Btn variant="ghost" onClick={()=>setEditMdl(null)}>ยกเลิก</Btn><Btn variant="ghost" onClick={()=>setPdfPreview({...form})} style={{color:C.blue}}>👁 PDF</Btn><Btn onClick={save}>💾 บันทึก</Btn></>}>
           <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
             <FG label="ชื่อ-นามสกุล"><FIn value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></FG>
             <FG label="เบอร์โทร"><FIn value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))}/></FG>
@@ -2135,16 +2285,38 @@ function CustomerDataPage({data,setData,role,isMobileMode}) {
               </FSel>
             </FG>
           )}
-          <div style={{fontSize:14,fontWeight:700,color:C.text,marginTop:12,marginBottom:8,paddingTop:12,borderTop:`1px solid ${C.border}`}}>🏠 การจองบ้าน</div>
-          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
-            <FG label="บ้านที่จอง">
-              <FSel value={form.bookingHouseId} onChange={e=>setForm(f=>({...f,bookingHouseId:e.target.value}))}>
-                <option value="">— ยังไม่จอง —</option>
-                {data.houses.map(h=><option key={h.id} value={h.id}>บ้าน {h.name} ({data.projects.find(p=>p.id===h.projectId)?.name})</option>)}
-              </FSel>
-            </FG>
-            <FG label="วันที่จอง"><FIn type="date" value={form.bookingDate||""} onChange={e=>setForm(f=>({...f,bookingDate:e.target.value}))}/></FG>
-          </div>
+          <div style={{fontSize:14,fontWeight:700,color:C.text,marginTop:12,marginBottom:8,paddingTop:12,borderTop:`1px solid ${C.border}`}}>⭐ ความสนใจ</div>
+          <FG label="ระดับความสนใจ">
+            <FSel value={form.interestLevel} onChange={e=>{const v=e.target.value;setForm(f=>({...f,interestLevel:v,bookingHouseId:v!=="จอง"?f.bookingHouseId:f.bookingHouseId,bookingDate:v!=="จอง"?"":f.bookingDate}))}}>
+              <option value="">— ยังไม่ประเมิน —</option>
+              {interestOpts.map(o=><option key={o} value={o}>{o==="ชอบบ้าน"?"💚 ":""}{"ชอบบ้านแต่เครดิตไม่ถึง"===o?"🟡 ":""}{"ไม่ชอบบ้าน"===o?"❌ ":""}{"จอง"===o?"🏠 ":""}{o}</option>)}
+            </FSel>
+          </FG>
+          {form.interestLevel==="จอง"&&(
+            <div style={{background:C.faint,borderRadius:10,padding:14,marginBottom:12}}>
+              <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
+                <FG label="🏠 เลือกบ้านที่จอง">
+                  <FSel value={form.bookingHouseId} onChange={e=>setForm(f=>({...f,bookingHouseId:e.target.value}))}>
+                    <option value="">— เลือกบ้าน —</option>
+                    {data.houses.map(h=><option key={h.id} value={h.id}>บ้าน {h.name} ({data.projects.find(p=>p.id===h.projectId)?.name})</option>)}
+                  </FSel>
+                </FG>
+                <FG label="วันที่จอง"><FIn type="date" value={form.bookingDate||""} onChange={e=>setForm(f=>({...f,bookingDate:e.target.value}))}/></FG>
+              </div>
+              <Alrt type="info">เมื่อบันทึก ข้อมูลจะเชื่อมต่อไปหน้า "บ้านและจอง" อัตโนมัติ</Alrt>
+            </div>
+          )}
+          {form.interestLevel&&form.interestLevel!=="จอง"&&(
+            <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
+              <FG label="บ้านที่สนใจ (ถ้ามี)">
+                <FSel value={form.bookingHouseId} onChange={e=>setForm(f=>({...f,bookingHouseId:e.target.value}))}>
+                  <option value="">— ยังไม่ระบุ —</option>
+                  {data.houses.map(h=><option key={h.id} value={h.id}>บ้าน {h.name} ({data.projects.find(p=>p.id===h.projectId)?.name})</option>)}
+                </FSel>
+              </FG>
+              <FG label="วันที่จอง"><FIn type="date" value={form.bookingDate||""} onChange={e=>setForm(f=>({...f,bookingDate:e.target.value}))}/></FG>
+            </div>
+          )}
           {linked&&(
             <div style={{background:C.faint,borderRadius:10,padding:14,marginBottom:12,marginTop:4}}>
               <div style={{fontSize:12,fontWeight:700,color:C.green,marginBottom:6}}>📋 ข้อมูลจากบ้าน {linked.house.name}</div>
@@ -2157,6 +2329,19 @@ function CustomerDataPage({data,setData,role,isMobileMode}) {
               )}
             </div>
           )}
+          <div style={{fontSize:14,fontWeight:700,color:C.text,marginTop:12,marginBottom:8,paddingTop:12,borderTop:`1px solid ${C.border}`}}>📋 ข้อมูลส่วนตัวเพิ่มเติม</div>
+          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr 1fr",gap:12}}>
+            <FG label="สถานะสมรส"><FSel value={form.maritalStatus} onChange={e=>setForm(f=>({...f,maritalStatus:e.target.value}))}><option value="">— เลือก —</option>{maritalOpts.map(o=><option key={o} value={o}>{o}</option>)}</FSel></FG>
+            <FG label="จำนวนบุตร"><FIn type="number" value={form.numberOfChildren} onChange={e=>setForm(f=>({...f,numberOfChildren:e.target.value}))} placeholder="0"/></FG>
+            <FG label="ค่าผ่อนรถ/เดือน"><FIn type="number" value={form.carInstallment} onChange={e=>setForm(f=>({...f,carInstallment:e.target.value}))} placeholder="เช่น 8000"/></FG>
+          </div>
+          <FG label="หนี้สินอื่นๆ (รายละเอียด + จำนวนเงิน)"><FIn value={form.otherDebts} onChange={e=>setForm(f=>({...f,otherDebts:e.target.value}))} rows={2} placeholder="เช่น บัตรเครดิต 5,000/เดือน, สินเชื่อส่วนบุคคล 3,000/เดือน"/></FG>
+          <div style={{fontSize:14,fontWeight:700,color:C.text,marginTop:12,marginBottom:8,paddingTop:12,borderTop:`1px solid ${C.border}`}}>🔍 ข้อมูลการค้นหาบ้าน</div>
+          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
+            <FG label="มองหาบ้านแบบไหน"><FIn value={form.lookingForHouseType} onChange={e=>setForm(f=>({...f,lookingForHouseType:e.target.value}))} placeholder="เช่น ทาวน์โฮม 2 ชั้น, บ้านเดี่ยว"/></FG>
+            <FG label="โซน/พื้นที่ที่สนใจ"><FIn value={form.preferredArea} onChange={e=>setForm(f=>({...f,preferredArea:e.target.value}))} placeholder="เช่น บางนา, รังสิต, เมืองทอง"/></FG>
+          </div>
+          <FG label="ที่ทำงาน/สถานที่ทำงาน"><FIn value={form.workPlace} onChange={e=>setForm(f=>({...f,workPlace:e.target.value}))} placeholder="เช่น บริษัท ABC อ.เมือง จ.ชลบุรี"/></FG>
           <div style={{fontSize:14,fontWeight:700,color:C.text,marginTop:12,marginBottom:8,paddingTop:12,borderTop:`1px solid ${C.border}`}}>🏦 ธนาคารที่ยื่นกู้</div>
           {(form.bankLoans||[]).map((bank,bi)=>{
             const housePrice=linked?.customer?.price?Number(linked.customer.price):0;
@@ -2223,6 +2408,52 @@ function CustomerDataPage({data,setData,role,isMobileMode}) {
         </Mdl>
         );
       })()}
+      {pdfPreview&&(
+        <Mdl title="👁 พรีวิว PDF ข้อมูลลูกค้า" onClose={()=>setPdfPreview(null)} footer={<><Btn variant="ghost" onClick={()=>setPdfPreview(null)}>ปิด</Btn><Btn onClick={()=>{exportCustPDF(pdfPreview);setPdfPreview(null);}} disabled={pdfLoading2}>{pdfLoading2?"⏳ กำลังสร้าง...":"📄 ดาวน์โหลด PDF"}</Btn></>}>
+          <div style={{background:"#fff",color:"#1a1a1a",borderRadius:12,padding:20,maxHeight:"60vh",overflowY:"auto"}}>
+            <div style={{textAlign:"center",marginBottom:20,paddingBottom:16,borderBottom:"3px solid #2563eb"}}>
+              <div style={{fontSize:22,fontWeight:800,color:"#2563eb"}}>📋 ข้อมูลลูกค้า</div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:14,marginBottom:16}}>
+              <div style={{background:"#f8fafc",borderRadius:10,padding:14}}>
+                <div style={{fontSize:10,color:"#6b7280",fontWeight:700,textTransform:"uppercase"}}>ข้อมูลส่วนตัว</div>
+                <div style={{fontSize:16,fontWeight:700,marginTop:6}}>{pdfPreview.name||"—"}</div>
+                <div style={{fontSize:12,marginTop:4}}>📞 {pdfPreview.phone||"—"}</div>
+                <div style={{fontSize:12,marginTop:2}}>อายุ: {pdfPreview.age||"—"} | อาชีพ: {pdfPreview.occupation||"—"}</div>
+                <div style={{fontSize:12,marginTop:2}}>รายได้: {pdfPreview.income?`฿${fmtMoney(Number(pdfPreview.income))}`:"—"}/เดือน</div>
+                {pdfPreview.maritalStatus&&<div style={{fontSize:12,marginTop:2}}>สถานะ: {pdfPreview.maritalStatus} | บุตร: {pdfPreview.numberOfChildren||"0"} คน</div>}
+              </div>
+              <div style={{background:"#f8fafc",borderRadius:10,padding:14}}>
+                <div style={{fontSize:10,color:"#6b7280",fontWeight:700,textTransform:"uppercase"}}>ความสนใจ & การค้นหา</div>
+                {pdfPreview.interestLevel&&<div style={{fontSize:14,fontWeight:600,marginTop:6}}>⭐ {pdfPreview.interestLevel}</div>}
+                {pdfPreview.lookingForHouseType&&<div style={{fontSize:12,marginTop:4}}>🏠 {pdfPreview.lookingForHouseType}</div>}
+                {pdfPreview.preferredArea&&<div style={{fontSize:12,marginTop:2}}>📍 {pdfPreview.preferredArea}</div>}
+                {pdfPreview.workPlace&&<div style={{fontSize:12,marginTop:2}}>💼 {pdfPreview.workPlace}</div>}
+              </div>
+            </div>
+            {(pdfPreview.carInstallment||pdfPreview.otherDebts)&&(
+              <div style={{background:"#fffbeb",borderRadius:10,padding:14,marginBottom:14}}>
+                <div style={{fontSize:10,fontWeight:700,color:"#6b7280"}}>ภาระหนี้สิน</div>
+                {pdfPreview.carInstallment&&<div style={{fontSize:12,marginTop:6}}>🚗 ค่าผ่อนรถ: ฿{fmtMoney(Number(pdfPreview.carInstallment))}/เดือน</div>}
+                {pdfPreview.otherDebts&&<div style={{fontSize:12,marginTop:2}}>💳 {pdfPreview.otherDebts}</div>}
+              </div>
+            )}
+            {(pdfPreview.bankLoans||[]).length>0&&(
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:13,fontWeight:700,marginBottom:8}}>🏦 ธนาคารที่ยื่นกู้</div>
+                {pdfPreview.bankLoans.map((b,i)=>(
+                  <div key={b.id} style={{background:"#f8fafc",borderRadius:8,padding:12,marginBottom:6}}>
+                    <div style={{fontWeight:700,color:"#2563eb",fontSize:12}}>ธนาคารที่ {i+1}: {b.bankName||"—"}</div>
+                    {b.promoName&&<div style={{fontSize:11,color:"#6b7280"}}>โปรโมชั่น: {b.promoName}</div>}
+                    {b.loanAmount&&<div style={{fontSize:11}}>ยอดกู้: ฿{fmtMoney(Number(b.loanAmount))} / {b.loanYears||30} ปี</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+            {pdfPreview.note&&<div style={{background:"#f8fafc",borderRadius:10,padding:14}}><div style={{fontSize:10,fontWeight:700,color:"#6b7280"}}>หมายเหตุ</div><div style={{fontSize:12,marginTop:6}}>{pdfPreview.note}</div></div>}
+          </div>
+        </Mdl>
+      )}
     </div>
   );
 }
@@ -4928,12 +5159,22 @@ export default function App() {
   const [viewAsId,setViewAsId]=useState(null); // owner can "view as" an employee
   const [showChangePw,setShowChangePw]=useState(false);
   const [changePwForm,setChangePwForm]=useState({newPw:"",confirm:"",showNew:false,showConfirm:false,err:"",sent:false});
+  const [bookingCelebration,setBookingCelebration]=useState(null);
 
   // Auto-save data to localStorage
   useEffect(()=>{saveData(data);},[data]);
   useEffect(()=>{try{localStorage.setItem(STORAGE_ROLE,role);}catch(e){}},[role]);
   useEffect(()=>{try{localStorage.setItem("cpms_loggedin",JSON.stringify(loggedIn));}catch(e){}},[loggedIn]);
   useEffect(()=>{try{localStorage.setItem("cpms_authed_uid",JSON.stringify(authedUserId));}catch(e){}},[authedUserId]);
+  // Show booking celebration on login when there are unviewed booking alerts
+  useEffect(()=>{
+    if(!loggedIn)return;
+    const alerts=(data.bookingAlerts||[]).filter(a=>!data.notificationViewed?.[`booking-${a.id}`]);
+    if(alerts.length>0){
+      setBookingCelebration(alerts[alerts.length-1]);
+      setTimeout(()=>setBookingCelebration(null),6000);
+    }
+  },[loggedIn]);
 
   function handleLogin(memberId,memberRole){
     setLoggedIn(true);
@@ -5141,7 +5382,7 @@ export default function App() {
             {page==="finance"&&role==="owner"&&<FinancePage data={data} role={role} isMobileMode={isMobileMode}/>}
             {page==="team"&&<TeamPage data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>}
             {page==="marketing"&&<MarketingPage data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>}
-            {page==="customerData"&&["owner","marketing","sales"].includes(role)&&<CustomerDataPage data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>}
+            {page==="customerData"&&["owner","marketing","sales"].includes(role)&&<CustomerDataPage data={data} setData={setData} role={role} isMobileMode={isMobileMode} setPage={handleSetPage}/>}
             {page==="mktResult"&&["owner","marketing","sales"].includes(role)&&<MktResultPage data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>}
             {page==="mktBudget"&&["owner","marketing"].includes(role)&&<MktBudgetPage data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>}
             {page==="costPage"&&["owner","engineer","purchasing"].includes(role)&&<CostPage data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>}
@@ -5166,6 +5407,28 @@ export default function App() {
         </div>
       </div>
       {changePwModal}
+      {bookingCelebration&&(()=>{
+        const a=bookingCelebration;
+        const colors=["#fbbf24","#ef4444","#3b82f6","#10b981","#a855f7","#f97316","#ec4899"];
+        return(
+          <div style={{position:"fixed",inset:0,zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.7)",backdropFilter:"blur(4px)"}} onClick={()=>setBookingCelebration(null)}>
+            <div style={{background:"linear-gradient(135deg,#0f172a,#1e293b)",borderRadius:24,padding:isMobileMode?"30px 20px":"48px 64px",textAlign:"center",border:"2px solid #fbbf24",boxShadow:"0 0 80px rgba(251,191,36,.25)",maxWidth:480,width:"90%",animation:"celebBounce .6s ease-out"}} onClick={e=>e.stopPropagation()}>
+              <div style={{fontSize:64,marginBottom:12}}>🎉🏠🎊</div>
+              <div style={{fontSize:isMobileMode?22:28,fontWeight:800,color:"#fbbf24",marginBottom:8}}>ยินดีด้วย!</div>
+              <div style={{fontSize:isMobileMode?16:20,color:"#fff",marginBottom:16}}>บ้าน {a.houseName} ติดจองแล้ว!</div>
+              <div style={{background:"rgba(255,255,255,0.08)",borderRadius:14,padding:"16px 20px",marginBottom:16}}>
+                <div style={{fontSize:14,color:"#d1d5db"}}>👤 ลูกค้า: <span style={{color:"#fff",fontWeight:700}}>{a.customerName||"—"}</span></div>
+                <div style={{fontSize:14,color:"#d1d5db",marginTop:6}}>📝 โดย: <span style={{color:"#fff",fontWeight:700}}>{a.bookedBy||"—"}</span></div>
+                {(a.salesPersons||[]).length>0&&<div style={{fontSize:14,color:"#d1d5db",marginTop:6}}>👥 เซลล์: <span style={{color:"#fff",fontWeight:700}}>{a.salesPersons.join(", ")}</span></div>}
+                <div style={{fontSize:14,color:"#d1d5db",marginTop:6}}>📅 {fmtDate(a.date)}</div>
+              </div>
+              <div style={{fontSize:12,color:"#6b7280"}}>แตะเพื่อปิด</div>
+            </div>
+            {Array.from({length:60}).map((_,i)=><div key={i} style={{position:"absolute",left:`${(i*1.67)%100}%`,top:-10,width:`${5+i%7}px`,height:`${5+i%7}px`,background:colors[i%7],borderRadius:i%3?"50%":"2px",opacity:0,animation:`${i%2?"cFallL2":"cFallR2"} ${2+(i%5)*.4}s linear ${i*.05}s forwards`}}/>)}
+            <style>{`@keyframes cFallL2{0%{top:-10px;opacity:1;transform:rotate(0)}25%{opacity:1}100%{top:105vh;opacity:0;transform:rotate(720deg) translateX(-80px)}}@keyframes cFallR2{0%{top:-10px;opacity:1;transform:rotate(0)}25%{opacity:1}100%{top:105vh;opacity:0;transform:rotate(-720deg) translateX(80px)}}@keyframes celebBounce{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.05)}100%{transform:scale(1);opacity:1}}`}</style>
+          </div>
+        );
+      })()}
     </>
   );
 }

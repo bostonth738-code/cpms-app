@@ -3112,6 +3112,7 @@ function LoginPage({data,onLogin}){
     {username:"foreman",role:"foreman",color:"#fb923c",icon:"🏗"},
     {username:"purchasing",role:"purchasing",color:"#4ade80",icon:"🛒"},
     {username:"marketing",role:"marketing",color:"#f472b6",icon:"📢"},
+    {username:"sales",role:"sales",color:"#facc15",icon:"💰"},
   ];
 
   return(

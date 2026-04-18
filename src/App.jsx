@@ -2080,7 +2080,12 @@ function MktBudgetPage({data,setData,role,isMobileMode}) {
   const now=new Date();
   const [selMonth,setSelMonth]=useState(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`);
   const [editMdl,setEditMdl]=useState(false);
+  const [viewMode,setViewMode]=useState("month"); // month | chart | compare
+  const [chartYear,setChartYear]=useState(now.getFullYear());
+  const [cmpFrom,setCmpFrom]=useState(`${now.getFullYear()}-01`);
+  const [cmpTo,setCmpTo]=useState(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`);
   const channels=["Facebook Ads","TikTok Ads","LINE Ads","Google Ads","จ้าง Influencer","ออฟไลน์ ป้ายโฆษณา"];
+  const chColors=["#3b82f6","#000000","#22c55e","#f59e0b","#a855f7","#ef4444"];
   const budgets=data.marketingBudget||[];
   const cur=budgets.find(b=>b.month===selMonth)||{month:selMonth,items:channels.map(ch=>({channel:ch,budget:0,actual:0}))};
   const [form,setForm]=useState(cur);
@@ -2102,48 +2107,338 @@ function MktBudgetPage({data,setData,role,isMobileMode}) {
   }
   const totalBudget=cur.items.reduce((s,it)=>s+(Number(it.budget)||0),0);
   const totalActual=cur.items.reduce((s,it)=>s+(Number(it.actual)||0),0);
-  const thMonths=["","มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+  const thMonths=["","ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+  const thMonthsFull=["","มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
   const [y,mo]=selMonth.split("-").map(Number);
+
+  // Helper: get 12 months data for a year
+  function getYearData(yr){
+    return Array.from({length:12},(_,i)=>{
+      const mKey=`${yr}-${String(i+1).padStart(2,"0")}`;
+      const md=budgets.find(b=>b.month===mKey);
+      const items=md?md.items:channels.map(ch=>({channel:ch,budget:0,actual:0}));
+      return{month:i+1,mKey,items,totalBudget:items.reduce((s,it)=>s+(Number(it.budget)||0),0),totalActual:items.reduce((s,it)=>s+(Number(it.actual)||0),0)};
+    });
+  }
+
+  // Helper: get range data for comparison
+  function getRangeData(from,to){
+    const [fy,fm]=from.split("-").map(Number);
+    const [ty,tm]=to.split("-").map(Number);
+    const result=[];
+    let cy=fy,cm=fm;
+    while(cy<ty||(cy===ty&&cm<=tm)){
+      const mKey=`${cy}-${String(cm).padStart(2,"0")}`;
+      const md=budgets.find(b=>b.month===mKey);
+      const items=md?md.items:channels.map(ch=>({channel:ch,budget:0,actual:0}));
+      result.push({year:cy,month:cm,mKey,items,totalBudget:items.reduce((s,it)=>s+(Number(it.budget)||0),0),totalActual:items.reduce((s,it)=>s+(Number(it.actual)||0),0)});
+      cm++;if(cm>12){cm=1;cy++;}
+      if(result.length>60)break;
+    }
+    return result;
+  }
+
+  // Available years
+  const allYears=[...new Set(budgets.map(b=>Number(b.month.split("-")[0])))].sort();
+  if(!allYears.includes(now.getFullYear()))allYears.push(now.getFullYear());
+  allYears.sort((a,b)=>a-b);
+
   return (
     <div style={{padding:isMobileMode?12:24}}>
-      <div style={{fontSize:isMobileMode?18:22,fontWeight:700,color:C.text,marginBottom:4}}>💰 งบประมาณการตลาด</div>
-      <div style={{fontSize:13,color:C.muted,marginBottom:16}}>งบรายเดือนสำหรับค่าใช้จ่ายด้านการตลาด</div>
-      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
-        <Btn size="sm" variant="ghost" onClick={()=>changeMonth(-1)}>◀</Btn>
-        <span style={{fontSize:16,fontWeight:700,color:C.text}}>{thMonths[mo]} {y+543}</span>
-        <Btn size="sm" variant="ghost" onClick={()=>changeMonth(1)}>▶</Btn>
-        <div style={{flex:1}}/>
-        {canEdit&&<Btn onClick={openEdit}>✏️ แก้ไขงบ</Btn>}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8,marginBottom:16}}>
+        <div>
+          <div style={{fontSize:isMobileMode?18:22,fontWeight:700,color:C.text}}>💰 งบประมาณการตลาด</div>
+          <div style={{fontSize:13,color:C.muted,marginTop:2}}>งบรายเดือน สถิติ และเปรียบเทียบค่าใช้จ่ายด้านการตลาด</div>
+        </div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr 1fr":"1fr 1fr 1fr",gap:12,marginBottom:20}}>
-        <Card style={{padding:15}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>งบประมาณ</div><div style={{fontSize:20,fontWeight:800,color:C.blue}}>฿{fmtMoney(totalBudget)}</div></Card>
-        <Card style={{padding:15}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>ใช้จริง</div><div style={{fontSize:20,fontWeight:800,color:totalActual>totalBudget?C.red:C.green}}>฿{fmtMoney(totalActual)}</div></Card>
-        <Card style={{padding:15}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>คงเหลือ</div><div style={{fontSize:20,fontWeight:800,color:(totalBudget-totalActual)<0?C.red:C.text}}>฿{fmtMoney(totalBudget-totalActual)}</div></Card>
+      {/* TAB BUTTONS */}
+      <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
+        {[{k:"month",l:"📅 รายเดือน"},{k:"chart",l:"📊 กราฟรายปี"},{k:"compare",l:"📈 เปรียบเทียบ"}].map(t=>(
+          <Btn key={t.k} size="sm" variant={viewMode===t.k?"default":"ghost"} onClick={()=>setViewMode(t.k)} style={viewMode===t.k?{background:C.blue,color:"#fff"}:{}}>{t.l}</Btn>
+        ))}
       </div>
-      <Card>
-        <div style={{display:"flex",flexDirection:"column",gap:0}}>
+
+      {/* ═══ MONTHLY VIEW ═══ */}
+      {viewMode==="month"&&<>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+          <Btn size="sm" variant="ghost" onClick={()=>changeMonth(-1)}>◀</Btn>
+          <span style={{fontSize:16,fontWeight:700,color:C.text}}>{thMonthsFull[mo]} {y+543}</span>
+          <Btn size="sm" variant="ghost" onClick={()=>changeMonth(1)}>▶</Btn>
+          <div style={{flex:1}}/>
+          {canEdit&&<Btn onClick={openEdit}>✏️ แก้ไขงบ</Btn>}
+        </div>
+        {/* KPI Cards */}
+        <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr 1fr":"1fr 1fr 1fr 1fr",gap:12,marginBottom:20}}>
+          <Card style={{padding:15,borderLeft:`4px solid ${C.blue}`}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>📋 งบประมาณ</div><div style={{fontSize:isMobileMode?16:20,fontWeight:800,color:C.blue}}>฿{fmtMoney(totalBudget)}</div></Card>
+          <Card style={{padding:15,borderLeft:`4px solid ${totalActual>totalBudget?C.red:C.green}`}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>💸 ใช้จริง</div><div style={{fontSize:isMobileMode?16:20,fontWeight:800,color:totalActual>totalBudget?C.red:C.green}}>฿{fmtMoney(totalActual)}</div></Card>
+          <Card style={{padding:15,borderLeft:`4px solid ${(totalBudget-totalActual)<0?C.red:C.green}`}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>💰 คงเหลือ</div><div style={{fontSize:isMobileMode?16:20,fontWeight:800,color:(totalBudget-totalActual)<0?C.red:C.text}}>฿{fmtMoney(Math.abs(totalBudget-totalActual))}{(totalBudget-totalActual)<0?" (เกิน!)":""}</div></Card>
+          <Card style={{padding:15,borderLeft:`4px solid ${C.orange}`}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>📊 ใช้ไป</div><div style={{fontSize:isMobileMode?16:20,fontWeight:800,color:C.orange}}>{totalBudget>0?Math.round(totalActual/totalBudget*100):0}%</div></Card>
+        </div>
+        {/* Platform cards with over-budget indicator */}
+        <Card style={{padding:0,marginBottom:20}}>
           {cur.items.map((it,i)=>{
-            const pct=it.budget>0?Math.min(Math.round((it.actual||0)/it.budget*100),100):0;
+            const bgt=Number(it.budget)||0;const act=Number(it.actual)||0;
+            const isOver=act>bgt&&bgt>0;const diff=act-bgt;
+            const pct=bgt>0?Math.min(Math.round(act/bgt*100),150):0;
             return (
-              <div key={i} style={{padding:isMobileMode?"10px 12px":"12px 16px",borderBottom:`1px solid ${C.border}`}}>
+              <div key={i} style={{padding:isMobileMode?"10px 12px":"14px 18px",borderBottom:`1px solid ${C.border}`,background:isOver?"rgba(239,68,68,0.04)":"transparent"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                  <span style={{fontSize:13,fontWeight:600,color:C.text}}>{it.channel}</span>
-                  <span style={{fontSize:12,fontWeight:700,color:it.actual>it.budget?C.red:C.blue}}>฿{fmtMoney(it.actual||0)} / ฿{fmtMoney(it.budget||0)}</span>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <div style={{width:10,height:10,borderRadius:3,background:chColors[i],flexShrink:0}}/>
+                    <span style={{fontSize:13,fontWeight:600,color:C.text}}>{it.channel}</span>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <span style={{fontSize:12,fontWeight:700,color:isOver?C.red:C.blue}}>฿{fmtMoney(act)} / ฿{fmtMoney(bgt)}</span>
+                    {isOver&&<div style={{fontSize:10,fontWeight:800,color:C.red}}>⚠️ เกิน ฿{fmtMoney(diff)} (+{bgt>0?Math.round(diff/bgt*100):0}%)</div>}
+                  </div>
                 </div>
-                <div style={{height:6,background:C.faint,borderRadius:3,overflow:"hidden"}}>
-                  <div style={{height:"100%",width:`${pct}%`,background:it.actual>it.budget?C.red:C.blue,borderRadius:3}}/>
+                <div style={{height:8,background:C.faint,borderRadius:4,overflow:"hidden",position:"relative"}}>
+                  <div style={{height:"100%",width:`${Math.min(pct,100)}%`,background:isOver?C.red:C.blue,borderRadius:4,transition:"width .3s"}}/>
+                  {isOver&&<div style={{position:"absolute",top:0,left:`${Math.min(100*(bgt/act),100)}%`,width:2,height:"100%",background:"#fff"}}/>}
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
+                  <span style={{fontSize:10,color:C.muted}}>{pct}%</span>
+                  {act>0&&bgt>0&&<span style={{fontSize:10,color:isOver?C.red:C.green}}>{isOver?`เกินงบ ${Math.round(diff/bgt*100)}%`:`ประหยัด ฿${fmtMoney(bgt-act)}`}</span>}
                 </div>
               </div>
             );
           })}
-        </div>
-      </Card>
+        </Card>
+        {/* Donut chart — spend proportion */}
+        <Card style={{padding:isMobileMode?12:20}}>
+          <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:12}}>🍩 สัดส่วนค่าใช้จ่ายจริง — {thMonthsFull[mo]} {y+543}</div>
+          <div style={{display:"flex",alignItems:isMobileMode?"flex-start":"center",gap:20,flexDirection:isMobileMode?"column":"row"}}>
+            <svg viewBox="0 0 120 120" style={{width:isMobileMode?140:160,height:isMobileMode?140:160,flexShrink:0}}>
+              {(()=>{
+                const total=cur.items.reduce((s,it)=>s+(Number(it.actual)||0),0);
+                if(total===0)return<text x="60" y="64" textAnchor="middle" fill={C.muted} fontSize="10">ไม่มีข้อมูล</text>;
+                let cum=0;
+                return cur.items.map((it,i)=>{
+                  const val=Number(it.actual)||0;if(val===0)return null;
+                  const pct=val/total;const start=cum;cum+=pct;
+                  const startAngle=start*2*Math.PI-Math.PI/2;
+                  const endAngle=(start+pct)*2*Math.PI-Math.PI/2;
+                  const largeArc=pct>0.5?1:0;
+                  const x1=60+42*Math.cos(startAngle),y1=60+42*Math.sin(startAngle);
+                  const x2=60+42*Math.cos(endAngle),y2=60+42*Math.sin(endAngle);
+                  return<path key={i} d={`M60,60 L${x1},${y1} A42,42 0 ${largeArc},1 ${x2},${y2} Z`} fill={chColors[i]} opacity=".85"/>;
+                });
+              })()}
+              <circle cx="60" cy="60" r="24" fill={C.bg}/>
+              <text x="60" y="58" textAnchor="middle" fill={C.text} fontSize="10" fontWeight="800">{totalActual>0?`฿${totalActual>=1000000?(totalActual/1000000).toFixed(1)+"M":totalActual>=1000?(totalActual/1000).toFixed(0)+"K":totalActual}`:""}</text>
+              <text x="60" y="70" textAnchor="middle" fill={C.muted} fontSize="7">ใช้จริงรวม</text>
+            </svg>
+            <div style={{flex:1,display:"flex",flexDirection:"column",gap:6}}>
+              {cur.items.map((it,i)=>{const act=Number(it.actual)||0;const pct=totalActual>0?Math.round(act/totalActual*100):0;return act>0?(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:8,fontSize:12}}>
+                  <div style={{width:10,height:10,borderRadius:3,background:chColors[i],flexShrink:0}}/>
+                  <span style={{flex:1,color:C.text,fontWeight:600}}>{it.channel}</span>
+                  <span style={{fontWeight:700,color:C.text}}>฿{fmtMoney(act)}</span>
+                  <span style={{color:C.muted,fontSize:10,minWidth:35,textAlign:"right"}}>{pct}%</span>
+                </div>
+              ):null;})}
+            </div>
+          </div>
+        </Card>
+      </>}
+
+      {/* ═══ YEARLY CHART VIEW ═══ */}
+      {viewMode==="chart"&&(()=>{
+        const yd=getYearData(chartYear);
+        const maxTotal=Math.max(...yd.map(m=>Math.max(m.totalBudget,m.totalActual)),1);
+        const grandBudget=yd.reduce((s,m)=>s+m.totalBudget,0);
+        const grandActual=yd.reduce((s,m)=>s+m.totalActual,0);
+        // Per-channel yearly totals
+        const chTotals=channels.map((ch,ci)=>{
+          const bgt=yd.reduce((s,m)=>{const it=m.items.find(x=>x.channel===ch);return s+(it?Number(it.budget)||0:0);},0);
+          const act=yd.reduce((s,m)=>{const it=m.items.find(x=>x.channel===ch);return s+(it?Number(it.actual)||0:0);},0);
+          return{channel:ch,color:chColors[ci],budget:bgt,actual:act,diff:act-bgt};
+        });
+        // Find most expensive month
+        const topMonth=yd.reduce((best,m)=>m.totalActual>best.totalActual?m:best,yd[0]);
+        return<>
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+            <Btn size="sm" variant="ghost" onClick={()=>setChartYear(y=>y-1)}>◀</Btn>
+            <span style={{fontSize:16,fontWeight:700,color:C.text}}>ปี {chartYear+543}</span>
+            <Btn size="sm" variant="ghost" onClick={()=>setChartYear(y=>y+1)}>▶</Btn>
+          </div>
+          {/* Yearly KPI */}
+          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr 1fr":"1fr 1fr 1fr 1fr",gap:12,marginBottom:20}}>
+            <Card style={{padding:14,borderLeft:`4px solid ${C.blue}`}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:4}}>📋 งบทั้งปี</div><div style={{fontSize:isMobileMode?14:18,fontWeight:800,color:C.blue}}>฿{fmtMoney(grandBudget)}</div></Card>
+            <Card style={{padding:14,borderLeft:`4px solid ${grandActual>grandBudget?C.red:C.green}`}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:4}}>💸 ใช้จริงทั้งปี</div><div style={{fontSize:isMobileMode?14:18,fontWeight:800,color:grandActual>grandBudget?C.red:C.green}}>฿{fmtMoney(grandActual)}</div></Card>
+            <Card style={{padding:14,borderLeft:`4px solid ${C.orange}`}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:4}}>🔥 เดือนแพงสุด</div><div style={{fontSize:isMobileMode?14:18,fontWeight:800,color:C.orange}}>{thMonths[topMonth.month]} ฿{fmtMoney(topMonth.totalActual)}</div></Card>
+            <Card style={{padding:14,borderLeft:`4px solid ${C.green}`}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:4}}>📊 เฉลี่ย/เดือน</div><div style={{fontSize:isMobileMode?14:18,fontWeight:800,color:C.text}}>฿{fmtMoney(Math.round(grandActual/12))}</div></Card>
+          </div>
+          {/* BAR CHART: Monthly spend */}
+          <Card style={{padding:isMobileMode?12:20,marginBottom:20}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:14}}>📊 งบ vs ใช้จริง รายเดือน — ปี {chartYear+543}</div>
+            <div style={{overflowX:"auto"}}>
+              <svg viewBox="0 0 700 280" style={{width:"100%",minWidth:600,height:280}}>
+                {[0,0.25,0.5,0.75,1].map((r,i)=>{const v=Math.round(maxTotal*(1-r));const yp=30+r*200;return<g key={i}><line x1="55" y1={yp} x2="690" y2={yp} stroke={C.border} strokeWidth=".5" strokeDasharray="4"/><text x="50" y={yp+4} textAnchor="end" fill={C.muted} fontSize="8" fontFamily="monospace">{fmtMoney(v)}</text></g>;})}
+                {yd.map((m,i)=>{
+                  const x=65+i*52;const bH=maxTotal>0?(m.totalBudget/maxTotal)*200:0;const aH=maxTotal>0?(m.totalActual/maxTotal)*200:0;
+                  const isOver=m.totalActual>m.totalBudget&&m.totalBudget>0;
+                  const isTop=m.month===topMonth.month&&topMonth.totalActual>0;
+                  return<g key={i}>
+                    {isTop&&<rect x={x-4} y={25} width={52} height={240} rx="4" fill={C.orange} opacity=".06"/>}
+                    <rect x={x} y={230-bH} width={20} height={bH} rx="3" fill={C.blue} opacity=".6"/>
+                    <rect x={x+22} y={230-aH} width={20} height={aH} rx="3" fill={isOver?C.red:C.green} opacity=".85"/>
+                    <text x={x+21} y={248} textAnchor="middle" fill={isTop?C.orange:C.text} fontSize="9" fontWeight={isTop?"800":"500"}>{thMonths[m.month]}</text>
+                    {isOver&&<text x={x+21} y={225-Math.max(bH,aH)} textAnchor="middle" fill={C.red} fontSize="7" fontWeight="700">+{fmtMoney(m.totalActual-m.totalBudget)}</text>}
+                  </g>;
+                })}
+              </svg>
+            </div>
+            <div style={{display:"flex",gap:16,justifyContent:"center",marginTop:8}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11}}><div style={{width:12,height:12,borderRadius:3,background:C.blue,opacity:.6}}/><span style={{color:C.muted}}>งบประมาณ</span></div>
+              <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11}}><div style={{width:12,height:12,borderRadius:3,background:C.green,opacity:.85}}/><span style={{color:C.muted}}>ใช้จริง (ไม่เกิน)</span></div>
+              <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11}}><div style={{width:12,height:12,borderRadius:3,background:C.red,opacity:.85}}/><span style={{color:C.muted}}>เกินงบ</span></div>
+              <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11}}><div style={{width:12,height:12,borderRadius:3,background:C.orange,opacity:.15}}/><span style={{color:C.muted}}>เดือนแพงสุด</span></div>
+            </div>
+          </Card>
+          {/* STACKED AREA: Per-channel trend */}
+          <Card style={{padding:isMobileMode?12:20,marginBottom:20}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:14}}>📈 ค่าใช้จ่ายรายแพลตฟอร์ม — ปี {chartYear+543}</div>
+            <div style={{overflowX:"auto"}}>
+              {(()=>{
+                const maxCh=Math.max(...yd.map(m=>Math.max(...m.items.map(it=>Number(it.actual)||0))),1);
+                return<svg viewBox="0 0 700 240" style={{width:"100%",minWidth:600,height:240}}>
+                  {[0,0.5,1].map((r,i)=>{const v=Math.round(maxCh*(1-r));const yp=20+r*180;return<g key={i}><line x1="55" y1={yp} x2="690" y2={yp} stroke={C.border} strokeWidth=".5" strokeDasharray="4"/><text x="50" y={yp+4} textAnchor="end" fill={C.muted} fontSize="8">{fmtMoney(v)}</text></g>;})}
+                  {channels.map((ch,ci)=>{
+                    const pts=yd.map((m,mi)=>{const it=m.items.find(x=>x.channel===ch);const val=it?Number(it.actual)||0:0;const x=65+mi*52+21;const yp=20+(1-val/maxCh)*180;return`${x},${yp}`;}).join(" ");
+                    return<polyline key={ci} points={pts} fill="none" stroke={chColors[ci]} strokeWidth="2.5" opacity=".85"/>;
+                  })}
+                  {yd.map((m,mi)=>{
+                    return channels.map((ch,ci)=>{
+                      const it=m.items.find(x=>x.channel===ch);const val=it?Number(it.actual)||0:0;
+                      if(val===0)return null;
+                      const x=65+mi*52+21;const yp=20+(1-val/maxCh)*180;
+                      return<circle key={`${mi}-${ci}`} cx={x} cy={yp} r="3" fill={chColors[ci]}/>;
+                    });
+                  })}
+                  {yd.map((m,mi)=><text key={mi} x={65+mi*52+21} y={215} textAnchor="middle" fill={C.muted} fontSize="9">{thMonths[m.month]}</text>)}
+                </svg>;
+              })()}
+            </div>
+            <div style={{display:"flex",gap:12,flexWrap:"wrap",justifyContent:"center",marginTop:10}}>
+              {channels.map((ch,ci)=><div key={ci} style={{display:"flex",alignItems:"center",gap:4,fontSize:10}}><div style={{width:10,height:10,borderRadius:3,background:chColors[ci]}}/><span style={{color:C.muted}}>{ch}</span></div>)}
+            </div>
+          </Card>
+          {/* Per-channel yearly summary table */}
+          <Card style={{padding:isMobileMode?12:20}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:12}}>📋 สรุปรายแพลตฟอร์ม — ปี {chartYear+543}</div>
+            {chTotals.map((ch,ci)=>{
+              const isOver=ch.actual>ch.budget&&ch.budget>0;
+              const maxChVal=Math.max(...chTotals.map(c=>Math.max(c.budget,c.actual)),1);
+              return<div key={ci} style={{padding:"10px 0",borderBottom:`1px solid ${C.border}`}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:10,height:10,borderRadius:3,background:ch.color}}/><span style={{fontSize:13,fontWeight:600,color:C.text}}>{ch.channel}</span></div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:12,fontWeight:700}}><span style={{color:C.blue}}>฿{fmtMoney(ch.budget)}</span> → <span style={{color:isOver?C.red:C.green}}>฿{fmtMoney(ch.actual)}</span></div>
+                    {isOver&&<div style={{fontSize:10,fontWeight:800,color:C.red}}>⚠️ เกิน ฿{fmtMoney(ch.diff)} (+{ch.budget>0?Math.round(ch.diff/ch.budget*100):0}%)</div>}
+                    {!isOver&&ch.budget>0&&ch.actual>0&&<div style={{fontSize:10,color:C.green}}>✅ ประหยัด ฿{fmtMoney(Math.abs(ch.diff))}</div>}
+                  </div>
+                </div>
+                <div style={{height:6,background:C.faint,borderRadius:3,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:`${Math.min((ch.actual/maxChVal)*100,100)}%`,background:isOver?C.red:ch.color,opacity:.7,borderRadius:3}}/>
+                </div>
+              </div>;
+            })}
+          </Card>
+        </>;
+      })()}
+
+      {/* ═══ COMPARE VIEW ═══ */}
+      {viewMode==="compare"&&(()=>{
+        const rangeData=getRangeData(cmpFrom,cmpTo);
+        const maxR=Math.max(...rangeData.map(m=>m.totalActual),1);
+        const grandCmpBudget=rangeData.reduce((s,m)=>s+m.totalBudget,0);
+        const grandCmpActual=rangeData.reduce((s,m)=>s+m.totalActual,0);
+        // Per-channel totals for range
+        const chRangeTotals=channels.map((ch,ci)=>{
+          const act=rangeData.reduce((s,m)=>{const it=m.items.find(x=>x.channel===ch);return s+(it?Number(it.actual)||0:0);},0);
+          const bgt=rangeData.reduce((s,m)=>{const it=m.items.find(x=>x.channel===ch);return s+(it?Number(it.budget)||0:0);},0);
+          return{channel:ch,color:chColors[ci],actual:act,budget:bgt};
+        }).sort((a,b)=>b.actual-a.actual);
+        return<>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:20,flexWrap:"wrap"}}>
+            <span style={{fontSize:12,fontWeight:700,color:C.muted}}>ตั้งแต่:</span>
+            <input type="month" value={cmpFrom} onChange={e=>setCmpFrom(e.target.value)} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:C.panel,color:C.text,fontSize:12}}/>
+            <span style={{fontSize:12,fontWeight:700,color:C.muted}}>ถึง:</span>
+            <input type="month" value={cmpTo} onChange={e=>setCmpTo(e.target.value)} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:C.panel,color:C.text,fontSize:12}}/>
+            <Tag color="blue">{rangeData.length} เดือน</Tag>
+          </div>
+          {/* KPI */}
+          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr 1fr":"1fr 1fr 1fr",gap:12,marginBottom:20}}>
+            <Card style={{padding:14,borderLeft:`4px solid ${C.blue}`}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:4}}>📋 งบรวม</div><div style={{fontSize:isMobileMode?14:18,fontWeight:800,color:C.blue}}>฿{fmtMoney(grandCmpBudget)}</div></Card>
+            <Card style={{padding:14,borderLeft:`4px solid ${grandCmpActual>grandCmpBudget?C.red:C.green}`}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:4}}>💸 ใช้จริงรวม</div><div style={{fontSize:isMobileMode?14:18,fontWeight:800,color:grandCmpActual>grandCmpBudget?C.red:C.green}}>฿{fmtMoney(grandCmpActual)}</div></Card>
+            <Card style={{padding:14,borderLeft:`4px solid ${C.orange}`}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:4}}>📊 เฉลี่ย/เดือน</div><div style={{fontSize:isMobileMode?14:18,fontWeight:800,color:C.text}}>฿{fmtMoney(rangeData.length>0?Math.round(grandCmpActual/rangeData.length):0)}</div></Card>
+          </div>
+          {/* Trend chart for range */}
+          <Card style={{padding:isMobileMode?12:20,marginBottom:20}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:14}}>📈 แนวโน้มค่าใช้จ่าย</div>
+            <div style={{overflowX:"auto"}}>
+              {(()=>{
+                const bW=Math.max(52,Math.min(700/rangeData.length,70));
+                const cW=Math.max(rangeData.length*bW+80,500);
+                return<svg viewBox={`0 0 ${cW} 260`} style={{width:"100%",minWidth:cW,height:260}}>
+                  {[0,0.25,0.5,0.75,1].map((r,i)=>{const v=Math.round(maxR*(1-r));const yp=30+r*190;return<g key={i}><line x1="55" y1={yp} x2={cW-10} y2={yp} stroke={C.border} strokeWidth=".5" strokeDasharray="4"/><text x="50" y={yp+4} textAnchor="end" fill={C.muted} fontSize="8">{fmtMoney(v)}</text></g>;})}
+                  {rangeData.map((m,i)=>{
+                    const x=65+i*bW;const aH=maxR>0?(m.totalActual/maxR)*190:0;
+                    const isOver=m.totalActual>m.totalBudget&&m.totalBudget>0;
+                    // Stacked bars per channel
+                    let cy=220;
+                    return<g key={i}>
+                      {channels.map((ch,ci)=>{
+                        const it=m.items.find(x2=>x2.channel===ch);const val=it?Number(it.actual)||0:0;
+                        const h=maxR>0?(val/maxR)*190:0;
+                        const prevY=cy;cy-=h;
+                        return h>0?<rect key={ci} x={x+4} y={prevY-h} width={bW-8} height={h} fill={chColors[ci]} opacity=".8"/>:null;
+                      })}
+                      <text x={x+bW/2} y={238} textAnchor="middle" fill={C.muted} fontSize={rangeData.length>18?"7":"8"} fontWeight="500">{thMonths[m.month]}{rangeData.length>12?`'${String(m.year).slice(2)}`:""}</text>
+                      {isOver&&<text x={x+bW/2} y={220-aH-4} textAnchor="middle" fill={C.red} fontSize="7" fontWeight="700">!</text>}
+                    </g>;
+                  })}
+                </svg>;
+              })()}
+            </div>
+            <div style={{display:"flex",gap:12,flexWrap:"wrap",justifyContent:"center",marginTop:10}}>
+              {channels.map((ch,ci)=><div key={ci} style={{display:"flex",alignItems:"center",gap:4,fontSize:10}}><div style={{width:10,height:10,borderRadius:3,background:chColors[ci]}}/><span style={{color:C.muted}}>{ch}</span></div>)}
+            </div>
+          </Card>
+          {/* Ranking: platform spend */}
+          <Card style={{padding:isMobileMode?12:20}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:12}}>🏆 อันดับแพลตฟอร์ม (ใช้มากสุด → น้อยสุด)</div>
+            {chRangeTotals.map((ch,i)=>{
+              const maxChR=Math.max(...chRangeTotals.map(c=>c.actual),1);
+              const isOver=ch.actual>ch.budget&&ch.budget>0;
+              return<div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:`1px solid ${C.border}`}}>
+                <div style={{width:28,height:28,borderRadius:8,background:i===0?C.orange:i===1?"#94a3b8":"#78716c",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,color:"#fff",flexShrink:0}}>{i+1}</div>
+                <div style={{flex:1}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:8,height:8,borderRadius:2,background:ch.color}}/><span style={{fontSize:13,fontWeight:600,color:C.text}}>{ch.channel}</span></div>
+                    <div style={{textAlign:"right"}}>
+                      <span style={{fontSize:13,fontWeight:800,color:isOver?C.red:C.text}}>฿{fmtMoney(ch.actual)}</span>
+                      {isOver&&<span style={{fontSize:10,color:C.red,marginLeft:6}}>เกิน ฿{fmtMoney(ch.actual-ch.budget)}</span>}
+                    </div>
+                  </div>
+                  <div style={{height:6,background:C.faint,borderRadius:3,overflow:"hidden"}}>
+                    <div style={{height:"100%",width:`${(ch.actual/maxChR*100)}%`,background:ch.color,opacity:.75,borderRadius:3}}/>
+                  </div>
+                </div>
+              </div>;
+            })}
+          </Card>
+        </>;
+      })()}
+
+      {/* EDIT MODAL */}
       {editMdl&&(
-        <Mdl title={`💰 งบการตลาด — ${thMonths[mo]} ${y+543}`} onClose={()=>setEditMdl(false)} footer={<><Btn variant="ghost" onClick={()=>setEditMdl(false)}>ยกเลิก</Btn><Btn onClick={save}>💾 บันทึก</Btn></>}>
+        <Mdl title={`💰 งบการตลาด — ${thMonthsFull[mo]} ${y+543}`} onClose={()=>setEditMdl(false)} footer={<><Btn variant="ghost" onClick={()=>setEditMdl(false)}>ยกเลิก</Btn><Btn onClick={save}>💾 บันทึก</Btn></>}>
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
             {form.items.map((it,i)=>(
               <div key={i} style={{padding:12,background:"#0d1117",borderRadius:8,border:`1px solid ${C.border}`}}>
-                <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:8}}>{it.channel}</div>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}><div style={{width:10,height:10,borderRadius:3,background:chColors[i]}}/><span style={{fontSize:13,fontWeight:700,color:C.text}}>{it.channel}</span></div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                   <FG label="งบประมาณ"><FIn type="number" value={it.budget} onChange={e=>{const items=[...form.items];items[i]={...items[i],budget:e.target.value};setForm(f=>({...f,items}));}}/></FG>
                   <FG label="ใช้จริง"><FIn type="number" value={it.actual} onChange={e=>{const items=[...form.items];items[i]={...items[i],actual:e.target.value};setForm(f=>({...f,items}));}}/></FG>

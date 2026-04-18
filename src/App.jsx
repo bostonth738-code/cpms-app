@@ -148,6 +148,7 @@ const INIT={
   walkInCustomers:[],
   monthlyResults:[],
   bookingAlerts:[],
+  infrastructureCosts:{},
 };
 
 // Global Styles
@@ -417,10 +418,10 @@ function Sidebar({page,setPage,role,data,authedUserId,isMobileMode,onLogout,onCh
   const pendingPwChanges=data.team.filter(t=>t.pendingPassword).length;
   const settingsBadge=pendingMembers+pendingPwChanges;
   const navByRole={
-    owner:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"Dashboard"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"finance",icon:"💹",label:"Finance"},{id:"analytics",icon:"📊",label:"Analytics"},{id:"team",icon:"👥",label:"Team"},{id:"marketing",icon:"🏠",label:"บ้านและจอง"},{id:"customerData",icon:"👤",label:"ข้อมูลลูกค้า"},{id:"mktResult",icon:"📊",label:"ผลลัพธ์"},{id:"mktBudget",icon:"💰",label:"งบการตลาด"},{id:"settings",icon:"⚙️",label:"ตั้งค่า",badge:settingsBadge}],
-    engineer:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"บ้านที่ดูแล"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"analytics",icon:"📊",label:"Analytics"},{id:"team",icon:"👥",label:"ทีมงาน"},{id:"settings",icon:"⚙️",label:"ตั้งค่า"}],
+    owner:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"Dashboard"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"finance",icon:"💹",label:"Finance"},{id:"costPage",icon:"💰",label:"ต้นทุนค่าใช้จ่าย"},{id:"analytics",icon:"📊",label:"Analytics"},{id:"team",icon:"👥",label:"Team"},{id:"marketing",icon:"🏠",label:"บ้านและจอง"},{id:"customerData",icon:"👤",label:"ข้อมูลลูกค้า"},{id:"mktResult",icon:"📊",label:"ผลลัพธ์"},{id:"mktBudget",icon:"💰",label:"งบการตลาด"},{id:"settings",icon:"⚙️",label:"ตั้งค่า",badge:settingsBadge}],
+    engineer:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"บ้านที่ดูแล"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"costPage",icon:"💰",label:"ต้นทุนค่าใช้จ่าย"},{id:"analytics",icon:"📊",label:"Analytics"},{id:"team",icon:"👥",label:"ทีมงาน"},{id:"settings",icon:"⚙️",label:"ตั้งค่า"}],
     foreman:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"บ้านที่ดูแล"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"team",icon:"👥",label:"ทีมงาน"}],
-    purchasing:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"ภาพรวม"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"team",icon:"👥",label:"ทีมงาน"}],
+    purchasing:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"ภาพรวม"},{id:"costPage",icon:"💰",label:"ต้นทุนค่าใช้จ่าย"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"team",icon:"👥",label:"ทีมงาน"}],
     marketing:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"marketing",icon:"🏠",label:"บ้านและจอง"},{id:"customerData",icon:"👤",label:"ข้อมูลลูกค้า"},{id:"mktResult",icon:"📊",label:"ผลลัพธ์"},{id:"mktBudget",icon:"💰",label:"งบการตลาด"},{id:"team",icon:"👥",label:"ทีมงาน"}],
     sales:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"marketing",icon:"🏠",label:"บ้านและจอง"},{id:"customerData",icon:"👤",label:"ข้อมูลลูกค้า"},{id:"mktResult",icon:"📊",label:"ผลลัพธ์"},{id:"team",icon:"👥",label:"ทีมงาน"}],
   };
@@ -2226,20 +2227,24 @@ function CustomerDataPage({data,setData,role,isMobileMode}) {
   );
 }
 
-// ── Monthly Results Page ──────────────────────────────────────
+// ── Monthly Results Page (Charts, 5-year history, PDF/Image export) ──
 function MktResultPage({data,setData,role,isMobileMode}) {
   const canEdit=["owner","marketing","sales"].includes(role);
   const now=new Date();
   const [selMonth,setSelMonth]=useState(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`);
   const [editMdl,setEditMdl]=useState(false);
+  const [viewMode,setViewMode]=useState("month"); // month | chart | summary
+  const [chartYear,setChartYear]=useState(now.getFullYear());
+  const [exportLoading,setExportLoading]=useState(false);
+  const chartRef=useRef(null);
   const metrics=[
-    {key:"fbInbox",label:"Facebook Inbox",icon:"📘"},
-    {key:"tiktokCloudInbox",label:"TikTok TheCloud Inbox",icon:"🎵"},
-    {key:"tiktokBossInbox",label:"TikTok บ้านสไตล์บอส Inbox",icon:"🎶"},
-    {key:"lineInbox",label:"LINE Inbox",icon:"💚"},
-    {key:"walkIn",label:"Walk-in",icon:"🚶"},
-    {key:"bookings",label:"ยอดจอง (หลัง)",icon:"📝"},
-    {key:"transfers",label:"โอนแล้ว (หลัง)",icon:"✅"},
+    {key:"fbInbox",label:"Facebook Inbox",icon:"📘",color:"#3b82f6"},
+    {key:"tiktokCloudInbox",label:"TikTok TheCloud Inbox",icon:"🎵",color:"#06b6d4"},
+    {key:"tiktokBossInbox",label:"TikTok บ้านสไตล์บอส",icon:"🎶",color:"#8b5cf6"},
+    {key:"lineInbox",label:"LINE Inbox",icon:"💚",color:"#22c55e"},
+    {key:"walkIn",label:"Walk-in",icon:"🚶",color:"#f59e0b"},
+    {key:"bookings",label:"ยอดจอง (หลัง)",icon:"📝",color:"#ec4899"},
+    {key:"transfers",label:"โอนแล้ว (หลัง)",icon:"✅",color:"#a78bfa"},
   ];
   const results=data.monthlyResults||[];
   const cur=results.find(r=>r.month===selMonth)||{month:selMonth,fbInbox:0,tiktokCloudInbox:0,tiktokBossInbox:0,lineInbox:0,walkIn:0,bookings:0,transfers:0,note:""};
@@ -2260,46 +2265,551 @@ function MktResultPage({data,setData,role,isMobileMode}) {
     const d=new Date(y,m-1+delta,1);
     setSelMonth(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`);
   }
-  const thMonths=["","มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+  const thMonths=["","ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+  const thMonthsFull=["","มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
   const [y,mo]=selMonth.split("-").map(Number);
   const totalInbox=(cur.fbInbox||0)+(cur.tiktokCloudInbox||0)+(cur.tiktokBossInbox||0)+(cur.lineInbox||0);
+
+  // Chart data for selected year (12 months)
+  function getYearData(yr){
+    return Array.from({length:12},(_,i)=>{
+      const mk=`${yr}-${String(i+1).padStart(2,"0")}`;
+      return results.find(r=>r.month===mk)||{month:mk,fbInbox:0,tiktokCloudInbox:0,tiktokBossInbox:0,lineInbox:0,walkIn:0,bookings:0,transfers:0};
+    });
+  }
+  const yearData=getYearData(chartYear);
+  const maxVal=Math.max(1,...yearData.flatMap(d=>metrics.map(m=>d[m.key]||0)));
+
+  // Summary across years
+  function getYearSummary(yr){
+    const yd=getYearData(yr);
+    const sum={};
+    metrics.forEach(m=>{sum[m.key]=yd.reduce((s,d)=>s+(d[m.key]||0),0);});
+    sum.totalInbox=(sum.fbInbox||0)+(sum.tiktokCloudInbox||0)+(sum.tiktokBossInbox||0)+(sum.lineInbox||0);
+    return sum;
+  }
+  const availYears=Array.from({length:5},(_,i)=>now.getFullYear()-i);
+
+  // SVG Bar Chart renderer
+  function BarChart({dataArr,metricKeys,height=220}){
+    const chartW=isMobileMode?320:700;
+    const barGroupW=chartW/(dataArr.length||1);
+    const barsPerGroup=metricKeys.length;
+    const barW=Math.max(2,Math.min(10,(barGroupW-6)/barsPerGroup));
+    const localMax=Math.max(1,...dataArr.flatMap(d=>metricKeys.map(k=>d[k]||0)));
+    return(
+      <svg width="100%" viewBox={`0 0 ${chartW} ${height+30}`} style={{display:"block"}}>
+        {[0,0.25,0.5,0.75,1].map(pct=>{
+          const yp=height-(pct*height);
+          return <g key={pct}><line x1={0} y1={yp} x2={chartW} y2={yp} stroke={C.border} strokeWidth={0.5}/><text x={2} y={yp-3} fill={C.muted} fontSize={8}>{Math.round(localMax*pct)}</text></g>;
+        })}
+        {dataArr.map((d,i)=>{
+          const x=i*barGroupW+barGroupW/2-((barsPerGroup*barW)/2);
+          return <g key={i}>
+            {metricKeys.map((k,ki)=>{
+              const v=d[k]||0;
+              const h=(v/localMax)*height;
+              const mDef=metrics.find(m=>m.key===k);
+              return <rect key={k} x={x+ki*barW} y={height-h} width={barW-1} height={h} fill={mDef?.color||C.blue} rx={1} opacity={0.85}>
+                <title>{mDef?.label}: {v}</title>
+              </rect>;
+            })}
+            <text x={i*barGroupW+barGroupW/2} y={height+14} textAnchor="middle" fill={C.muted} fontSize={isMobileMode?7:9}>{thMonths[i+1]||d.month}</text>
+          </g>;
+        })}
+      </svg>
+    );
+  }
+
+  // Export functions
+  async function exportChartPDF(){
+    setExportLoading(true);
+    const el=chartRef.current;
+    if(!el){setExportLoading(false);return;}
+    try{
+      const canvas=await html2canvas(el,{scale:2,useCORS:true,allowTaint:true,logging:false,backgroundColor:"#0d1117",windowWidth:900});
+      const imgData=canvas.toDataURL("image/jpeg",0.95);
+      const pdf=new jsPDF("l","mm","a4");
+      const pw=pdf.internal.pageSize.getWidth();
+      const ph=pdf.internal.pageSize.getHeight();
+      const iw=pw-20;
+      const ih=(canvas.height*iw)/canvas.width;
+      let posY=10;
+      pdf.addImage(imgData,"JPEG",10,posY,iw,Math.min(ih,ph-20));
+      if(ih>ph-20){let left=ih-(ph-20);while(left>0){pdf.addPage();posY=10;pdf.addImage(imgData,"JPEG",10,-(ph-20)+(ih-left),iw,ih);left-=ph-20;}}
+      dlBlob(pdf.output("blob"),`ผลลัพธ์การตลาด_${chartYear+543}.pdf`);
+    }catch(e){alert("เกิดข้อผิดพลาด: "+e.message);}
+    setExportLoading(false);
+  }
+  async function exportChartImage(){
+    setExportLoading(true);
+    const el=chartRef.current;
+    if(!el){setExportLoading(false);return;}
+    try{
+      const canvas=await html2canvas(el,{scale:2,useCORS:true,allowTaint:true,logging:false,backgroundColor:"#0d1117",windowWidth:900});
+      canvas.toBlob(blob=>{if(blob)dlBlob(blob,`ผลลัพธ์การตลาด_${chartYear+543}.png`);setExportLoading(false);},"image/png");
+    }catch(e){alert("เกิดข้อผิดพลาด: "+e.message);setExportLoading(false);}
+  }
+
   return (
     <div style={{padding:isMobileMode?12:24}}>
-      <div style={{fontSize:isMobileMode?18:22,fontWeight:700,color:C.text,marginBottom:4}}>📊 ผลลัพธ์การตลาด</div>
-      <div style={{fontSize:13,color:C.muted,marginBottom:16}}>สรุปยอด Inbox, Walk-in, จอง, โอน รายเดือน</div>
-      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
-        <Btn size="sm" variant="ghost" onClick={()=>changeMonth(-1)}>◀</Btn>
-        <span style={{fontSize:16,fontWeight:700,color:C.text}}>{thMonths[mo]} {y+543}</span>
-        <Btn size="sm" variant="ghost" onClick={()=>changeMonth(1)}>▶</Btn>
-        <div style={{flex:1}}/>
-        {canEdit&&<Btn onClick={openEdit}>✏️ แก้ไข</Btn>}
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr 1fr":"repeat(4,1fr)",gap:12,marginBottom:20}}>
-        <Card style={{padding:15}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>📨 รวม Inbox</div><div style={{fontSize:24,fontWeight:800,color:C.blue}}>{fmtMoney(totalInbox)}</div></Card>
-        <Card style={{padding:15}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>🚶 Walk-in</div><div style={{fontSize:24,fontWeight:800,color:C.orange}}>{cur.walkIn||0}</div></Card>
-        <Card style={{padding:15}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>📝 ยอดจอง</div><div style={{fontSize:24,fontWeight:800,color:C.green}}>{cur.bookings||0} หลัง</div></Card>
-        <Card style={{padding:15}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>✅ โอนแล้ว</div><div style={{fontSize:24,fontWeight:800,color:"#a78bfa"}}>{cur.transfers||0} หลัง</div></Card>
-      </div>
-      <Card style={{padding:isMobileMode?14:20}}>
-        <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:16}}>รายละเอียดแต่ละช่องทาง</div>
-        <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
-          {metrics.map(m=>(
-            <div key={m.key} style={{padding:12,background:"#0d1117",borderRadius:8,border:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <span style={{fontSize:13,color:C.text}}>{m.icon} {m.label}</span>
-              <span style={{fontSize:18,fontWeight:800,color:C.blue}}>{cur[m.key]||0}</span>
-            </div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}>
+        <div>
+          <div style={{fontSize:isMobileMode?18:22,fontWeight:700,color:C.text}}>📊 ผลลัพธ์การตลาด</div>
+          <div style={{fontSize:13,color:C.muted,marginTop:2}}>สรุปยอด Inbox, Walk-in, จอง, โอน · กราฟเปรียบเทียบย้อนหลัง 5 ปี</div>
+        </div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {[["month","📅 รายเดือน"],["chart","📊 กราฟ"],["summary","📋 สรุปรวม"]].map(([v,l])=>(
+            <Btn key={v} size="sm" variant={viewMode===v?"primary":"ghost"} onClick={()=>setViewMode(v)}>{l}</Btn>
           ))}
         </div>
-        {cur.note&&<div style={{marginTop:12,padding:10,background:"#0d1117",borderRadius:8,fontSize:12,color:C.muted}}>📝 {cur.note}</div>}
-      </Card>
+      </div>
+
+      {/* ── MONTHLY VIEW ── */}
+      {viewMode==="month"&&<>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+          <Btn size="sm" variant="ghost" onClick={()=>changeMonth(-1)}>◀</Btn>
+          <span style={{fontSize:16,fontWeight:700,color:C.text}}>{thMonthsFull[mo]} {y+543}</span>
+          <Btn size="sm" variant="ghost" onClick={()=>changeMonth(1)}>▶</Btn>
+          <div style={{flex:1}}/>
+          {canEdit&&<Btn onClick={openEdit}>✏️ แก้ไข</Btn>}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr 1fr":"repeat(4,1fr)",gap:12,marginBottom:20}}>
+          <Card style={{padding:15}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>📨 รวม Inbox</div><div style={{fontSize:24,fontWeight:800,color:C.blue}}>{fmtMoney(totalInbox)}</div></Card>
+          <Card style={{padding:15}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>🚶 Walk-in</div><div style={{fontSize:24,fontWeight:800,color:C.orange}}>{cur.walkIn||0}</div></Card>
+          <Card style={{padding:15}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>📝 ยอดจอง</div><div style={{fontSize:24,fontWeight:800,color:C.green}}>{cur.bookings||0} หลัง</div></Card>
+          <Card style={{padding:15}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>✅ โอนแล้ว</div><div style={{fontSize:24,fontWeight:800,color:"#a78bfa"}}>{cur.transfers||0} หลัง</div></Card>
+        </div>
+        <Card style={{padding:isMobileMode?14:20}}>
+          <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:16}}>รายละเอียดแต่ละช่องทาง</div>
+          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
+            {metrics.map(m=>(
+              <div key={m.key} style={{padding:12,background:"#0d1117",borderRadius:8,border:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <div style={{width:4,height:24,borderRadius:2,background:m.color}}/>
+                  <span style={{fontSize:13,color:C.text}}>{m.icon} {m.label}</span>
+                </div>
+                <span style={{fontSize:18,fontWeight:800,color:m.color}}>{cur[m.key]||0}</span>
+              </div>
+            ))}
+          </div>
+          {cur.note&&<div style={{marginTop:12,padding:10,background:"#0d1117",borderRadius:8,fontSize:12,color:C.muted}}>📝 {cur.note}</div>}
+        </Card>
+      </>}
+
+      {/* ── CHART VIEW ── */}
+      {viewMode==="chart"&&<>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16,flexWrap:"wrap"}}>
+          <Btn size="sm" variant="ghost" onClick={()=>setChartYear(y=>y-1)}>◀</Btn>
+          <span style={{fontSize:16,fontWeight:700,color:C.text}}>ปี {chartYear+543}</span>
+          <Btn size="sm" variant="ghost" onClick={()=>setChartYear(y=>y+1)}>▶</Btn>
+          <div style={{flex:1}}/>
+          <Btn size="sm" variant="ghost" onClick={exportChartImage} disabled={exportLoading}>🖼️ ภาพ PNG</Btn>
+          <Btn size="sm" variant="ghost" onClick={exportChartPDF} disabled={exportLoading}>📄 PDF</Btn>
+        </div>
+        <div ref={chartRef} style={{padding:isMobileMode?10:20}}>
+          {/* Inbox Channels Chart */}
+          <Card style={{padding:isMobileMode?12:20,marginBottom:16}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>📨 Inbox ทุกช่องทาง — ปี {chartYear+543}</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:12}}>เปรียบเทียบ Facebook, TikTok, LINE รายเดือน</div>
+            <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:12}}>
+              {metrics.slice(0,4).map(m=><div key={m.key} style={{display:"flex",alignItems:"center",gap:4,fontSize:10}}><div style={{width:10,height:10,borderRadius:2,background:m.color}}/><span style={{color:C.muted}}>{m.label}</span></div>)}
+            </div>
+            <BarChart dataArr={yearData} metricKeys={["fbInbox","tiktokCloudInbox","tiktokBossInbox","lineInbox"]}/>
+          </Card>
+          {/* Walk-in, Booking, Transfer Chart */}
+          <Card style={{padding:isMobileMode?12:20,marginBottom:16}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>🏠 Walk-in / จอง / โอน — ปี {chartYear+543}</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:12}}>เปรียบเทียบผลลัพธ์สำคัญรายเดือน</div>
+            <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:12}}>
+              {metrics.slice(4).map(m=><div key={m.key} style={{display:"flex",alignItems:"center",gap:4,fontSize:10}}><div style={{width:10,height:10,borderRadius:2,background:m.color}}/><span style={{color:C.muted}}>{m.label}</span></div>)}
+            </div>
+            <BarChart dataArr={yearData} metricKeys={["walkIn","bookings","transfers"]} height={180}/>
+          </Card>
+          {/* Year Summary Table */}
+          <Card style={{padding:isMobileMode?12:20}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:12}}>📋 สรุปรายเดือน — ปี {chartYear+543}</div>
+            <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",minWidth:600}}>
+              <thead><tr><th style={{padding:"6px 8px",textAlign:"left",fontSize:9,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>เดือน</th>{metrics.map(m=><th key={m.key} style={{padding:"6px 8px",textAlign:"right",fontSize:9,fontWeight:700,color:m.color,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>{m.icon}</th>)}<th style={{padding:"6px 8px",textAlign:"right",fontSize:9,fontWeight:700,color:C.text,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>รวม Inbox</th></tr></thead>
+              <tbody>
+                {yearData.map((d,i)=>{const ti=(d.fbInbox||0)+(d.tiktokCloudInbox||0)+(d.tiktokBossInbox||0)+(d.lineInbox||0);return(
+                  <tr key={i} style={{borderBottom:`1px solid ${C.border}`}}>
+                    <td style={{padding:"6px 8px",fontSize:12,color:C.text,fontWeight:600}}>{thMonthsFull[i+1]}</td>
+                    {metrics.map(m=><td key={m.key} style={{padding:"6px 8px",textAlign:"right",fontSize:12,color:C.text}}>{d[m.key]||0}</td>)}
+                    <td style={{padding:"6px 8px",textAlign:"right",fontSize:12,fontWeight:700,color:C.blue}}>{ti}</td>
+                  </tr>
+                );})}
+                {(()=>{const s=getYearSummary(chartYear);return(
+                  <tr style={{background:C.faint,fontWeight:700}}>
+                    <td style={{padding:"8px",fontSize:12,color:C.text}}>รวมทั้งปี</td>
+                    {metrics.map(m=><td key={m.key} style={{padding:"8px",textAlign:"right",fontSize:13,color:m.color,fontWeight:800}}>{fmtMoney(s[m.key])}</td>)}
+                    <td style={{padding:"8px",textAlign:"right",fontSize:13,color:C.blue,fontWeight:800}}>{fmtMoney(s.totalInbox)}</td>
+                  </tr>
+                );})()}
+              </tbody>
+            </table>
+            </div>
+          </Card>
+        </div>
+      </>}
+
+      {/* ── SUMMARY VIEW (5-year comparison) ── */}
+      {viewMode==="summary"&&<>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+          <div style={{fontSize:14,fontWeight:700,color:C.text}}>📋 สรุปเปรียบเทียบย้อนหลัง 5 ปี</div>
+          <div style={{flex:1}}/>
+          <Btn size="sm" variant="ghost" onClick={exportChartPDF} disabled={exportLoading}>📄 PDF</Btn>
+          <Btn size="sm" variant="ghost" onClick={exportChartImage} disabled={exportLoading}>🖼️ ภาพ PNG</Btn>
+        </div>
+        <div ref={chartRef} style={{padding:isMobileMode?10:20}}>
+          {/* Year-over-year comparison */}
+          <Card style={{padding:isMobileMode?12:20,marginBottom:16}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:12}}>📊 เปรียบเทียบรายปี</div>
+            <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",minWidth:500}}>
+              <thead><tr><th style={{padding:"8px 10px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>ตัวชี้วัด</th>{availYears.map(yr=><th key={yr} style={{padding:"8px 10px",textAlign:"right",fontSize:10,fontWeight:700,color:C.text,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>{yr+543}</th>)}</tr></thead>
+              <tbody>
+                {metrics.map(m=>{
+                  const vals=availYears.map(yr=>getYearSummary(yr)[m.key]);
+                  const maxV=Math.max(1,...vals);
+                  return(
+                    <tr key={m.key} style={{borderBottom:`1px solid ${C.border}`}}>
+                      <td style={{padding:"8px 10px",fontSize:12,color:C.text}}><span style={{display:"inline-block",width:8,height:8,borderRadius:2,background:m.color,marginRight:6,verticalAlign:"middle"}}/>{m.icon} {m.label}</td>
+                      {vals.map((v,i)=>(
+                        <td key={i} style={{padding:"8px 10px",textAlign:"right"}}>
+                          <div style={{fontSize:14,fontWeight:700,color:v===maxV&&v>0?m.color:C.text}}>{fmtMoney(v)}</div>
+                          {i<vals.length-1&&vals[i+1]>0&&<div style={{fontSize:9,color:v>vals[i+1]?C.green:v<vals[i+1]?C.red:C.muted}}>{v>vals[i+1]?`▲ ${Math.round(((v-vals[i+1])/vals[i+1])*100)}%`:v<vals[i+1]?`▼ ${Math.round(((vals[i+1]-v)/vals[i+1])*100)}%`:"="}</div>}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+                <tr style={{background:C.faint}}>
+                  <td style={{padding:"8px 10px",fontSize:12,fontWeight:700,color:C.text}}>📨 รวม Inbox ทั้งปี</td>
+                  {availYears.map(yr=>{const s=getYearSummary(yr);return<td key={yr} style={{padding:"8px 10px",textAlign:"right",fontSize:14,fontWeight:800,color:C.blue}}>{fmtMoney(s.totalInbox)}</td>;})}
+                </tr>
+              </tbody>
+            </table>
+            </div>
+          </Card>
+          {/* Key Insights */}
+          <Card style={{padding:isMobileMode?12:20}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:12}}>💡 สรุปภาพรวม</div>
+            {(()=>{
+              const thisYr=getYearSummary(now.getFullYear());
+              const lastYr=getYearSummary(now.getFullYear()-1);
+              const inboxGrowth=lastYr.totalInbox>0?Math.round(((thisYr.totalInbox-lastYr.totalInbox)/lastYr.totalInbox)*100):0;
+              const bestChannel=metrics.slice(0,4).reduce((best,m)=>thisYr[m.key]>thisYr[best.key]?m:best,metrics[0]);
+              return(
+                <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr 1fr",gap:12}}>
+                  <div style={{padding:14,background:"linear-gradient(135deg,#1e3a5f,#0f172a)",borderRadius:10,textAlign:"center"}}>
+                    <div style={{fontSize:10,color:C.muted,marginBottom:6}}>Inbox Growth YoY</div>
+                    <div style={{fontSize:28,fontWeight:800,color:inboxGrowth>=0?C.green:C.red}}>{inboxGrowth>=0?"+":""}{inboxGrowth}%</div>
+                    <div style={{fontSize:10,color:C.muted}}>{now.getFullYear()+543} vs {now.getFullYear()+542}</div>
+                  </div>
+                  <div style={{padding:14,background:"linear-gradient(135deg,#14532d,#0f172a)",borderRadius:10,textAlign:"center"}}>
+                    <div style={{fontSize:10,color:C.muted,marginBottom:6}}>ยอดจองปีนี้</div>
+                    <div style={{fontSize:28,fontWeight:800,color:C.green}}>{thisYr.bookings||0}</div>
+                    <div style={{fontSize:10,color:C.muted}}>หลัง</div>
+                  </div>
+                  <div style={{padding:14,background:"linear-gradient(135deg,#3b0764,#0f172a)",borderRadius:10,textAlign:"center"}}>
+                    <div style={{fontSize:10,color:C.muted,marginBottom:6}}>ช่องทาง Inbox สูงสุด</div>
+                    <div style={{fontSize:20,fontWeight:800,color:bestChannel.color}}>{bestChannel.icon} {fmtMoney(thisYr[bestChannel.key])}</div>
+                    <div style={{fontSize:10,color:C.muted}}>{bestChannel.label}</div>
+                  </div>
+                </div>
+              );
+            })()}
+          </Card>
+        </div>
+      </>}
+
       {editMdl&&(
-        <Mdl title={`📊 ผลลัพธ์ — ${thMonths[mo]} ${y+543}`} onClose={()=>setEditMdl(false)} footer={<><Btn variant="ghost" onClick={()=>setEditMdl(false)}>ยกเลิก</Btn><Btn onClick={save}>💾 บันทึก</Btn></>}>
+        <Mdl title={`📊 ผลลัพธ์ — ${thMonthsFull[mo]} ${y+543}`} onClose={()=>setEditMdl(false)} footer={<><Btn variant="ghost" onClick={()=>setEditMdl(false)}>ยกเลิก</Btn><Btn onClick={save}>💾 บันทึก</Btn></>}>
           <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
             {metrics.map(m=>(
               <FG key={m.key} label={`${m.icon} ${m.label}`}><FIn type="number" value={form[m.key]||""} onChange={e=>setForm(f=>({...f,[m.key]:e.target.value}))}/></FG>
             ))}
           </div>
           <FG label="หมายเหตุ"><FIn value={form.note||""} onChange={e=>setForm(f=>({...f,note:e.target.value}))} rows={2} placeholder="หมายเหตุประจำเดือน..."/></FG>
+        </Mdl>
+      )}
+    </div>
+  );
+}
+
+// ── Cost & Expense Page (ต้นทุนและค่าใช้จ่าย) ──
+function CostPage({data,setData,role,isMobileMode}) {
+  const canEdit=["owner","engineer","purchasing"].includes(role);
+  const [selProj,setSelProj]=useState(data.projects[0]?.id||null);
+  const [infraMdl,setInfraMdl]=useState(null);
+  const [addInfraMdl,setAddInfraMdl]=useState(false);
+  const [infraForm,setInfraForm]=useState({});
+  const [boqActMdl,setBoqActMdl]=useState(null);
+  const [boqActAmt,setBoqActAmt]=useState("");
+  const [exportLoading,setExportLoading]=useState(false);
+  const costRef=useRef(null);
+
+  const DEFAULT_INFRA=[
+    {id:uid(),name:"ถนน",unit:"เหมา",qty:1,boqPrice:0,actualPrice:0,note:""},
+    {id:uid(),name:"ท่อระบายน้ำ",unit:"เหมา",qty:1,boqPrice:0,actualPrice:0,note:""},
+    {id:uid(),name:"กำแพงกันดินรอบโครงการ",unit:"เหมา",qty:1,boqPrice:0,actualPrice:0,note:""},
+    {id:uid(),name:"กำแพงรอบโครงการ",unit:"เหมา",qty:1,boqPrice:0,actualPrice:0,note:""},
+    {id:uid(),name:"กำแพงขั้นระหว่างบ้าน",unit:"เหมา",qty:1,boqPrice:0,actualPrice:0,note:""},
+    {id:uid(),name:"ขยายเขตไฟฟ้า",unit:"เหมา",qty:1,boqPrice:0,actualPrice:0,note:""},
+    {id:uid(),name:"ขยายเขตประปา",unit:"เหมา",qty:1,boqPrice:0,actualPrice:0,note:""},
+    {id:uid(),name:"ค่าถมดิน",unit:"คิว",qty:0,boqPrice:0,actualPrice:0,note:""},
+    {id:uid(),name:"ค่าเคลียริ่ง",unit:"เหมา",qty:1,boqPrice:0,actualPrice:0,note:""},
+    {id:uid(),name:"ค่าติดมิเตอร์ไฟชั่วคราว",unit:"จุด",qty:1,boqPrice:0,actualPrice:0,note:""},
+    {id:uid(),name:"ค่าน้ำค่าไฟก่อสร้าง",unit:"เดือน",qty:0,boqPrice:0,actualPrice:0,note:""},
+    {id:uid(),name:"ค่าทำแคมป์คนงาน",unit:"เหมา",qty:1,boqPrice:0,actualPrice:0,note:""},
+  ];
+
+  function getInfra(projId){
+    const ic=data.infrastructureCosts||{};
+    return ic[projId]||[];
+  }
+  function setInfra(projId,items){
+    setData(d=>({...d,infrastructureCosts:{...(d.infrastructureCosts||{}),[projId]:items}}));
+  }
+  function initInfra(projId){
+    if(getInfra(projId).length===0)setInfra(projId,DEFAULT_INFRA.map(d=>({...d,id:uid()})));
+  }
+  function openInfraEdit(item){setInfraForm({...item});setInfraMdl(item.id);}
+  function saveInfra(){
+    const items=getInfra(selProj).map(i=>i.id===infraForm.id?{...infraForm,qty:Number(infraForm.qty)||0,boqPrice:Number(infraForm.boqPrice)||0,actualPrice:Number(infraForm.actualPrice)||0}:i);
+    setInfra(selProj,items);setInfraMdl(null);
+  }
+  function addNewInfra(){
+    setInfraForm({id:uid(),name:"",unit:"เหมา",qty:1,boqPrice:0,actualPrice:0,note:""});setAddInfraMdl(true);
+  }
+  function saveNewInfra(){
+    const item={...infraForm,id:uid(),qty:Number(infraForm.qty)||0,boqPrice:Number(infraForm.boqPrice)||0,actualPrice:Number(infraForm.actualPrice)||0};
+    setInfra(selProj,[...getInfra(selProj),item]);setAddInfraMdl(false);
+  }
+  function delInfra(id){if(confirm("ลบรายการนี้?")){setInfra(selProj,getInfra(selProj).filter(i=>i.id!==id));}}
+
+  // BOQ actual cost per house per phase
+  function openBoqAct(item){setBoqActMdl(item);setBoqActAmt(item.actualPrice||"");}
+  function saveBoqAct(){
+    setData(d=>({...d,boqItems:d.boqItems.map(b=>b.id===boqActMdl.id?{...b,actualPrice:Number(boqActAmt)||0}:b)}));
+    setBoqActMdl(null);
+  }
+
+  const proj=data.projects.find(p=>p.id===selProj);
+  const projHouses=data.houses.filter(h=>h.projectId===selProj);
+  const infraItems=getInfra(selProj);
+  const infraBOQ=infraItems.reduce((s,i)=>s+(i.qty*i.boqPrice),0);
+  const infraActual=infraItems.reduce((s,i)=>s+(i.qty*i.actualPrice),0);
+
+  // BOQ items grouped by house then phase
+  const projBoqItems=data.boqItems.filter(b=>projHouses.some(h=>h.id===b.houseId));
+  const totalBoq=projHouses.reduce((s,h)=>s+h.boq,0);
+  const totalActual=projBoqItems.reduce((s,b)=>s+(b.actualPrice>0?b.qty*b.actualPrice:0),0);
+  const grandBoq=totalBoq+infraBOQ;
+  const grandActual=totalActual+infraActual;
+
+  async function exportCostPDF(){
+    setExportLoading(true);
+    const el=costRef.current;
+    if(!el){setExportLoading(false);return;}
+    try{
+      const canvas=await html2canvas(el,{scale:2,useCORS:true,allowTaint:true,logging:false,backgroundColor:"#0d1117",windowWidth:900});
+      const imgData=canvas.toDataURL("image/jpeg",0.95);
+      const pdf=new jsPDF("p","mm","a4");
+      const pw=pdf.internal.pageSize.getWidth();
+      const ph=pdf.internal.pageSize.getHeight();
+      const iw=pw-20;
+      const ih=(canvas.height*iw)/canvas.width;
+      let pos=10;
+      pdf.addImage(imgData,"JPEG",10,pos,iw,Math.min(ih,ph-20));
+      let left=ih-(ph-20);
+      while(left>0){pdf.addPage();pos=10;pdf.addImage(imgData,"JPEG",10,-(ph-20)+(ih-left+20),iw,ih);left-=(ph-20);}
+      dlBlob(pdf.output("blob"),`ต้นทุน_${proj?.name||"โครงการ"}.pdf`);
+    }catch(e){alert("เกิดข้อผิดพลาด: "+e.message);}
+    setExportLoading(false);
+  }
+
+  return(
+    <div style={{padding:isMobileMode?12:24}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}>
+        <div>
+          <div style={{fontSize:isMobileMode?18:22,fontWeight:700,color:C.text}}>💰 ต้นทุนและค่าใช้จ่าย</div>
+          <div style={{fontSize:13,color:C.muted,marginTop:2}}>สาธารณูปโภค, วัสดุก่อสร้าง, ต้นทุนรวมแต่ละโครงการ</div>
+        </div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <Btn size="sm" variant="ghost" onClick={exportCostPDF} disabled={exportLoading}>📄 PDF</Btn>
+        </div>
+      </div>
+      {/* Project selector */}
+      <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+        {data.projects.map(p=>(
+          <Btn key={p.id} size="sm" variant={selProj===p.id?"primary":"ghost"} onClick={()=>{setSelProj(p.id);if(getInfra(p.id).length===0)initInfra(p.id);}}>{p.name}</Btn>
+        ))}
+      </div>
+
+      <div ref={costRef}>
+        {/* Summary Cards */}
+        <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr 1fr":"repeat(4,1fr)",gap:12,marginBottom:20}}>
+          <Card style={{padding:14}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>🏗️ ต้นทุน BOQ รวม</div><div style={{fontSize:isMobileMode?16:20,fontWeight:800,color:C.blue}}>฿{fmtMoney(grandBoq)}</div></Card>
+          <Card style={{padding:14}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>💸 ใช้จ่ายจริง</div><div style={{fontSize:isMobileMode?16:20,fontWeight:800,color:grandActual>grandBoq?C.red:C.green}}>฿{fmtMoney(grandActual)}</div></Card>
+          <Card style={{padding:14}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>🏠 จำนวนบ้าน</div><div style={{fontSize:isMobileMode?16:20,fontWeight:800,color:C.text}}>{projHouses.length} หลัง</div></Card>
+          <Card style={{padding:14}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>{grandActual<=grandBoq?"✅":"⚠️"} ส่วนต่าง</div><div style={{fontSize:isMobileMode?16:20,fontWeight:800,color:grandActual>grandBoq?C.red:C.green}}>฿{fmtMoney(Math.abs(grandBoq-grandActual))}</div><div style={{fontSize:10,color:C.muted}}>{grandActual>grandBoq?"เกินงบ":"ประหยัด"}</div></Card>
+        </div>
+
+        {/* Infrastructure Section */}
+        <Card style={{padding:isMobileMode?12:20,marginBottom:20}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+            <div>
+              <div style={{fontSize:15,fontWeight:700,color:C.text}}>🚧 งานสาธารณูปโภค — {proj?.name}</div>
+              <div style={{fontSize:11,color:C.muted}}>BOQ: ฿{fmtMoney(infraBOQ)} | จ่ายจริง: ฿{fmtMoney(infraActual)} | ส่วนต่าง: <span style={{color:infraActual>infraBOQ?C.red:C.green}}>฿{fmtMoney(Math.abs(infraBOQ-infraActual))}</span></div>
+            </div>
+            {canEdit&&<Btn size="sm" onClick={addNewInfra}>+ เพิ่มรายการ</Btn>}
+          </div>
+          {infraItems.length===0?(
+            <div style={{textAlign:"center",padding:20}}>
+              <div style={{color:C.muted,marginBottom:8}}>ยังไม่มีข้อมูลสาธารณูปโภค</div>
+              {["owner","engineer"].includes(role)&&<Btn onClick={()=>initInfra(selProj)}>🚧 สร้างรายการเริ่มต้น</Btn>}
+            </div>
+          ):(
+            <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",minWidth:700}}>
+              <thead><tr>{["รายการ","หน่วย","จำนวน","ราคา BOQ/หน่วย","รวม BOQ","ราคาจริง/หน่วย","รวมจริง","ส่วนต่าง",""].map(h=><th key={h} style={{padding:"6px 10px",textAlign:"left",fontSize:9,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
+              <tbody>
+                {infraItems.map(item=>{
+                  const boqT=item.qty*item.boqPrice;
+                  const actT=item.qty*item.actualPrice;
+                  const diff=boqT-actT;
+                  return(
+                    <tr key={item.id} style={{borderBottom:`1px solid ${C.border}`}} onMouseEnter={e=>e.currentTarget.style.background=C.panel} onMouseLeave={e=>e.currentTarget.style.background=""}>
+                      <td style={{padding:"8px 10px",fontSize:12,color:C.text,fontWeight:600}}>{item.name}</td>
+                      <td style={{padding:"8px 10px",fontSize:11,color:C.muted}}>{item.unit}</td>
+                      <td style={{padding:"8px 10px",fontSize:12,color:C.text}}>{fmtMoney(item.qty)}</td>
+                      <td style={{padding:"8px 10px",fontSize:12,color:C.blue}}>฿{fmtMoney(item.boqPrice)}</td>
+                      <td style={{padding:"8px 10px",fontSize:12,color:C.blue,fontWeight:700}}>฿{fmtMoney(boqT)}</td>
+                      <td style={{padding:"8px 10px",fontSize:12,color:item.actualPrice>0?C.text:C.muted}}>{item.actualPrice>0?`฿${fmtMoney(item.actualPrice)}`:"—"}</td>
+                      <td style={{padding:"8px 10px",fontSize:12,color:actT>0?(actT>boqT?C.red:C.green):C.muted,fontWeight:700}}>{actT>0?`฿${fmtMoney(actT)}`:"—"}</td>
+                      <td style={{padding:"8px 10px",fontSize:11,color:diff>=0?C.green:C.red}}>{actT>0?(diff>=0?`+฿${fmtMoney(diff)}`:`-฿${fmtMoney(Math.abs(diff))}`):"—"}</td>
+                      <td style={{padding:"8px 10px"}}><div style={{display:"flex",gap:4}}>
+                        {canEdit&&<Btn size="sm" variant="ghost" onClick={()=>openInfraEdit(item)}>✏️</Btn>}
+                        {canEdit&&<Btn size="sm" variant="ghost" onClick={()=>delInfra(item.id)} style={{color:C.red}}>🗑</Btn>}
+                      </div></td>
+                    </tr>
+                  );
+                })}
+                <tr style={{background:C.faint}}>
+                  <td colSpan={4} style={{padding:"8px 10px",fontSize:12,fontWeight:700,color:C.text}}>รวมสาธารณูปโภค</td>
+                  <td style={{padding:"8px 10px",fontSize:13,fontWeight:800,color:C.blue}}>฿{fmtMoney(infraBOQ)}</td>
+                  <td></td>
+                  <td style={{padding:"8px 10px",fontSize:13,fontWeight:800,color:infraActual>infraBOQ?C.red:C.green}}>฿{fmtMoney(infraActual)}</td>
+                  <td style={{padding:"8px 10px",fontSize:12,fontWeight:700,color:infraBOQ>=infraActual?C.green:C.red}}>{infraBOQ>=infraActual?`+฿${fmtMoney(infraBOQ-infraActual)}`:`-฿${fmtMoney(infraActual-infraBOQ)}`}</td>
+                  <td></td>
+                </tr>
+              </tbody>
+            </table>
+            </div>
+          )}
+        </Card>
+
+        {/* BOQ Cost per House */}
+        <Card style={{padding:isMobileMode?12:20}}>
+          <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:4}}>🏠 ต้นทุนก่อสร้างแต่ละบ้าน</div>
+          <div style={{fontSize:11,color:C.muted,marginBottom:12}}>ข้อมูลจาก BOQ — จัดซื้อใส่ราคาจริง</div>
+          {projHouses.length===0?<div style={{padding:20,textAlign:"center",color:C.muted}}>ไม่มีบ้านในโครงการนี้</div>:
+            projHouses.map(h=>{
+              const houseBoqItems=data.boqItems.filter(b=>b.houseId===h.id);
+              const hBoq=houseBoqItems.reduce((s,b)=>s+b.qty*b.boqPrice,0);
+              const hAct=houseBoqItems.reduce((s,b)=>s+(b.actualPrice>0?b.qty*b.actualPrice:0),0);
+              // Group by phase
+              const phaseGroups={};
+              houseBoqItems.forEach(b=>{
+                const ph=data.phases.find(p=>p.id===b.phaseId);
+                const key=b.phaseId;
+                if(!phaseGroups[key])phaseGroups[key]={phase:ph,items:[],boq:0,actual:0};
+                phaseGroups[key].items.push(b);
+                phaseGroups[key].boq+=b.qty*b.boqPrice;
+                phaseGroups[key].actual+=b.actualPrice>0?b.qty*b.actualPrice:0;
+              });
+              return(
+                <div key={h.id} style={{marginBottom:16,border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden"}}>
+                  <div style={{padding:"10px 14px",background:C.faint,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div>
+                      <span style={{fontSize:13,fontWeight:700,color:C.text}}>🏠 {h.name}</span>
+                      <span style={{fontSize:11,color:C.muted,marginLeft:8}}>{h.customer||"ว่าง"}</span>
+                      <Tag color={h.status==="completed"?"green":h.status==="inprogress"?"blue":"gray"} style={{marginLeft:8}}>{ST_LBL[h.status]}</Tag>
+                    </div>
+                    <div style={{textAlign:"right"}}>
+                      <div style={{fontSize:11,color:C.muted}}>BOQ ฿{fmtMoney(h.boq)} | จ่ายจริง ฿{fmtMoney(hAct)}</div>
+                      <div style={{fontSize:11,color:hAct>h.boq?C.red:C.green,fontWeight:700}}>{hAct>h.boq?`เกินงบ ฿${fmtMoney(hAct-h.boq)}`:`เหลือ ฿${fmtMoney(h.boq-hAct)}`}</div>
+                    </div>
+                  </div>
+                  <div style={{overflowX:"auto"}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",minWidth:600}}>
+                    <thead><tr>{["หมวด","รายการ","หน่วย","จำนวน","ราคา BOQ","ราคาจริง","ส่วนต่าง",role==="purchasing"?"":""].map(h=><th key={h} style={{padding:"5px 8px",textAlign:"left",fontSize:9,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>{h}</th>)}</tr></thead>
+                    <tbody>
+                      {houseBoqItems.map(b=>{
+                        const ph=data.phases.find(p=>p.id===b.phaseId);
+                        const bTotal=b.qty*b.boqPrice;
+                        const aTotal=b.actualPrice>0?b.qty*b.actualPrice:0;
+                        return(
+                          <tr key={b.id} style={{borderBottom:`1px solid ${C.border}`}}>
+                            <td style={{padding:"6px 8px",fontSize:10,color:C.muted}}>{ph?.name||"—"}</td>
+                            <td style={{padding:"6px 8px",fontSize:11,color:C.text}}>{b.name}</td>
+                            <td style={{padding:"6px 8px",fontSize:10,color:C.muted}}>{b.unit}</td>
+                            <td style={{padding:"6px 8px",fontSize:11,color:C.text}}>{fmtMoney(b.qty)}</td>
+                            <td style={{padding:"6px 8px",fontSize:11,color:C.blue}}>฿{fmtMoney(bTotal)}</td>
+                            <td style={{padding:"6px 8px",fontSize:11,color:aTotal>0?(aTotal>bTotal?C.red:C.green):C.muted,fontWeight:aTotal>0?700:400}}>{aTotal>0?`฿${fmtMoney(aTotal)}`:"—"}</td>
+                            <td style={{padding:"6px 8px",fontSize:10,color:aTotal>0?(bTotal>=aTotal?C.green:C.red):C.muted}}>{aTotal>0?(bTotal>=aTotal?`+฿${fmtMoney(bTotal-aTotal)}`:`-฿${fmtMoney(aTotal-bTotal)}`):"—"}</td>
+                            {canEdit&&<td style={{padding:"6px 8px"}}><Btn size="sm" variant="ghost" onClick={()=>openBoqAct(b)}>💰</Btn></td>}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  </div>
+                </div>
+              );
+            })
+          }
+        </Card>
+      </div>
+
+      {/* Infrastructure Edit Modal */}
+      {infraMdl&&(
+        <Mdl title="✏️ แก้ไขรายการสาธารณูปโภค" onClose={()=>setInfraMdl(null)} footer={<><Btn variant="ghost" onClick={()=>setInfraMdl(null)}>ยกเลิก</Btn><Btn onClick={saveInfra}>💾 บันทึก</Btn></>}>
+          <FG label="ชื่อรายการ"><FIn value={infraForm.name} onChange={e=>setInfraForm(f=>({...f,name:e.target.value}))}/></FG>
+          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
+            <FG label="หน่วย"><FIn value={infraForm.unit} onChange={e=>setInfraForm(f=>({...f,unit:e.target.value}))}/></FG>
+            <FG label="จำนวน"><FIn type="number" value={infraForm.qty} onChange={e=>setInfraForm(f=>({...f,qty:e.target.value}))}/></FG>
+            <FG label="ราคา BOQ ต่อหน่วย (บาท)"><FIn type="number" value={infraForm.boqPrice} onChange={e=>setInfraForm(f=>({...f,boqPrice:e.target.value}))}/></FG>
+            <FG label="ราคาจริง ต่อหน่วย (บาท)"><FIn type="number" value={infraForm.actualPrice} onChange={e=>setInfraForm(f=>({...f,actualPrice:e.target.value}))}/></FG>
+          </div>
+          <FG label="หมายเหตุ"><FIn value={infraForm.note||""} onChange={e=>setInfraForm(f=>({...f,note:e.target.value}))} rows={2}/></FG>
+        </Mdl>
+      )}
+      {addInfraMdl&&(
+        <Mdl title="➕ เพิ่มรายการสาธารณูปโภค" onClose={()=>setAddInfraMdl(false)} footer={<><Btn variant="ghost" onClick={()=>setAddInfraMdl(false)}>ยกเลิก</Btn><Btn onClick={saveNewInfra}>💾 เพิ่ม</Btn></>}>
+          <FG label="ชื่อรายการ"><FIn value={infraForm.name} onChange={e=>setInfraForm(f=>({...f,name:e.target.value}))} placeholder="เช่น ค่ายกพื้น, ค่าไฟสนาม"/></FG>
+          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
+            <FG label="หน่วย"><FIn value={infraForm.unit} onChange={e=>setInfraForm(f=>({...f,unit:e.target.value}))} placeholder="เหมา, คิว, จุด"/></FG>
+            <FG label="จำนวน"><FIn type="number" value={infraForm.qty} onChange={e=>setInfraForm(f=>({...f,qty:e.target.value}))}/></FG>
+            <FG label="ราคา BOQ ต่อหน่วย (บาท)"><FIn type="number" value={infraForm.boqPrice} onChange={e=>setInfraForm(f=>({...f,boqPrice:e.target.value}))}/></FG>
+            <FG label="ราคาจริง ต่อหน่วย (บาท)"><FIn type="number" value={infraForm.actualPrice} onChange={e=>setInfraForm(f=>({...f,actualPrice:e.target.value}))}/></FG>
+          </div>
+          <FG label="หมายเหตุ"><FIn value={infraForm.note||""} onChange={e=>setInfraForm(f=>({...f,note:e.target.value}))} rows={2}/></FG>
+        </Mdl>
+      )}
+      {boqActMdl&&(
+        <Mdl title={`💰 ใส่ราคาจริง — ${boqActMdl.name}`} onClose={()=>setBoqActMdl(null)} size="sm" footer={<><Btn variant="ghost" onClick={()=>setBoqActMdl(null)}>ยกเลิก</Btn><Btn onClick={saveBoqAct}>💾 บันทึก</Btn></>}>
+          <div style={{fontSize:12,color:C.muted,marginBottom:8}}>จำนวน: {fmtMoney(boqActMdl.qty)} {boqActMdl.unit} | BOQ: ฿{fmtMoney(boqActMdl.boqPrice)}/หน่วย (รวม ฿{fmtMoney(boqActMdl.qty*boqActMdl.boqPrice)})</div>
+          <FG label="ราคาจริงต่อหน่วย (บาท)"><FIn type="number" value={boqActAmt} onChange={e=>setBoqActAmt(e.target.value)} placeholder="ราคาจริงที่สั่งซื้อ"/></FG>
+          {Number(boqActAmt)>0&&<div style={{padding:10,background:C.faint,borderRadius:8,marginTop:8}}>
+            <div style={{fontSize:12,color:C.text}}>รวมจริง: ฿{fmtMoney(boqActMdl.qty*Number(boqActAmt))}</div>
+            <div style={{fontSize:11,color:boqActMdl.qty*Number(boqActAmt)>boqActMdl.qty*boqActMdl.boqPrice?C.red:C.green}}>
+              {boqActMdl.qty*Number(boqActAmt)>boqActMdl.qty*boqActMdl.boqPrice?`เกินงบ ฿${fmtMoney(boqActMdl.qty*Number(boqActAmt)-boqActMdl.qty*boqActMdl.boqPrice)}`:`ประหยัด ฿${fmtMoney(boqActMdl.qty*boqActMdl.boqPrice-boqActMdl.qty*Number(boqActAmt))}`}
+            </div>
+          </div>}
         </Mdl>
       )}
     </div>
@@ -4542,7 +5052,7 @@ export default function App() {
     owner:[{id:"dash",icon:"⊞",label:"Dashboard"},{id:"tracking",icon:"📋",label:"ติดตาม"},{id:"marketing",icon:"🏠",label:"บ้าน"},{id:"mktResult",icon:"📊",label:"ผลลัพธ์"},{id:"settings",icon:"⚙️",label:"ตั้งค่า"}],
     engineer:[{id:"dash",icon:"⊞",label:"บ้าน"},{id:"tracking",icon:"📋",label:"ติดตาม"},{id:"team",icon:"👥",label:"ทีม"},{id:"analytics",icon:"📊",label:"วิเคราะห์"},{id:"settings",icon:"⚙️",label:"ตั้งค่า"}],
     foreman:[{id:"dash",icon:"⊞",label:"บ้าน"},{id:"tracking",icon:"📋",label:"ติดตาม"},{id:"team",icon:"👥",label:"ทีม"},{id:"timeline",icon:"📈",label:"Timeline"}],
-    purchasing:[{id:"dash",icon:"⊞",label:"ภาพรวม"},{id:"tracking",icon:"📋",label:"ติดตาม"},{id:"team",icon:"👥",label:"ทีม"},{id:"timeline",icon:"📈",label:"Timeline"}],
+    purchasing:[{id:"dash",icon:"⊞",label:"ภาพรวม"},{id:"costPage",icon:"💰",label:"ต้นทุน"},{id:"tracking",icon:"📋",label:"ติดตาม"},{id:"team",icon:"👥",label:"ทีม"},{id:"timeline",icon:"📈",label:"Timeline"}],
     marketing:[{id:"marketing",icon:"🏠",label:"บ้าน"},{id:"customerData",icon:"👤",label:"ลูกค้า"},{id:"mktResult",icon:"📊",label:"ผลลัพธ์"},{id:"mktBudget",icon:"💰",label:"งบ"},{id:"tracking",icon:"📋",label:"ติดตาม"}],
     sales:[{id:"marketing",icon:"🏠",label:"บ้าน"},{id:"customerData",icon:"👤",label:"ลูกค้า"},{id:"mktResult",icon:"📊",label:"ผลลัพธ์"},{id:"tracking",icon:"📋",label:"ติดตาม"},{id:"team",icon:"👥",label:"ทีม"}],
   };
@@ -4634,6 +5144,7 @@ export default function App() {
             {page==="customerData"&&["owner","marketing","sales"].includes(role)&&<CustomerDataPage data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>}
             {page==="mktResult"&&["owner","marketing","sales"].includes(role)&&<MktResultPage data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>}
             {page==="mktBudget"&&["owner","marketing"].includes(role)&&<MktBudgetPage data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>}
+            {page==="costPage"&&["owner","engineer","purchasing"].includes(role)&&<CostPage data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>}
             {page==="settings"&&["owner","engineer"].includes(role)&&<SettingsPage data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>}
           </div>
 

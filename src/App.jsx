@@ -4955,6 +4955,8 @@ function TeamPage({data,setData,role}) {
 function SettingsPage({data,setData,role}) {
   const [tab,setTab]=useState("projects");
   const [newTpl,setNewTpl]=useState({name:"",boqBudget:1800000,defaultDays:180});
+  const [newTplBoq,setNewTplBoq]=useState([]);
+  const [newTplBoqForm,setNewTplBoqForm]=useState({phaseId:1,name:"",unit:"",qty:1,boqPrice:0});
   const [showNew,setShowNew]=useState(false);
   const [editPh,setEditPh]=useState(null);
   const [editTpl,setEditTpl]=useState(null);
@@ -5048,7 +5050,7 @@ function SettingsPage({data,setData,role}) {
       )}
       {tab==="templates"&&(
         <>
-          <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:14}}><Btn variant="ghost" size="sm">📁 Import Excel BOQ</Btn><Btn size="sm" onClick={()=>setShowNew(true)}>+ สร้างเทมเพลทใหม่</Btn></div>
+          <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:14}}><Btn size="sm" onClick={()=>{setShowNew(true);setNewTpl({name:"",boqBudget:1800000,defaultDays:180});setNewTplBoq([]);setNewTplBoqForm({phaseId:1,name:"",unit:"",qty:1,boqPrice:0});}}>+ สร้างเทมเพลทใหม่</Btn></div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(270px,1fr))",gap:12}}>
             {data.templates.map(t=>{
               const tItems=data.templateBOQItems.filter(ti=>ti.templateId===t.id);
@@ -5069,28 +5071,59 @@ function SettingsPage({data,setData,role}) {
               </Card>
             )})}
           </div>
-          {showNew&&<Mdl title="🏠 สร้างเทมเพลทใหม่" onClose={()=>setShowNew(false)} footer={<><Btn variant="ghost" onClick={()=>setShowNew(false)}>ยกเลิก</Btn><Btn onClick={()=>{setData(d=>({...d,templates:[...d.templates,{id:uid(),...newTpl}]}));setShowNew(false);}} disabled={!newTpl.name}>✓ สร้าง</Btn></>}>
+          {showNew&&<Mdl title="🏠 สร้างเทมเพลทใหม่" onClose={()=>setShowNew(false)} style={{minWidth:600}} footer={<><Btn variant="ghost" onClick={()=>setShowNew(false)}>ยกเลิก</Btn><Btn onClick={()=>{const tId=uid();setData(d=>({...d,templates:[...d.templates,{id:tId,...newTpl}],templateBOQItems:[...d.templateBOQItems,...newTplBoq.map(b=>({...b,id:uid(),templateId:tId}))]}));setShowNew(false);}} disabled={!newTpl.name}>✓ สร้างเทมเพลท</Btn></>}>
             <FG label="ชื่อเทมเพลท *"><FIn value={newTpl.name} onChange={e=>setNewTpl(t=>({...t,name:e.target.value}))} placeholder="เช่น บ้านแบบ C — ชั้นเดียว"/></FG>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
               <FG label="งบ BOQ (฿)"><FIn type="number" value={newTpl.boqBudget} onChange={e=>setNewTpl(t=>({...t,boqBudget:+e.target.value}))}/></FG>
               <FG label="จำนวนวัน"><FIn type="number" value={newTpl.defaultDays} onChange={e=>setNewTpl(t=>({...t,defaultDays:+e.target.value}))}/></FG>
             </div>
+            <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${C.border}`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                <div style={{fontSize:13,fontWeight:700,color:C.text}}>📋 รายการ BOQ ({newTplBoq.length} รายการ)</div>
+              </div>
+              {newTplBoq.length>0&&<table style={{width:"100%",borderCollapse:"collapse",marginBottom:12}}>
+                <thead><tr>{["หมวดงาน","ชื่อรายการ","หน่วย","จำนวน","ราคา/หน่วย","รวม",""].map(h=><th key={h} style={{padding:"6px 8px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>{h}</th>)}</tr></thead>
+                <tbody>{newTplBoq.map((item,idx)=><tr key={idx} style={{borderBottom:`1px solid ${C.border}`}}>
+                  <td style={{padding:"6px 8px",fontSize:11,color:C.muted}}>{data.phases.find(p=>p.id===item.phaseId)?.name||"?"}</td>
+                  <td style={{padding:"6px 8px",fontSize:11,color:C.text}}>{item.name}</td>
+                  <td style={{padding:"6px 8px",fontSize:11,color:C.muted}}>{item.unit}</td>
+                  <td style={{padding:"6px 8px",fontSize:11,color:C.text}}>{item.qty}</td>
+                  <td style={{padding:"6px 8px",fontSize:11,color:C.blue}}>฿{fmtMoney(item.boqPrice)}</td>
+                  <td style={{padding:"6px 8px",fontSize:11,fontWeight:700,color:C.text}}>฿{fmtMoney(item.qty*item.boqPrice)}</td>
+                  <td style={{padding:"6px 8px"}}><Btn size="sm" variant="danger" onClick={()=>setNewTplBoq(b=>b.filter((_,i)=>i!==idx))} style={{padding:"2px 6px"}}>🗑️</Btn></td>
+                </tr>)}</tbody>
+                {newTplBoq.length>0&&<tfoot><tr><td colSpan={5} style={{padding:"8px",fontSize:12,fontWeight:700,color:C.text,textAlign:"right"}}>รวมทั้งหมด</td><td style={{padding:"8px",fontSize:12,fontWeight:800,color:C.blue}}>฿{fmtMoney(newTplBoq.reduce((s,b)=>s+b.qty*b.boqPrice,0))}</td><td/></tr></tfoot>}
+              </table>}
+              <div style={{background:"#0d1117",borderRadius:8,border:`1px solid ${C.border}`,padding:12}}>
+                <div style={{fontSize:11,fontWeight:700,color:C.text,marginBottom:8}}>➕ เพิ่มรายการ BOQ</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+                  <FG label="หมวดงาน"><FSel value={newTplBoqForm.phaseId} onChange={e=>setNewTplBoqForm(b=>({...b,phaseId:+e.target.value}))}>{data.phases.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</FSel></FG>
+                  <FG label="ชื่อรายการ"><FIn value={newTplBoqForm.name} onChange={e=>setNewTplBoqForm(b=>({...b,name:e.target.value}))} placeholder="เช่น ปูนซีเมนต์"/></FG>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}}>
+                  <FG label="หน่วย"><FIn value={newTplBoqForm.unit} onChange={e=>setNewTplBoqForm(b=>({...b,unit:e.target.value}))} placeholder="เช่น ถุง"/></FG>
+                  <FG label="จำนวน"><FIn type="number" value={newTplBoqForm.qty} onChange={e=>setNewTplBoqForm(b=>({...b,qty:+e.target.value}))}/></FG>
+                  <FG label="ราคา/หน่วย"><FIn type="number" value={newTplBoqForm.boqPrice} onChange={e=>setNewTplBoqForm(b=>({...b,boqPrice:+e.target.value}))}/></FG>
+                </div>
+                <Btn size="sm" onClick={()=>{if(!newTplBoqForm.name)return;setNewTplBoq(b=>[...b,{...newTplBoqForm}]);setNewTplBoqForm({phaseId:newTplBoqForm.phaseId,name:"",unit:newTplBoqForm.unit,qty:1,boqPrice:0});}} disabled={!newTplBoqForm.name} style={{width:"100%"}}>+ เพิ่มรายการ</Btn>
+              </div>
+            </div>
           </Mdl>}
           {editTpl&&<Mdl title={`✏️ แก้ไข ${editTpl.name} — BOQ Items`} onClose={()=>setEditTpl(null)} style={{minWidth:600}} footer={<><Btn variant="ghost" onClick={()=>setEditTpl(null)}>ปิด</Btn></>}>
             <div style={{marginBottom:16}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><div style={{fontSize:12,fontWeight:700,color:C.text}}>BOQ Items ({data.templateBOQItems.filter(ti=>ti.templateId===editTpl.id).length} รายการ)</div><Btn size="sm" onClick={()=>setShowAddBoq(true)}>+ เพิ่ม</Btn></div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><div style={{fontSize:12,fontWeight:700,color:C.text}}>BOQ Items ({data.templateBOQItems.filter(ti=>ti.templateId===editTpl.id).length} รายการ) — รวม ฿{fmtMoney(data.templateBOQItems.filter(ti=>ti.templateId===editTpl.id).reduce((s,b)=>s+b.qty*b.boqPrice,0))}</div><Btn size="sm" onClick={()=>setShowAddBoq(true)}>+ เพิ่ม</Btn></div>
               <table style={{width:"100%",borderCollapse:"collapse"}}>
                 <thead><tr>{["หมวดงาน","ชื่อรายการ","หน่วย","จำนวน","ราคา/หน่วย","ราคารวม",""].map(h=><th key={h} style={{padding:"8px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>{h}</th>)}</tr></thead>
                 <tbody>
                   {data.templateBOQItems.filter(ti=>ti.templateId===editTpl.id).map(item=>(
                     <tr key={item.id} style={{borderBottom:`1px solid ${C.border}`}}>
-                      <td style={{padding:"8px",fontSize:12,color:C.muted}}>{data.phases.find(p=>p.id===item.phaseId)?.name||"?"}</td>
-                      <td style={{padding:"8px",fontSize:12,color:C.text}}>{item.name}</td>
-                      <td style={{padding:"8px",fontSize:12,color:C.muted}}>{item.unit}</td>
-                      <td style={{padding:"8px",fontSize:12,color:C.text}}>{item.qty}</td>
-                      <td style={{padding:"8px",fontSize:12,color:C.blue}}>฿{fmtMoney(item.boqPrice)}</td>
-                      <td style={{padding:"8px",fontSize:12,fontWeight:700,color:C.text}}>฿{fmtMoney(item.qty*item.boqPrice)}</td>
-                      <td style={{padding:"8px"}}><Btn size="sm" variant="danger" onClick={()=>setData(d=>({...d,templateBOQItems:d.templateBOQItems.filter(ti=>ti.id!==item.id)}))} style={{padding:"2px 6px"}}>🗑️</Btn></td>
+                      <td style={{padding:"6px 8px"}}><FSel value={item.phaseId} onChange={e=>setData(d=>({...d,templateBOQItems:d.templateBOQItems.map(ti=>ti.id===item.id?{...ti,phaseId:+e.target.value}:ti)}))} style={{fontSize:11,padding:"4px 6px"}}>{data.phases.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</FSel></td>
+                      <td style={{padding:"6px 8px"}}><input value={item.name} onChange={e=>setData(d=>({...d,templateBOQItems:d.templateBOQItems.map(ti=>ti.id===item.id?{...ti,name:e.target.value}:ti)}))} style={{width:"100%",background:"transparent",border:`1px solid ${C.border}`,borderRadius:4,padding:"4px 6px",color:C.text,fontSize:11}}/></td>
+                      <td style={{padding:"6px 8px"}}><input value={item.unit} onChange={e=>setData(d=>({...d,templateBOQItems:d.templateBOQItems.map(ti=>ti.id===item.id?{...ti,unit:e.target.value}:ti)}))} style={{width:50,background:"transparent",border:`1px solid ${C.border}`,borderRadius:4,padding:"4px 6px",color:C.muted,fontSize:11}}/></td>
+                      <td style={{padding:"6px 8px"}}><input type="number" value={item.qty} onChange={e=>setData(d=>({...d,templateBOQItems:d.templateBOQItems.map(ti=>ti.id===item.id?{...ti,qty:+e.target.value}:ti)}))} style={{width:60,background:"transparent",border:`1px solid ${C.border}`,borderRadius:4,padding:"4px 6px",color:C.text,fontSize:11}}/></td>
+                      <td style={{padding:"6px 8px"}}><input type="number" value={item.boqPrice} onChange={e=>setData(d=>({...d,templateBOQItems:d.templateBOQItems.map(ti=>ti.id===item.id?{...ti,boqPrice:+e.target.value}:ti)}))} style={{width:80,background:"transparent",border:`1px solid ${C.border}`,borderRadius:4,padding:"4px 6px",color:C.blue,fontSize:11}}/></td>
+                      <td style={{padding:"6px 8px",fontSize:11,fontWeight:700,color:C.text}}>฿{fmtMoney(item.qty*item.boqPrice)}</td>
+                      <td style={{padding:"6px 8px"}}><Btn size="sm" variant="danger" onClick={()=>setData(d=>({...d,templateBOQItems:d.templateBOQItems.filter(ti=>ti.id!==item.id)}))} style={{padding:"2px 6px"}}>🗑️</Btn></td>
                     </tr>
                   ))}
                 </tbody>
@@ -6480,6 +6513,8 @@ export default function App() {
   const [showChangePw,setShowChangePw]=useState(false);
   const [changePwForm,setChangePwForm]=useState({newPw:"",confirm:"",showNew:false,showConfirm:false,err:"",sent:false});
   const [bookingCelebration,setBookingCelebration]=useState(null);
+  const [morningGreeting,setMorningGreeting]=useState(null);
+  const [prevBookingAlertCount,setPrevBookingAlertCount]=useState(()=>(data.bookingAlerts||[]).length);
 
   // Auto-save data to localStorage
   useEffect(()=>{saveData(data);},[data]);
@@ -6491,10 +6526,61 @@ export default function App() {
     if(!loggedIn)return;
     const alerts=(data.bookingAlerts||[]).filter(a=>!data.notificationViewed?.[`booking-${a.id}`]);
     if(alerts.length>0){
-      setBookingCelebration(alerts[alerts.length-1]);
+      const a=alerts[alerts.length-1];
+      setBookingCelebration(a);
+      // Play celebration sound
+      try{const u=new SpeechSynthesisUtterance("ยินดีด้วย! บ้าน "+a.houseName+" ติดจองแล้ว!");u.lang="th-TH";u.rate=1;u.pitch=1.1;speechSynthesis.speak(u);}catch(e){}
+      // Mark as viewed so it only shows once
+      setData(d=>({...d,notificationViewed:{...d.notificationViewed,[`booking-${a.id}`]:true}}));
       setTimeout(()=>setBookingCelebration(null),6000);
     }
   },[loggedIn]);
+  // Detect new booking alerts while already logged in (real-time for active users)
+  useEffect(()=>{
+    if(!loggedIn)return;
+    const currentCount=(data.bookingAlerts||[]).length;
+    if(currentCount>prevBookingAlertCount){
+      const alerts=data.bookingAlerts||[];
+      const a=alerts[alerts.length-1];
+      if(a&&!data.notificationViewed?.[`booking-${a.id}`]){
+        setBookingCelebration(a);
+        try{const u=new SpeechSynthesisUtterance("ยินดีด้วย! บ้าน "+a.houseName+" ติดจองแล้ว!");u.lang="th-TH";u.rate=1;u.pitch=1.1;speechSynthesis.speak(u);}catch(e){}
+        setData(d=>({...d,notificationViewed:{...d.notificationViewed,[`booking-${a.id}`]:true}}));
+        setTimeout(()=>setBookingCelebration(null),6000);
+      }
+    }
+    setPrevBookingAlertCount(currentCount);
+  },[data.bookingAlerts]);
+  // Morning greeting — once per day after 8 AM
+  useEffect(()=>{
+    if(!loggedIn||!authedUserId)return;
+    const now=new Date();
+    if(now.getHours()<8)return;
+    const today=now.toISOString().slice(0,10);
+    const key="cpms_morning_"+authedUserId;
+    try{if(localStorage.getItem(key)===today)return;}catch(e){}
+    const msgs=[
+      "สวัสดีตอนเช้า ขอให้วันนี้ราบรื่น",
+      "เริ่มต้นวันใหม่อย่างมั่นใจ",
+      "ขอให้วันนี้สำเร็จตามแผน",
+      "วันนี้อีกหนึ่งก้าวสู่ความสำเร็จ",
+      "ทำวันนี้ให้ดีที่สุด",
+      "งานดี เริ่มที่วันนี้",
+      "พร้อมลุยงานวันนี้หรือยัง",
+      "วันนี้ต้องดีกว่าเมื่อวาน",
+      "ทุกงานวันนี้มีความหมาย",
+      "ขอให้วันนี้เป็นวันที่ดี"
+    ];
+    const dayOfYear=Math.floor((now-new Date(now.getFullYear(),0,0))/86400000);
+    const msgIdx=dayOfYear%msgs.length;
+    const userName=data.team.find(m=>m.id===authedUserId)?.name||"";
+    const greeting=msgs[msgIdx]+(userName?" คุณ"+userName:"");
+    setMorningGreeting(greeting);
+    try{localStorage.setItem(key,today);}catch(e){}
+    // Speak the greeting
+    try{const u=new SpeechSynthesisUtterance(greeting);u.lang="th-TH";u.rate=0.95;u.pitch=1.05;speechSynthesis.speak(u);}catch(e){}
+    setTimeout(()=>setMorningGreeting(null),5000);
+  },[loggedIn,authedUserId]);
 
   function handleLogin(memberId,memberRole){
     setLoggedIn(true);
@@ -6728,6 +6814,19 @@ export default function App() {
         </div>
       </div>
       {changePwModal}
+      {morningGreeting&&(
+        <div style={{position:"fixed",inset:0,zIndex:9998,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.75)",backdropFilter:"blur(6px)"}} onClick={()=>setMorningGreeting(null)}>
+          <div style={{background:"linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#0f172a 100%)",borderRadius:28,padding:isMobileMode?"36px 24px":"56px 72px",textAlign:"center",border:"2px solid #3b82f6",boxShadow:"0 0 100px rgba(59,130,246,.3), 0 0 40px rgba(59,130,246,.15) inset",maxWidth:520,width:"90%",animation:"greetBounce .7s cubic-bezier(.34,1.56,.64,1)"}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:56,marginBottom:8,animation:"greetSun 2s ease-in-out infinite"}}>☀️</div>
+            <div style={{fontSize:isMobileMode?13:15,color:"#60a5fa",fontWeight:600,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Good Morning</div>
+            <div style={{fontSize:isMobileMode?20:26,fontWeight:800,color:"#fff",lineHeight:1.5,marginBottom:12}}>{morningGreeting}</div>
+            <div style={{width:60,height:3,background:"linear-gradient(90deg,#3b82f6,#60a5fa,#3b82f6)",borderRadius:2,margin:"0 auto 16px"}}/>
+            <div style={{fontSize:12,color:"#6b7280"}}>แตะเพื่อปิด</div>
+          </div>
+          {Array.from({length:30}).map((_,i)=><div key={i} style={{position:"absolute",left:`${10+Math.random()*80}%`,top:`${10+Math.random()*80}%`,width:2+Math.random()*3,height:2+Math.random()*3,background:"#60a5fa",borderRadius:"50%",opacity:0,animation:`greetStar ${1.5+Math.random()*2}s ease-in-out ${Math.random()*2}s infinite`}}/>)}
+          <style>{`@keyframes greetBounce{0%{transform:scale(.2) translateY(40px);opacity:0}60%{transform:scale(1.03) translateY(-4px)}100%{transform:scale(1) translateY(0);opacity:1}}@keyframes greetSun{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.1) rotate(10deg)}}@keyframes greetStar{0%,100%{opacity:0;transform:scale(.5)}50%{opacity:.8;transform:scale(1.2)}}`}</style>
+        </div>
+      )}
       {bookingCelebration&&(()=>{
         const a=bookingCelebration;
         const colors=["#fbbf24","#ef4444","#3b82f6","#10b981","#a855f7","#f97316","#ec4899"];

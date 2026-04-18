@@ -3043,6 +3043,7 @@ function CostPage({data,setData,role,isMobileMode}) {
   const [infraForm,setInfraForm]=useState({});
   const [boqActMdl,setBoqActMdl]=useState(null);
   const [boqActAmt,setBoqActAmt]=useState("");
+  const [boqActReason,setBoqActReason]=useState("");
   const [exportLoading,setExportLoading]=useState(false);
   const [viewMode,setViewMode]=useState("detail"); // detail | summary | weekly
   const [pdfPreviewMdl,setPdfPreviewMdl]=useState(false);
@@ -3077,8 +3078,8 @@ function CostPage({data,setData,role,isMobileMode}) {
   function addNewInfra(){setInfraForm({id:uid(),name:"",unit:"เหมา",qty:1,boqPrice:0,actualPrice:0,note:""});setAddInfraMdl(true);}
   function saveNewInfra(){const item={...infraForm,id:uid(),qty:Number(infraForm.qty)||0,boqPrice:Number(infraForm.boqPrice)||0,actualPrice:Number(infraForm.actualPrice)||0};setInfra(selProj,[...getInfra(selProj),item]);setAddInfraMdl(false);}
   function delInfra(id){if(confirm("ลบรายการนี้?")){setInfra(selProj,getInfra(selProj).filter(i=>i.id!==id));}}
-  function openBoqAct(item){setBoqActMdl(item);setBoqActAmt(item.actualPrice||"");}
-  function saveBoqAct(){setData(d=>({...d,boqItems:d.boqItems.map(b=>b.id===boqActMdl.id?{...b,actualPrice:Number(boqActAmt)||0}:b)}));setBoqActMdl(null);}
+  function openBoqAct(item){setBoqActMdl(item);setBoqActAmt(item.actualPrice||"");setBoqActReason(item.overBudgetReason||"");}
+  function saveBoqAct(){setData(d=>({...d,boqItems:d.boqItems.map(b=>b.id===boqActMdl.id?{...b,actualPrice:Number(boqActAmt)||0,overBudgetReason:boqActReason}:b)}));setBoqActMdl(null);}
   // Add extra BOQ item to a house under a specific phase
   function openAddExtra(houseId){setAddExtraMdl({houseId});setExtraForm({phaseId:data.phases[0]?.id||"",name:"",unit:"ชิ้น",qty:1,boqPrice:0,actualPrice:0});}
   function saveExtra(){
@@ -3341,77 +3342,174 @@ function CostPage({data,setData,role,isMobileMode}) {
       })()
       ):(
       /* ═══ SUMMARY VIEW with chart ═══ */
-      <div ref={chartRef} style={{background:C.bg,padding:isMobileMode?8:0}}>
-        <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr 1fr":"repeat(4,1fr)",gap:12,marginBottom:20}}>
-          <Card style={{padding:14}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>🏗️ ต้นทุน BOQ รวม</div><div style={{fontSize:isMobileMode?16:20,fontWeight:800,color:C.blue}}>฿{fmtMoney(grandBoq)}</div></Card>
-          <Card style={{padding:14}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>💸 ใช้จ่ายจริง</div><div style={{fontSize:isMobileMode?16:20,fontWeight:800,color:grandActual>grandBoq?C.red:C.green}}>฿{fmtMoney(grandActual)}</div></Card>
-          <Card style={{padding:14}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>⚠️ บ้านเกินงบ</div><div style={{fontSize:isMobileMode?16:20,fontWeight:800,color:C.red}}>{overBudgetHouses.length} หลัง</div></Card>
-          <Card style={{padding:14}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>{grandActual<=grandBoq?"✅":"⚠️"} ส่วนต่าง</div><div style={{fontSize:isMobileMode?16:20,fontWeight:800,color:grandActual>grandBoq?C.red:C.green}}>฿{fmtMoney(Math.abs(grandBoq-grandActual))}</div></Card>
+      <div ref={chartRef} style={{background:C.bg,padding:isMobileMode?8:20}}>
+        {/* Header */}
+        <div style={{textAlign:"center",marginBottom:20,paddingBottom:16,borderBottom:`3px solid ${C.blue}`}}>
+          <div style={{fontSize:isMobileMode?18:24,fontWeight:900,color:C.text}}>💰 รายงานสรุปต้นทุน — {proj?.name}</div>
+          <div style={{fontSize:12,color:C.muted,marginTop:4}}>ระบบ CPMS — {new Date().toLocaleDateString("th-TH",{year:"numeric",month:"long",day:"numeric"})}</div>
         </div>
-        {/* Bar Chart: BOQ vs Actual per house */}
+        {/* KPI Cards */}
+        <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr 1fr":"repeat(5,1fr)",gap:12,marginBottom:20}}>
+          <Card style={{padding:14,borderLeft:`4px solid ${C.blue}`}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>🏗️ ต้นทุน BOQ รวม</div><div style={{fontSize:isMobileMode?14:18,fontWeight:800,color:C.blue}}>฿{fmtMoney(grandBoq)}</div></Card>
+          <Card style={{padding:14,borderLeft:`4px solid ${grandActual>grandBoq?C.red:C.green}`}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>💸 ใช้จ่ายจริง</div><div style={{fontSize:isMobileMode?14:18,fontWeight:800,color:grandActual>grandBoq?C.red:C.green}}>฿{fmtMoney(grandActual)}</div></Card>
+          <Card style={{padding:14,borderLeft:`4px solid ${C.orange}`}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>🚧 สาธารณูปโภค</div><div style={{fontSize:isMobileMode?14:18,fontWeight:800,color:C.orange}}>฿{fmtMoney(infraActual)}</div></Card>
+          <Card style={{padding:14,borderLeft:`4px solid ${C.red}`}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>⚠️ บ้านเกินงบ</div><div style={{fontSize:isMobileMode?14:18,fontWeight:800,color:C.red}}>{overBudgetHouses.length} หลัง</div></Card>
+          <Card style={{padding:14,borderLeft:`4px solid ${grandActual>grandBoq?C.red:C.green}`}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>{grandActual<=grandBoq?"✅":"⚠️"} ส่วนต่าง</div><div style={{fontSize:isMobileMode?14:18,fontWeight:800,color:grandActual>grandBoq?C.red:C.green}}>{grandActual>grandBoq?"+":""}฿{fmtMoney(Math.abs(grandBoq-grandActual))}</div></Card>
+        </div>
+        {/* ── BAR CHART: BOQ vs Actual per house (full numbers) ── */}
         <Card style={{padding:isMobileMode?12:20,marginBottom:20}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <div style={{fontSize:15,fontWeight:700,color:C.text}}>📊 เปรียบเทียบ BOQ vs จ่ายจริง — {proj?.name}</div>
+            <div style={{fontSize:15,fontWeight:700,color:C.text}}>📊 เปรียบเทียบ BOQ vs จ่ายจริง รายบ้าน</div>
             <Btn size="sm" variant="ghost" onClick={exportChartImage}>🖼️ โหลดรูป</Btn>
           </div>
           <div style={{overflowX:"auto"}}>
-          <svg viewBox={`0 0 ${Math.max(houseSummary.length*80+60,400)} 260`} style={{width:"100%",minWidth:houseSummary.length*80+60,height:260}}>
-            {/* Y axis labels */}
-            {[0,0.25,0.5,0.75,1].map((r,i)=>{const v=Math.round(maxVal*(1-r));const y=30+r*200;return(<g key={i}><line x1="50" y1={y} x2={houseSummary.length*80+50} y2={y} stroke={C.border} strokeWidth=".5" strokeDasharray="4"/><text x="45" y={y+4} textAnchor="end" fill={C.muted} fontSize="9">{v>=1000000?`${(v/1000000).toFixed(1)}M`:v>=1000?`${(v/1000).toFixed(0)}K`:v}</text></g>);})}
-            {houseSummary.map((h,i)=>{const x=60+i*80;const boqH=maxVal>0?(h.boq/maxVal)*200:0;const actH=maxVal>0?(h.actual/maxVal)*200:0;return(
-              <g key={h.id}>
-                <rect x={x} y={230-boqH} width="28" height={boqH} rx="3" fill={C.blue} opacity=".7"/>
-                <rect x={x+32} y={230-actH} width="28" height={actH} rx="3" fill={h.actual>h.boq?C.red:C.green} opacity=".85"/>
-                <text x={x+30} y={248} textAnchor="middle" fill={C.text} fontSize="9" fontWeight="600">{h.name}</text>
-                {h.diff>0&&<text x={x+30} y={225-Math.max(boqH,actH)} textAnchor="middle" fill={C.red} fontSize="8" fontWeight="700">+{(h.diff/1000).toFixed(0)}K</text>}
-              </g>
-            );})}
-            <text x="15" y="132" textAnchor="middle" fill={C.muted} fontSize="9" transform="rotate(-90,15,132)">บาท</text>
-          </svg>
+          {(()=>{
+            const barW=isMobileMode?70:90;const chartW=Math.max(houseSummary.length*barW+100,400);
+            return(
+            <svg viewBox={`0 0 ${chartW} 320`} style={{width:"100%",minWidth:chartW,height:320}}>
+              {/* Y axis grid lines */}
+              {[0,0.25,0.5,0.75,1].map((r,i)=>{const v=Math.round(maxVal*(1-r));const y=40+r*220;return(<g key={i}><line x1="80" y1={y} x2={chartW-10} y2={y} stroke={C.border} strokeWidth=".5" strokeDasharray="4"/><text x="75" y={y+4} textAnchor="end" fill={C.muted} fontSize="9" fontFamily="monospace">{fmtMoney(v)}</text></g>);})}
+              {houseSummary.map((h,i)=>{const x=90+i*barW;const boqH=maxVal>0?(h.boq/maxVal)*220:0;const actH=maxVal>0?(h.actual/maxVal)*220:0;const isOver=h.actual>h.boq&&h.actual>0;return(
+                <g key={h.id}>
+                  <rect x={x} y={260-boqH} width={barW/2-4} height={boqH} rx="4" fill={C.blue} opacity=".75"/>
+                  <rect x={x+barW/2} y={260-actH} width={barW/2-4} height={actH} rx="4" fill={isOver?C.red:C.green} opacity=".85"/>
+                  {/* House name */}
+                  <text x={x+barW/2-2} y={278} textAnchor="middle" fill={C.text} fontSize="10" fontWeight="700">{h.name}</text>
+                  {/* BOQ value on bar */}
+                  <text x={x+barW/4-2} y={255-boqH} textAnchor="middle" fill={C.blue} fontSize="8" fontWeight="600">{fmtMoney(h.boq)}</text>
+                  {/* Actual value on bar */}
+                  {h.actual>0&&<text x={x+barW*3/4-2} y={255-actH} textAnchor="middle" fill={isOver?C.red:C.green} fontSize="8" fontWeight="700">{fmtMoney(h.actual)}</text>}
+                  {/* Diff label */}
+                  {isOver&&<text x={x+barW/2-2} y={290} textAnchor="middle" fill={C.red} fontSize="8" fontWeight="800">+฿{fmtMoney(h.diff)}</text>}
+                </g>
+              );})}
+              <text x="15" y="160" textAnchor="middle" fill={C.muted} fontSize="10" transform="rotate(-90,15,160)">บาท (฿)</text>
+            </svg>
+            );
+          })()}
           </div>
-          <div style={{display:"flex",gap:16,justifyContent:"center",marginTop:8}}>
-            <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11}}><div style={{width:12,height:12,borderRadius:3,background:C.blue,opacity:.7}}/><span style={{color:C.muted}}>BOQ</span></div>
-            <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11}}><div style={{width:12,height:12,borderRadius:3,background:C.green,opacity:.85}}/><span style={{color:C.muted}}>จ่ายจริง (ไม่เกิน)</span></div>
-            <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11}}><div style={{width:12,height:12,borderRadius:3,background:C.red,opacity:.85}}/><span style={{color:C.muted}}>เกินงบ</span></div>
+          <div style={{display:"flex",gap:16,justifyContent:"center",marginTop:10,paddingTop:10,borderTop:`1px solid ${C.border}`}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11}}><div style={{width:14,height:14,borderRadius:4,background:C.blue,opacity:.75}}/><span style={{color:C.muted}}>BOQ ประมาณการ</span></div>
+            <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11}}><div style={{width:14,height:14,borderRadius:4,background:C.green,opacity:.85}}/><span style={{color:C.muted}}>จ่ายจริง (ไม่เกิน)</span></div>
+            <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11}}><div style={{width:14,height:14,borderRadius:4,background:C.red,opacity:.85}}/><span style={{color:C.muted}}>จ่ายจริง (เกินงบ)</span></div>
           </div>
         </Card>
-        {/* Over-budget detail table */}
+        {/* ── PHASE-LEVEL COST BREAKDOWN ── */}
+        <Card style={{padding:isMobileMode?12:20,marginBottom:20}}>
+          <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:14}}>📋 วิเคราะห์ต้นทุนรายหมวดงาน — {proj?.name}</div>
+          {(()=>{
+            // Calculate per-phase cost across all houses
+            const phaseData=data.phases.map(ph=>{
+              const items=projBoqItems.filter(b=>b.phaseId===ph.id);
+              const boq=items.reduce((s,b)=>s+b.qty*b.boqPrice,0);
+              const act=items.reduce((s,b)=>s+(b.actualPrice>0?b.qty*b.actualPrice:0),0);
+              const diff=act-boq;
+              const overItems=items.filter(b=>b.actualPrice>0&&b.qty*b.actualPrice>b.qty*b.boqPrice);
+              return{id:ph.id,order:ph.order,name:ph.name,boq,act,diff,overItems,itemCount:items.length,filledCount:items.filter(b=>b.actualPrice>0).length};
+            }).filter(p=>p.boq>0||p.act>0);
+            const maxPhaseVal=Math.max(...phaseData.map(p=>Math.max(p.boq,p.act)),1);
+            return(
+              <div>
+                {phaseData.map(ph=>{const isOver=ph.act>ph.boq&&ph.act>0;const pct=ph.boq>0?((ph.diff/ph.boq)*100).toFixed(1):0;return(
+                  <div key={ph.id} style={{marginBottom:12,border:`1px solid ${isOver?"rgba(239,68,68,0.3)":C.border}`,borderRadius:10,overflow:"hidden",background:isOver?"rgba(239,68,68,0.03)":"transparent"}}>
+                    <div style={{padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:28,height:28,borderRadius:6,fontSize:12,fontWeight:800,background:isOver?C.red:ph.act>0?C.green:"#334155",color:"#fff"}}>{ph.order}</span>
+                        <div>
+                          <div style={{fontSize:13,fontWeight:700,color:C.text}}>{ph.name}</div>
+                          <div style={{fontSize:10,color:C.muted}}>{ph.filledCount}/{ph.itemCount} รายการมีราคาจริง</div>
+                        </div>
+                      </div>
+                      <div style={{display:"flex",gap:16,alignItems:"center",fontSize:12}}>
+                        <div style={{textAlign:"right"}}><div style={{fontSize:9,color:C.muted}}>BOQ</div><div style={{fontWeight:700,color:C.blue}}>฿{fmtMoney(ph.boq)}</div></div>
+                        <div style={{textAlign:"right"}}><div style={{fontSize:9,color:C.muted}}>จ่ายจริง</div><div style={{fontWeight:700,color:isOver?C.red:C.green}}>฿{fmtMoney(ph.act)}</div></div>
+                        <div style={{textAlign:"right"}}><div style={{fontSize:9,color:C.muted}}>ส่วนต่าง</div><div style={{fontWeight:800,color:isOver?C.red:C.green}}>{isOver?"+":""}฿{fmtMoney(Math.abs(ph.diff))}{isOver?` (+${pct}%)`:""}</div></div>
+                      </div>
+                    </div>
+                    {/* Progress bar */}
+                    <div style={{padding:"0 14px 8px",display:"flex",gap:4,alignItems:"center"}}>
+                      <div style={{flex:1,height:6,background:C.faint,borderRadius:3,overflow:"hidden",position:"relative"}}>
+                        <div style={{height:"100%",width:`${Math.min((ph.boq/maxPhaseVal)*100,100)}%`,background:C.blue,opacity:.5,borderRadius:3}}/>
+                        <div style={{position:"absolute",top:0,height:"100%",width:`${Math.min((ph.act/maxPhaseVal)*100,100)}%`,background:isOver?C.red:C.green,opacity:.8,borderRadius:3}}/>
+                      </div>
+                    </div>
+                    {/* Over-budget items with reasons */}
+                    {isOver&&ph.overItems.length>0&&(
+                      <div style={{padding:"0 14px 10px"}}>
+                        <div style={{fontSize:10,fontWeight:700,color:C.red,marginBottom:6}}>⚠️ รายการที่เกินงบ:</div>
+                        {ph.overItems.map(b=>{const bDiff=b.qty*b.actualPrice-b.qty*b.boqPrice;return(
+                          <div key={b.id} style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,padding:"4px 0",borderBottom:`1px solid ${C.border}`,fontSize:11}}>
+                            <div style={{flex:1}}>
+                              <span style={{color:C.text,fontWeight:600}}>{b.name}</span>
+                              <span style={{color:C.muted,marginLeft:6}}>({fmtMoney(b.qty)} {b.unit})</span>
+                              {b.overBudgetReason&&<div style={{fontSize:10,color:C.orange,marginTop:2}}>💬 {b.overBudgetReason}</div>}
+                            </div>
+                            <div style={{textAlign:"right",flexShrink:0}}>
+                              <div style={{color:C.red,fontWeight:700}}>+฿{fmtMoney(bDiff)}</div>
+                              <div style={{fontSize:9,color:C.muted}}>BOQ ฿{fmtMoney(b.boqPrice)} → จริง ฿{fmtMoney(b.actualPrice)}/หน่วย</div>
+                            </div>
+                          </div>
+                        );})}
+                      </div>
+                    )}
+                  </div>
+                );})}
+              </div>
+            );
+          })()}
+        </Card>
+        {/* ── OVER-BUDGET HOUSES TABLE ── */}
         {overBudgetHouses.length>0&&(
         <Card style={{padding:isMobileMode?12:20,marginBottom:20}}>
-          <div style={{fontSize:15,fontWeight:700,color:C.red,marginBottom:12}}>⚠️ บ้านที่เกินงบประมาณ</div>
+          <div style={{fontSize:15,fontWeight:700,color:C.red,marginBottom:12}}>⚠️ บ้านที่เกินงบประมาณ ({overBudgetHouses.length} หลัง)</div>
           <table style={{width:"100%",borderCollapse:"collapse"}}>
-            <thead><tr>{["บ้าน","ลูกค้า","BOQ","จ่ายจริง","เกินงบ","% เกิน"].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>{h}</th>)}</tr></thead>
-            <tbody>{overBudgetHouses.map(h=><tr key={h.id} style={{borderBottom:`1px solid ${C.border}`}}>
-              <td style={{padding:"8px 12px",fontSize:13,fontWeight:700,color:C.text}}>🏠 {h.name}</td>
-              <td style={{padding:"8px 12px",fontSize:12,color:C.muted}}>{h.customer}</td>
-              <td style={{padding:"8px 12px",fontSize:12,color:C.blue}}>฿{fmtMoney(h.boq)}</td>
-              <td style={{padding:"8px 12px",fontSize:12,color:C.red,fontWeight:700}}>฿{fmtMoney(h.actual)}</td>
-              <td style={{padding:"8px 12px",fontSize:12,color:C.red,fontWeight:700}}>+฿{fmtMoney(h.diff)}</td>
-              <td style={{padding:"8px 12px",fontSize:12,color:C.red,fontWeight:700}}>+{h.boq>0?((h.diff/h.boq)*100).toFixed(1):0}%</td>
-            </tr>)}</tbody>
+            <thead><tr>{["บ้าน","ลูกค้า","BOQ","จ่ายจริง","เกินงบ","% เกิน"].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,borderBottom:`2px solid ${C.border}`,background:"#0d1117"}}>{h}</th>)}</tr></thead>
+            <tbody>{overBudgetHouses.map(h=>{
+              // Find top over-budget items for this house
+              const houseItems=data.boqItems.filter(b=>b.houseId===h.id&&b.actualPrice>0&&b.qty*b.actualPrice>b.qty*b.boqPrice).sort((a,b)=>(b.qty*b.actualPrice-b.qty*b.boqPrice)-(a.qty*a.actualPrice-a.qty*a.boqPrice)).slice(0,3);
+              return(<React.Fragment key={h.id}>
+              <tr style={{borderBottom:`1px solid ${C.border}`,background:"rgba(239,68,68,0.04)"}}>
+                <td style={{padding:"8px 12px",fontSize:13,fontWeight:700,color:C.text}}>🏠 {h.name}</td>
+                <td style={{padding:"8px 12px",fontSize:12,color:C.muted}}>{h.customer}</td>
+                <td style={{padding:"8px 12px",fontSize:12,color:C.blue,fontWeight:600}}>฿{fmtMoney(h.boq)}</td>
+                <td style={{padding:"8px 12px",fontSize:12,color:C.red,fontWeight:700}}>฿{fmtMoney(h.actual)}</td>
+                <td style={{padding:"8px 12px",fontSize:12,color:C.red,fontWeight:700}}>+฿{fmtMoney(h.diff)}</td>
+                <td style={{padding:"8px 12px",fontSize:12,color:C.red,fontWeight:700}}>+{h.boq>0?((h.diff/h.boq)*100).toFixed(1):0}%</td>
+              </tr>
+              {houseItems.length>0&&<tr><td colSpan={6} style={{padding:"4px 12px 8px 40px",fontSize:10,color:C.muted}}>
+                <span style={{fontWeight:700}}>สาเหตุหลัก: </span>
+                {houseItems.map((b,i)=>{const ph=data.phases.find(p=>p.id===b.phaseId);return<span key={b.id}>{i>0?" | ":""}<span style={{color:C.red,fontWeight:600}}>{ph?.name||""} — {b.name} (+฿{fmtMoney(b.qty*b.actualPrice-b.qty*b.boqPrice)})</span>{b.overBudgetReason?<span style={{color:C.orange}}> [{b.overBudgetReason}]</span>:""}</span>;})}
+              </td></tr>}
+              </React.Fragment>);
+            })}</tbody>
           </table>
         </Card>
         )}
-        {/* All houses table */}
+        {/* ── ALL HOUSES TABLE ── */}
         <Card style={{padding:isMobileMode?12:20}}>
           <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:12}}>📋 สรุปต้นทุนรายบ้าน — {proj?.name}</div>
           <table style={{width:"100%",borderCollapse:"collapse"}}>
-            <thead><tr>{["บ้าน","ลูกค้า","BOQ","จ่ายจริง","ส่วนต่าง","สถานะ"].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>{h}</th>)}</tr></thead>
+            <thead><tr>{["บ้าน","ลูกค้า","BOQ","จ่ายจริง","ส่วนต่าง","สถานะ"].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,borderBottom:`2px solid ${C.border}`,background:"#0d1117"}}>{h}</th>)}</tr></thead>
             <tbody>{houseSummary.map(h=><tr key={h.id} style={{borderBottom:`1px solid ${C.border}`}}>
               <td style={{padding:"8px 12px",fontSize:13,fontWeight:600,color:C.text}}>{h.name}</td>
               <td style={{padding:"8px 12px",fontSize:12,color:C.muted}}>{h.customer}</td>
-              <td style={{padding:"8px 12px",fontSize:12,color:C.blue}}>฿{fmtMoney(h.boq)}</td>
+              <td style={{padding:"8px 12px",fontSize:12,color:C.blue,fontWeight:600}}>฿{fmtMoney(h.boq)}</td>
               <td style={{padding:"8px 12px",fontSize:12,color:h.actual>h.boq?C.red:C.green,fontWeight:700}}>฿{fmtMoney(h.actual)}</td>
               <td style={{padding:"8px 12px",fontSize:12,color:h.diff>0?C.red:C.green,fontWeight:700}}>{h.diff>0?"+":""}{h.diff!==0?`฿${fmtMoney(Math.abs(h.diff))}`:"—"}</td>
               <td style={{padding:"8px 12px"}}><Tag color={h.diff>0?"red":h.actual>0?"green":"gray"}>{h.diff>0?"เกินงบ":h.actual>0?"ปกติ":"ยังไม่มีข้อมูล"}</Tag></td>
             </tr>)}</tbody>
           </table>
-          <div style={{marginTop:12,padding:12,background:C.faint,borderRadius:8}}>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:700}}>
-              <span style={{color:C.text}}>สาธารณูปโภค ({proj?.name})</span><span style={{color:infraActual>infraBOQ?C.red:C.green}}>BOQ ฿{fmtMoney(infraBOQ)} | จ่ายจริง ฿{fmtMoney(infraActual)}</span>
+          <div style={{marginTop:12,padding:14,background:C.faint,borderRadius:10}}>
+            <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:10,marginBottom:10}}>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:700}}>
+                <span style={{color:C.text}}>🚧 สาธารณูปโภค</span><span style={{color:infraActual>infraBOQ?C.red:C.green}}>฿{fmtMoney(infraActual)} / BOQ ฿{fmtMoney(infraBOQ)}</span>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:700}}>
+                <span style={{color:C.text}}>🏠 ก่อสร้างรวม</span><span style={{color:totalActual>totalBoq?C.red:C.green}}>฿{fmtMoney(totalActual)} / BOQ ฿{fmtMoney(totalBoq)}</span>
+              </div>
             </div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:14,fontWeight:800,marginTop:8,paddingTop:8,borderTop:`1px solid ${C.border}`}}>
-              <span style={{color:C.text}}>รวมทั้งโครงการ</span><span style={{color:grandActual>grandBoq?C.red:C.green}}>BOQ ฿{fmtMoney(grandBoq)} | จ่ายจริง ฿{fmtMoney(grandActual)} | {grandActual>grandBoq?"เกิน":"ประหยัด"} ฿{fmtMoney(Math.abs(grandBoq-grandActual))}</span>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:16,fontWeight:900,paddingTop:10,borderTop:`2px solid ${C.border}`}}>
+              <span style={{color:C.text}}>💰 รวมทั้งโครงการ</span><span style={{color:grandActual>grandBoq?C.red:C.green}}>฿{fmtMoney(grandActual)} / BOQ ฿{fmtMoney(grandBoq)} {grandActual>grandBoq?`(เกิน +฿${fmtMoney(grandActual-grandBoq)})`:`(ประหยัด ฿${fmtMoney(grandBoq-grandActual)})`}</span>
             </div>
           </div>
         </Card>
@@ -3421,7 +3519,7 @@ function CostPage({data,setData,role,isMobileMode}) {
       {/* Modals */}
       {infraMdl&&<Mdl title="✏️ แก้ไขรายการสาธารณูปโภค" onClose={()=>setInfraMdl(null)} footer={<><Btn variant="ghost" onClick={()=>setInfraMdl(null)}>ยกเลิก</Btn><Btn onClick={saveInfra}>💾 บันทึก</Btn></>}><FG label="ชื่อรายการ"><FIn value={infraForm.name} onChange={e=>setInfraForm(f=>({...f,name:e.target.value}))}/></FG><div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}><FG label="หน่วย"><FIn value={infraForm.unit} onChange={e=>setInfraForm(f=>({...f,unit:e.target.value}))}/></FG><FG label="จำนวน"><FIn type="number" value={infraForm.qty} onChange={e=>setInfraForm(f=>({...f,qty:e.target.value}))}/></FG><FG label="ราคา BOQ/หน่วย"><FIn type="number" value={infraForm.boqPrice} onChange={e=>setInfraForm(f=>({...f,boqPrice:e.target.value}))}/></FG><FG label="ราคาจริง/หน่วย"><FIn type="number" value={infraForm.actualPrice} onChange={e=>setInfraForm(f=>({...f,actualPrice:e.target.value}))}/></FG></div><FG label="หมายเหตุ"><FIn value={infraForm.note||""} onChange={e=>setInfraForm(f=>({...f,note:e.target.value}))} rows={2}/></FG></Mdl>}
       {addInfraMdl&&<Mdl title="➕ เพิ่มรายการสาธารณูปโภค" onClose={()=>setAddInfraMdl(false)} footer={<><Btn variant="ghost" onClick={()=>setAddInfraMdl(false)}>ยกเลิก</Btn><Btn onClick={saveNewInfra}>💾 เพิ่ม</Btn></>}><FG label="ชื่อรายการ"><FIn value={infraForm.name} onChange={e=>setInfraForm(f=>({...f,name:e.target.value}))} placeholder="เช่น ค่ายกพื้น, ค่าไฟสนาม"/></FG><div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}><FG label="หน่วย"><FIn value={infraForm.unit} onChange={e=>setInfraForm(f=>({...f,unit:e.target.value}))} placeholder="เหมา, คิว, จุด"/></FG><FG label="จำนวน"><FIn type="number" value={infraForm.qty} onChange={e=>setInfraForm(f=>({...f,qty:e.target.value}))}/></FG><FG label="ราคา BOQ/หน่วย"><FIn type="number" value={infraForm.boqPrice} onChange={e=>setInfraForm(f=>({...f,boqPrice:e.target.value}))}/></FG><FG label="ราคาจริง/หน่วย"><FIn type="number" value={infraForm.actualPrice} onChange={e=>setInfraForm(f=>({...f,actualPrice:e.target.value}))}/></FG></div><FG label="หมายเหตุ"><FIn value={infraForm.note||""} onChange={e=>setInfraForm(f=>({...f,note:e.target.value}))} rows={2}/></FG></Mdl>}
-      {boqActMdl&&<Mdl title={`💰 ใส่ราคาจริง — ${boqActMdl.name}`} onClose={()=>setBoqActMdl(null)} size="sm" footer={<><Btn variant="ghost" onClick={()=>setBoqActMdl(null)}>ยกเลิก</Btn><Btn onClick={saveBoqAct}>💾 บันทึก</Btn></>}><div style={{fontSize:12,color:C.muted,marginBottom:8}}>จำนวน: {fmtMoney(boqActMdl.qty)} {boqActMdl.unit} | BOQ: ฿{fmtMoney(boqActMdl.boqPrice)}/หน่วย (รวม ฿{fmtMoney(boqActMdl.qty*boqActMdl.boqPrice)})</div><FG label="ราคาจริงต่อหน่วย (บาท)"><FIn type="number" value={boqActAmt} onChange={e=>setBoqActAmt(e.target.value)} placeholder="ราคาจริงที่สั่งซื้อ"/></FG>{Number(boqActAmt)>0&&<div style={{padding:10,background:C.faint,borderRadius:8,marginTop:8}}><div style={{fontSize:12,color:C.text}}>รวมจริง: ฿{fmtMoney(boqActMdl.qty*Number(boqActAmt))}</div><div style={{fontSize:11,color:boqActMdl.qty*Number(boqActAmt)>boqActMdl.qty*boqActMdl.boqPrice?C.red:C.green}}>{boqActMdl.qty*Number(boqActAmt)>boqActMdl.qty*boqActMdl.boqPrice?`เกินงบ ฿${fmtMoney(boqActMdl.qty*Number(boqActAmt)-boqActMdl.qty*boqActMdl.boqPrice)}`:`ประหยัด ฿${fmtMoney(boqActMdl.qty*boqActMdl.boqPrice-boqActMdl.qty*Number(boqActAmt))}`}</div></div>}</Mdl>}
+      {boqActMdl&&<Mdl title={`💰 ใส่ราคาจริง — ${boqActMdl.name}`} onClose={()=>setBoqActMdl(null)} size="sm" footer={<><Btn variant="ghost" onClick={()=>setBoqActMdl(null)}>ยกเลิก</Btn><Btn onClick={saveBoqAct}>💾 บันทึก</Btn></>}><div style={{fontSize:12,color:C.muted,marginBottom:8}}>จำนวน: {fmtMoney(boqActMdl.qty)} {boqActMdl.unit} | BOQ: ฿{fmtMoney(boqActMdl.boqPrice)}/หน่วย (รวม ฿{fmtMoney(boqActMdl.qty*boqActMdl.boqPrice)})</div><FG label="ราคาจริงต่อหน่วย (บาท)"><FIn type="number" value={boqActAmt} onChange={e=>setBoqActAmt(e.target.value)} placeholder="ราคาจริงที่สั่งซื้อ"/></FG>{Number(boqActAmt)>0&&<div style={{padding:10,background:C.faint,borderRadius:8,marginTop:8}}><div style={{fontSize:12,color:C.text}}>รวมจริง: ฿{fmtMoney(boqActMdl.qty*Number(boqActAmt))}</div><div style={{fontSize:11,color:boqActMdl.qty*Number(boqActAmt)>boqActMdl.qty*boqActMdl.boqPrice?C.red:C.green}}>{boqActMdl.qty*Number(boqActAmt)>boqActMdl.qty*boqActMdl.boqPrice?`เกินงบ ฿${fmtMoney(boqActMdl.qty*Number(boqActAmt)-boqActMdl.qty*boqActMdl.boqPrice)}`:`ประหยัด ฿${fmtMoney(boqActMdl.qty*boqActMdl.boqPrice-boqActMdl.qty*Number(boqActAmt))}`}</div></div>}{Number(boqActAmt)>0&&boqActMdl.qty*Number(boqActAmt)>boqActMdl.qty*boqActMdl.boqPrice&&<FG label="📝 เหตุผลที่ราคาจริงสูงกว่า BOQ"><FIn value={boqActReason} onChange={e=>setBoqActReason(e.target.value)} rows={2} placeholder="เช่น ราคาเหล็กปรับขึ้น 15%, ต้องเปลี่ยนยี่ห้อเพราะของหมด, ราคาตลาดสูงกว่าประเมิน"/></FG>}</Mdl>}
       {addExtraMdl&&<Mdl title={`➕ เพิ่มรายการนอกเหนือ BOQ — บ้าน ${data.houses.find(h=>h.id===addExtraMdl.houseId)?.name||""}`} onClose={()=>setAddExtraMdl(null)} footer={<><Btn variant="ghost" onClick={()=>setAddExtraMdl(null)}>ยกเลิก</Btn><Btn onClick={saveExtra}>💾 เพิ่ม</Btn></>}>
         <FG label="หมวดงาน (เลือกจาก Phase ที่วิศวกร/เจ้าของโครงการเซตไว้)"><FSel value={extraForm.phaseId} onChange={e=>setExtraForm(f=>({...f,phaseId:e.target.value}))}>{data.phases.map(p=><option key={p.id} value={p.id}>{p.order}. {p.name}</option>)}</FSel></FG>
         <FG label="ชื่อรายการ"><FIn value={extraForm.name} onChange={e=>setExtraForm(f=>({...f,name:e.target.value}))} placeholder="เช่น วัสดุเพิ่มเติม, งานซ่อมพิเศษ"/></FG>

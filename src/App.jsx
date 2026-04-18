@@ -150,6 +150,7 @@ const INIT={
   bookingAlerts:[],
   infrastructureCosts:{},
   transferredHouses:[],
+  weeklyPayments:{},
 };
 
 // Global Styles
@@ -3043,8 +3044,11 @@ function CostPage({data,setData,role,isMobileMode}) {
   const [boqActMdl,setBoqActMdl]=useState(null);
   const [boqActAmt,setBoqActAmt]=useState("");
   const [exportLoading,setExportLoading]=useState(false);
-  const [viewMode,setViewMode]=useState("detail"); // detail | summary
+  const [viewMode,setViewMode]=useState("detail"); // detail | summary | weekly
   const [pdfPreviewMdl,setPdfPreviewMdl]=useState(false);
+  const [wpMdl,setWpMdl]=useState(null); // add/edit weekly payment
+  const [wpForm,setWpForm]=useState({});
+  const [wpMonth,setWpMonth]=useState(()=>{const n=new Date();return`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`;});
   const [addExtraMdl,setAddExtraMdl]=useState(null); // {houseId}
   const [extraForm,setExtraForm]=useState({phaseId:"",name:"",unit:"",qty:1,boqPrice:0,actualPrice:0});
   const costRef=useRef(null);
@@ -3082,6 +3086,26 @@ function CostPage({data,setData,role,isMobileMode}) {
     setData(d=>({...d,boqItems:[...d.boqItems,item]}));setAddExtraMdl(null);
   }
   function delBoqItem(id){if(confirm("ลบรายการนี้?")){setData(d=>({...d,boqItems:d.boqItems.filter(b=>b.id!==id)}));}}
+
+  // ── Weekly Payment functions ──
+  function getWeeklyPayments(projId){return(data.weeklyPayments||{})[projId]||[];}
+  function setWeeklyPayments(projId,items){setData(d=>({...d,weeklyPayments:{...(d.weeklyPayments||{}),[projId]:items}}));}
+  function openAddWP(prefillDate){
+    const dayNames=["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
+    const d=prefillDate?new Date(prefillDate):new Date();
+    const dayName=dayNames[d.getDay()];
+    setWpForm({id:uid(),date:prefillDate||new Date().toISOString().slice(0,10),dayName,type:"material",amount:"",laborAmount:"",note:"",items:[]});
+    setWpMdl("add");
+  }
+  function openEditWP(wp){setWpForm({...wp});setWpMdl("edit");}
+  function saveWP(){
+    const entry={...wpForm,amount:Number(wpForm.amount)||0,laborAmount:Number(wpForm.laborAmount)||0};
+    const existing=getWeeklyPayments(selProj);
+    const idx=existing.findIndex(w=>w.id===entry.id);
+    setWeeklyPayments(selProj,idx>=0?existing.map(w=>w.id===entry.id?entry:w):[...existing,entry]);
+    setWpMdl(null);
+  }
+  function delWP(id){if(confirm("ลบรายการนี้?")){setWeeklyPayments(selProj,getWeeklyPayments(selProj).filter(w=>w.id!==id));}}
 
   const proj=data.projects.find(p=>p.id===selProj);
   const projHouses=data.houses.filter(h=>h.projectId===selProj);
@@ -3135,7 +3159,7 @@ function CostPage({data,setData,role,isMobileMode}) {
           <div style={{fontSize:13,color:C.muted,marginTop:2}}>สาธารณูปโภค, วัสดุก่อสร้าง, ต้นทุนรวมแต่ละโครงการ</div>
         </div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          {["detail","summary"].map(m=><Btn key={m} size="sm" variant={viewMode===m?"primary":"ghost"} onClick={()=>setViewMode(m)}>{m==="detail"?"📋 รายละเอียด":"📊 สรุป"}</Btn>)}
+          {[["detail","📋 รายละเอียด"],["weekly","💳 รายจ่ายรายสัปดาห์"],["summary","📊 สรุป"]].map(([m,l])=><Btn key={m} size="sm" variant={viewMode===m?"primary":"ghost"} onClick={()=>setViewMode(m)}>{l}</Btn>)}
           <Btn size="sm" variant="ghost" onClick={()=>setPdfPreviewMdl(true)}>👁 Preview PDF</Btn>
         </div>
       </div>
@@ -3208,6 +3232,113 @@ function CostPage({data,setData,role,isMobileMode}) {
           }
         </Card>
       </div>
+      ):viewMode==="weekly"?(
+      /* ═══ WEEKLY PAYMENT TRACKING VIEW ═══ */
+      (()=>{
+        const wpItems=getWeeklyPayments(selProj).filter(w=>w.date&&w.date.startsWith(wpMonth)).sort((a,b)=>a.date.localeCompare(b.date));
+        const monthMaterialTotal=wpItems.reduce((s,w)=>s+(Number(w.amount)||0),0);
+        const monthLaborTotal=wpItems.reduce((s,w)=>s+(Number(w.laborAmount)||0),0);
+        const monthGrandTotal=monthMaterialTotal+monthLaborTotal;
+        // Group by week (ISO week)
+        const getWeekKey=(dateStr)=>{const d=new Date(dateStr);const jan1=new Date(d.getFullYear(),0,1);const days=Math.floor((d-jan1)/86400000);return`W${Math.ceil((days+jan1.getDay()+1)/7)}`;};
+        const weekGroups={};
+        wpItems.forEach(w=>{const wk=getWeekKey(w.date);if(!weekGroups[wk])weekGroups[wk]={key:wk,items:[],matTotal:0,laborTotal:0};weekGroups[wk].items.push(w);weekGroups[wk].matTotal+=Number(w.amount)||0;weekGroups[wk].laborTotal+=Number(w.laborAmount)||0;});
+        const weekList=Object.values(weekGroups);
+        const dayNames=["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
+        // Generate Wed/Sat schedule for the selected month
+        const [yr,mo]=wpMonth.split("-").map(Number);
+        const schedDates=[];
+        for(let d=1;d<=new Date(yr,mo,0).getDate();d++){const dt=new Date(yr,mo-1,d);const day=dt.getDay();if(day===3||day===6)schedDates.push(dt.toISOString().slice(0,10));}
+        const enteredDates=new Set(wpItems.map(w=>w.date));
+        return(
+        <div>
+          {/* KPI Cards */}
+          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr 1fr":"repeat(4,1fr)",gap:12,marginBottom:20}}>
+            <Card style={{padding:14}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>🛒 ค่าวัสดุ (เดือนนี้)</div><div style={{fontSize:isMobileMode?16:20,fontWeight:800,color:C.blue}}>฿{fmtMoney(monthMaterialTotal)}</div></Card>
+            <Card style={{padding:14}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>👷 ค่าแรง (เดือนนี้)</div><div style={{fontSize:isMobileMode?16:20,fontWeight:800,color:C.orange}}>฿{fmtMoney(monthLaborTotal)}</div></Card>
+            <Card style={{padding:14}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>💰 รวมทั้งเดือน</div><div style={{fontSize:isMobileMode?16:20,fontWeight:800,color:C.text}}>฿{fmtMoney(monthGrandTotal)}</div></Card>
+            <Card style={{padding:14}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>📊 เทียบ BOQ จ่ายจริง</div><div style={{fontSize:isMobileMode?16:20,fontWeight:800,color:monthGrandTotal>grandActual?C.red:C.green}}>฿{fmtMoney(grandActual)}</div><div style={{fontSize:9,color:C.muted}}>ยอดจ่ายจริงจาก BOQ ทั้งโครงการ</div></Card>
+          </div>
+          {/* Month Selector + Add Button */}
+          <Card style={{padding:isMobileMode?12:20,marginBottom:20}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:15,fontWeight:700,color:C.text}}>💳 รายจ่ายประจำสัปดาห์ — {proj?.name}</span>
+                <FIn type="month" value={wpMonth} onChange={e=>setWpMonth(e.target.value)} style={{width:160,padding:"6px 10px",fontSize:12}}/>
+              </div>
+              {canEdit&&<Btn size="sm" onClick={()=>openAddWP()}>+ เพิ่มรายการจ่าย</Btn>}
+            </div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:12,padding:"8px 12px",background:C.faint,borderRadius:8}}>
+              📌 <strong>กำหนดโอนเงิน:</strong> ทุกวัน<strong style={{color:C.blue}}>พุธ</strong>และ<strong style={{color:C.green}}>เสาร์</strong> — ค่าวัสดุ (ซื้อของ) + ค่าแรงผู้รับเหมา แต่ละครั้ง
+            </div>
+            {/* Schedule Overview */}
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:12,fontWeight:700,color:C.muted,marginBottom:8}}>📅 ตารางจ่ายเงินประจำเดือน</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                {schedDates.map(sd=>{const filled=enteredDates.has(sd);const dt=new Date(sd);const dayName=dayNames[dt.getDay()];const isWed=dt.getDay()===3;return(
+                  <div key={sd} onClick={()=>{if(canEdit&&!filled)openAddWP(sd);else if(filled){const wp=wpItems.find(w=>w.date===sd);if(wp)openEditWP(wp);}}} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${filled?C.green:C.border}`,background:filled?"rgba(34,197,94,0.08)":"transparent",cursor:"pointer",textAlign:"center",minWidth:64}}>
+                    <div style={{fontSize:9,color:isWed?C.blue:C.green,fontWeight:700}}>{dayName}</div>
+                    <div style={{fontSize:12,color:C.text,fontWeight:600}}>{dt.getDate()}</div>
+                    {filled&&<div style={{fontSize:8,color:C.green}}>✓</div>}
+                    {!filled&&<div style={{fontSize:8,color:C.muted}}>—</div>}
+                  </div>
+                );})}
+              </div>
+            </div>
+            {/* Weekly groups */}
+            {weekList.length===0&&<div style={{textAlign:"center",padding:30,color:C.muted}}>ยังไม่มีข้อมูลรายจ่ายในเดือนนี้<br/><span style={{fontSize:11}}>กดปุ่มด้านบนหรือคลิกที่วันที่เพื่อเพิ่ม</span></div>}
+            {weekList.map(wk=>(
+              <div key={wk.key} style={{marginBottom:16,border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden"}}>
+                <div style={{padding:"10px 14px",background:C.faint,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text}}>📆 {wk.key} — {wk.items.length} รายการ</div>
+                  <div style={{display:"flex",gap:12,fontSize:12}}>
+                    <span style={{color:C.blue,fontWeight:700}}>🛒 วัสดุ ฿{fmtMoney(wk.matTotal)}</span>
+                    <span style={{color:C.orange,fontWeight:700}}>👷 ค่าแรง ฿{fmtMoney(wk.laborTotal)}</span>
+                    <span style={{color:C.text,fontWeight:800}}>รวม ฿{fmtMoney(wk.matTotal+wk.laborTotal)}</span>
+                  </div>
+                </div>
+                <table style={{width:"100%",borderCollapse:"collapse"}}>
+                  <thead><tr>{["วันที่","วัน","🛒 ค่าวัสดุ","👷 ค่าแรง","รวม","หมายเหตุ",""].map(h=><th key={h} style={{padding:"6px 10px",textAlign:"left",fontSize:9,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {wk.items.map(w=>{const dt=new Date(w.date);const dayName=dayNames[dt.getDay()];const rowTotal=(Number(w.amount)||0)+(Number(w.laborAmount)||0);return(
+                      <tr key={w.id} style={{borderBottom:`1px solid ${C.border}`}}>
+                        <td style={{padding:"8px 10px",fontSize:12,color:C.text,fontWeight:600}}>{w.date}</td>
+                        <td style={{padding:"8px 10px",fontSize:11,color:dt.getDay()===3?C.blue:C.green,fontWeight:600}}>{dayName}</td>
+                        <td style={{padding:"8px 10px",fontSize:12,color:C.blue,fontWeight:700}}>฿{fmtMoney(Number(w.amount)||0)}</td>
+                        <td style={{padding:"8px 10px",fontSize:12,color:C.orange,fontWeight:700}}>฿{fmtMoney(Number(w.laborAmount)||0)}</td>
+                        <td style={{padding:"8px 10px",fontSize:12,color:C.text,fontWeight:800}}>฿{fmtMoney(rowTotal)}</td>
+                        <td style={{padding:"8px 10px",fontSize:11,color:C.muted,maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{w.note||"—"}</td>
+                        <td style={{padding:"8px 10px"}}><div style={{display:"flex",gap:4}}>{canEdit&&<Btn size="sm" variant="ghost" onClick={()=>openEditWP(w)}>✏️</Btn>}{canEdit&&<Btn size="sm" variant="ghost" onClick={()=>delWP(w.id)} style={{color:C.red}}>🗑</Btn>}</div></td>
+                      </tr>
+                    );})}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+            {/* Monthly Totals Footer */}
+            {wpItems.length>0&&(
+            <div style={{marginTop:12,padding:14,background:C.faint,borderRadius:10}}>
+              <div style={{fontSize:14,fontWeight:800,color:C.text,marginBottom:8}}>📊 สรุปรายจ่ายเดือน {wpMonth}</div>
+              <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr 1fr",gap:12}}>
+                <div style={{padding:12,background:C.panel,borderRadius:8,textAlign:"center"}}><div style={{fontSize:10,color:C.muted,fontWeight:700}}>🛒 ค่าวัสดุรวม</div><div style={{fontSize:20,fontWeight:800,color:C.blue,marginTop:4}}>฿{fmtMoney(monthMaterialTotal)}</div></div>
+                <div style={{padding:12,background:C.panel,borderRadius:8,textAlign:"center"}}><div style={{fontSize:10,color:C.muted,fontWeight:700}}>👷 ค่าแรงรวม</div><div style={{fontSize:20,fontWeight:800,color:C.orange,marginTop:4}}>฿{fmtMoney(monthLaborTotal)}</div></div>
+                <div style={{padding:12,background:C.panel,borderRadius:8,textAlign:"center"}}><div style={{fontSize:10,color:C.muted,fontWeight:700}}>💰 รวมทั้งหมด</div><div style={{fontSize:20,fontWeight:800,color:C.text,marginTop:4}}>฿{fmtMoney(monthGrandTotal)}</div></div>
+              </div>
+              {/* Reconciliation with BOQ */}
+              <div style={{marginTop:12,padding:12,background:"rgba(59,130,246,0.06)",borderRadius:8,border:`1px solid ${C.border}`}}>
+                <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:6}}>🔍 เปรียบเทียบกับยอด BOQ จ่ายจริง</div>
+                <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr 1fr",gap:10}}>
+                  <div><div style={{fontSize:10,color:C.muted}}>ยอดจ่ายจริง BOQ (ทั้งโครงการ)</div><div style={{fontSize:14,fontWeight:700,color:C.blue}}>฿{fmtMoney(grandActual)}</div></div>
+                  <div><div style={{fontSize:10,color:C.muted}}>ยอดโอนจ่ายสะสม (ทุกเดือน)</div><div style={{fontSize:14,fontWeight:700,color:C.text}}>฿{fmtMoney(getWeeklyPayments(selProj).reduce((s,w)=>s+(Number(w.amount)||0)+(Number(w.laborAmount)||0),0))}</div></div>
+                  <div><div style={{fontSize:10,color:C.muted}}>ส่วนต่าง</div>{(()=>{const allWpTotal=getWeeklyPayments(selProj).reduce((s,w)=>s+(Number(w.amount)||0)+(Number(w.laborAmount)||0),0);const diff=grandActual-allWpTotal;return<div style={{fontSize:14,fontWeight:700,color:diff>=0?C.green:C.red}}>{diff>=0?`ยังไม่ได้โอน ฿${fmtMoney(diff)}`:`โอนเกิน ฿${fmtMoney(Math.abs(diff))}`}</div>;})()}</div>
+                </div>
+              </div>
+            </div>
+            )}
+          </Card>
+        </div>
+        );
+      })()
       ):(
       /* ═══ SUMMARY VIEW with chart ═══ */
       <div ref={chartRef} style={{background:C.bg,padding:isMobileMode?8:0}}>
@@ -3313,6 +3444,27 @@ function CostPage({data,setData,role,isMobileMode}) {
             <tbody>{houseSummary.map(h=><tr key={h.id} style={{borderBottom:"1px solid #e2e8f0"}}><td style={{padding:"6px 10px",fontSize:12,fontWeight:600}}>{h.name} ({h.customer})</td><td style={{padding:"6px 10px",fontSize:12,color:"#2563eb"}}>฿{fmtMoney(h.boq)}</td><td style={{padding:"6px 10px",fontSize:12,fontWeight:700,color:h.actual>h.boq?"#ef4444":"#22c55e"}}>฿{fmtMoney(h.actual)}</td><td style={{padding:"6px 10px",fontSize:12,color:h.diff>0?"#ef4444":"#22c55e",fontWeight:700}}>{h.diff>0?"+":""}฿{fmtMoney(Math.abs(h.diff))}</td><td style={{padding:"6px 10px"}}><span style={{padding:"2px 8px",borderRadius:4,fontSize:10,fontWeight:700,background:h.diff>0?"#fef2f2":"#f0fdf4",color:h.diff>0?"#ef4444":"#22c55e"}}>{h.diff>0?"เกินงบ":"ปกติ"}</span></td></tr>)}</tbody>
           </table>
         </div>
+      </Mdl>}
+      {wpMdl&&<Mdl title={wpMdl==="add"?"➕ เพิ่มรายการจ่ายเงิน":"✏️ แก้ไขรายการจ่ายเงิน"} onClose={()=>setWpMdl(null)} footer={<><Btn variant="ghost" onClick={()=>setWpMdl(null)}>ยกเลิก</Btn><Btn onClick={saveWP}>💾 บันทึก</Btn></>}>
+        <Alrt type="info">📌 ระบุยอดเงินที่โอนจ่ายในวันนี้ — แยกยอด "ค่าวัสดุ" (ซื้อของ) และ "ค่าแรง" (ผู้รับเหมา)</Alrt>
+        <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
+          <FG label="📅 วันที่จ่ายเงิน"><FIn type="date" value={wpForm.date||""} onChange={e=>{const d=new Date(e.target.value);const dayNames=["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];setWpForm(f=>({...f,date:e.target.value,dayName:dayNames[d.getDay()]}));}}/></FG>
+          <FG label="วัน">{(()=>{const dayNames=["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];const d=wpForm.date?new Date(wpForm.date):new Date();const dayIdx=d.getDay();const isPayDay=dayIdx===3||dayIdx===6;return<div style={{padding:"10px 14px",background:isPayDay?"rgba(34,197,94,0.1)":"rgba(239,68,68,0.1)",borderRadius:8,border:`1px solid ${isPayDay?C.green:C.red}`,fontSize:13,fontWeight:700,color:isPayDay?C.green:C.red}}>{dayNames[dayIdx]} {isPayDay?"✓ วันโอนเงิน":"⚠ ไม่ใช่วันพุธ/เสาร์"}</div>;})()}</FG>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
+          <FG label="🛒 ยอดค่าวัสดุ (ซื้อของ)"><FIn type="number" value={wpForm.amount||""} onChange={e=>setWpForm(f=>({...f,amount:e.target.value}))} placeholder="เช่น 50000"/></FG>
+          <FG label="👷 ยอดค่าแรงผู้รับเหมา"><FIn type="number" value={wpForm.laborAmount||""} onChange={e=>setWpForm(f=>({...f,laborAmount:e.target.value}))} placeholder="เช่น 30000"/></FG>
+        </div>
+        {(Number(wpForm.amount)>0||Number(wpForm.laborAmount)>0)&&(
+          <div style={{padding:12,background:C.faint,borderRadius:8,marginBottom:12}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center"}}>
+              <div><div style={{fontSize:10,color:C.muted}}>ค่าวัสดุ</div><div style={{fontSize:16,fontWeight:800,color:C.blue}}>฿{fmtMoney(Number(wpForm.amount)||0)}</div></div>
+              <div><div style={{fontSize:10,color:C.muted}}>ค่าแรง</div><div style={{fontSize:16,fontWeight:800,color:C.orange}}>฿{fmtMoney(Number(wpForm.laborAmount)||0)}</div></div>
+              <div><div style={{fontSize:10,color:C.muted}}>รวมโอน</div><div style={{fontSize:16,fontWeight:800,color:C.text}}>฿{fmtMoney((Number(wpForm.amount)||0)+(Number(wpForm.laborAmount)||0))}</div></div>
+            </div>
+          </div>
+        )}
+        <FG label="📝 หมายเหตุ / รายละเอียด"><FIn value={wpForm.note||""} onChange={e=>setWpForm(f=>({...f,note:e.target.value}))} rows={2} placeholder="เช่น ซื้อปูนซีเมนต์ 50 ถุง + เหล็ก 2 ตัน, จ่ายค่าแรงทีมฐานราก"/></FG>
       </Mdl>}
     </div>
   );

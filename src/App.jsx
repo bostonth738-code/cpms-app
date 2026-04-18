@@ -3059,16 +3059,28 @@ function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
   );
 }
 
-// ── Monthly Results Page (Charts, 5-year history, PDF/Image export) ──
+// ── Monthly Results Page (flexible date range, granularity, up to 12 comparisons) ──
 function MktResultPage({data,setData,role,isMobileMode}) {
   const canEdit=["owner","marketing","sales"].includes(role);
   const now=new Date();
+  const [viewMode,setViewMode]=useState("month");
   const [selMonth,setSelMonth]=useState(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`);
   const [editMdl,setEditMdl]=useState(false);
-  const [viewMode,setViewMode]=useState("month"); // month | chart | summary
-  const [chartYear,setChartYear]=useState(now.getFullYear());
+  const [dailyMdl,setDailyMdl]=useState(null);
+  const [showDaily,setShowDaily]=useState(false);
+  const [chartFrom,setChartFrom]=useState(`${now.getFullYear()}-01`);
+  const [chartTo,setChartTo]=useState(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`);
+  const [gran,setGran]=useState("month");
+  const [chartType,setChartType]=useState("bar");
+  const [cmpPeriods,setCmpPeriods]=useState([
+    {id:1,from:`${now.getFullYear()}-01`,to:`${now.getFullYear()}-12`},
+    {id:2,from:`${now.getFullYear()-1}-01`,to:`${now.getFullYear()-1}-12`}
+  ]);
+  const [cmpMetric,setCmpMetric]=useState("totalInbox");
   const [exportLoading,setExportLoading]=useState(false);
   const chartRef=useRef(null);
+  const [form,setForm]=useState({});
+  const [dForm,setDForm]=useState({});
   const metrics=[
     {key:"fbInbox",label:"Facebook Inbox",icon:"📘",color:"#3b82f6"},
     {key:"tiktokCloudInbox",label:"TikTok TheCloud Inbox",icon:"🎵",color:"#06b6d4"},
@@ -3078,9 +3090,17 @@ function MktResultPage({data,setData,role,isMobileMode}) {
     {key:"bookings",label:"ยอดจอง (หลัง)",icon:"📝",color:"#ec4899"},
     {key:"transfers",label:"โอนแล้ว (หลัง)",icon:"✅",color:"#a78bfa"},
   ];
+  const inboxKeys=["fbInbox","tiktokCloudInbox","tiktokBossInbox","lineInbox"];
+  const resultKeys=["walkIn","bookings","transfers"];
+  const allMetricOpts=[{key:"totalInbox",label:"📨 รวม Inbox",color:"#3b82f6"},...metrics];
   const results=data.monthlyResults||[];
+  const dailyResults=data.dailyResults||[];
+  const thMonths=["","ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+  const thMonthsFull=["","มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+  const cmpColors=["#3b82f6","#ef4444","#22c55e","#f59e0b","#8b5cf6","#06b6d4","#ec4899","#f97316","#14b8a6","#6366f1","#84cc16","#e11d48"];
+  const [y,mo]=selMonth.split("-").map(Number);
   const cur=results.find(r=>r.month===selMonth)||{month:selMonth,fbInbox:0,tiktokCloudInbox:0,tiktokBossInbox:0,lineInbox:0,walkIn:0,bookings:0,transfers:0,note:""};
-  const [form,setForm]=useState(cur);
+  const totalInbox=(cur.fbInbox||0)+(cur.tiktokCloudInbox||0)+(cur.tiktokBossInbox||0)+(cur.lineInbox||0);
   function openEdit(){setForm({...cur});setEditMdl(true);}
   function save(){
     const cleaned={...form};
@@ -3093,105 +3113,117 @@ function MktResultPage({data,setData,role,isMobileMode}) {
     setEditMdl(false);
   }
   function changeMonth(delta){
-    const [y,m]=selMonth.split("-").map(Number);
-    const d=new Date(y,m-1+delta,1);
+    const [yy,mm]=selMonth.split("-").map(Number);
+    const d=new Date(yy,mm-1+delta,1);
     setSelMonth(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`);
   }
-  const thMonths=["","ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
-  const thMonthsFull=["","มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
-  const [y,mo]=selMonth.split("-").map(Number);
-  const totalInbox=(cur.fbInbox||0)+(cur.tiktokCloudInbox||0)+(cur.tiktokBossInbox||0)+(cur.lineInbox||0);
-
-  // Chart data for selected year (12 months)
-  function getYearData(yr){
-    return Array.from({length:12},(_,i)=>{
-      const mk=`${yr}-${String(i+1).padStart(2,"0")}`;
-      return results.find(r=>r.month===mk)||{month:mk,fbInbox:0,tiktokCloudInbox:0,tiktokBossInbox:0,lineInbox:0,walkIn:0,bookings:0,transfers:0};
+  function getDailyData(ds){return dailyResults.find(r=>r.date===ds)||{date:ds,fbInbox:0,tiktokCloudInbox:0,tiktokBossInbox:0,lineInbox:0,walkIn:0,bookings:0,transfers:0,note:""};}
+  function openDailyEdit(ds){setDForm({...getDailyData(ds)});setDailyMdl(ds);}
+  function saveDaily(){
+    const cleaned={...dForm};
+    metrics.forEach(m=>{cleaned[m.key]=Number(cleaned[m.key])||0;});
+    setData(d=>{
+      const dr=d.dailyResults||[];
+      const idx=dr.findIndex(r=>r.date===cleaned.date);
+      return{...d,dailyResults:idx>=0?dr.map((r,i)=>i===idx?cleaned:r):[...dr,cleaned]};
     });
+    setDailyMdl(null);
   }
-  const yearData=getYearData(chartYear);
-  const maxVal=Math.max(1,...yearData.flatMap(d=>metrics.map(m=>d[m.key]||0)));
-
-  // Summary across years
-  function getYearSummary(yr){
-    const yd=getYearData(yr);
-    const sum={};
-    metrics.forEach(m=>{sum[m.key]=yd.reduce((s,d)=>s+(d[m.key]||0),0);});
-    sum.totalInbox=(sum.fbInbox||0)+(sum.tiktokCloudInbox||0)+(sum.tiktokBossInbox||0)+(sum.lineInbox||0);
-    return sum;
+  function numDays(yy,mm){return new Date(yy,mm,0).getDate();}
+  function getMonthRow(mk){return results.find(r=>r.month===mk)||{month:mk,fbInbox:0,tiktokCloudInbox:0,tiktokBossInbox:0,lineInbox:0,walkIn:0,bookings:0,transfers:0};}
+  function sumM(arr){const s={};metrics.forEach(m=>{s[m.key]=arr.reduce((a,d)=>a+(d[m.key]||0),0);});s.totalInbox=(s.fbInbox||0)+(s.tiktokCloudInbox||0)+(s.tiktokBossInbox||0)+(s.lineInbox||0);return s;}
+  function genPts(from,to,g){
+    const [fy,fm]=from.split("-").map(Number);const [ty,tm]=to.split("-").map(Number);const pts=[];
+    if(g==="year"){for(let yr=fy;yr<=ty&&pts.length<12;yr++){const months=Array.from({length:12},(_,i)=>getMonthRow(`${yr}-${String(i+1).padStart(2,"0")}`));const s=sumM(months);pts.push({label:`${yr+543}`,short:`${(yr+543)%100}`,...s});}}
+    else if(g==="month"){let cy=fy,cm=fm;while((cy<ty||(cy===ty&&cm<=tm))&&pts.length<120){const d=getMonthRow(`${cy}-${String(cm).padStart(2,"0")}`);const ti=(d.fbInbox||0)+(d.tiktokCloudInbox||0)+(d.tiktokBossInbox||0)+(d.lineInbox||0);pts.push({label:`${thMonths[cm]} ${(cy+543)%100}`,short:thMonths[cm],...d,totalInbox:ti});cm++;if(cm>12){cm=1;cy++;}}}
+    else if(g==="week"){let cy=fy,cm=fm,wBuf=[],wn=1;while((cy<ty||(cy===ty&&cm<=tm))&&pts.length<104){const days=numDays(cy,cm);for(let dd=1;dd<=days;dd++){const ds=`${cy}-${String(cm).padStart(2,"0")}-${String(dd).padStart(2,"0")}`;wBuf.push(getDailyData(ds));if(new Date(cy,cm-1,dd).getDay()===0||(dd===days&&cy===ty&&cm===tm)){const s=sumM(wBuf);pts.push({label:`W${wn}`,short:`W${wn}`,...s});wBuf=[];wn++;}}cm++;if(cm>12){cm=1;cy++;}}if(wBuf.length){const s=sumM(wBuf);pts.push({label:`W${wn}`,short:`W${wn}`,...s});}}
+    else if(g==="day"){let cy=fy,cm=fm;while((cy<ty||(cy===ty&&cm<=tm))&&pts.length<366){const days=numDays(cy,cm);for(let dd=1;dd<=days;dd++){const ds=`${cy}-${String(cm).padStart(2,"0")}-${String(dd).padStart(2,"0")}`;const r=getDailyData(ds);const ti=(r.fbInbox||0)+(r.tiktokCloudInbox||0)+(r.tiktokBossInbox||0)+(r.lineInbox||0);pts.push({label:`${dd}/${cm}`,short:`${dd}`,...r,totalInbox:ti,date:ds});}cm++;if(cm>12){cm=1;cy++;}}}
+    return pts;
   }
-  const availYears=Array.from({length:5},(_,i)=>now.getFullYear()-i);
+  function addPeriod(){if(cmpPeriods.length>=12)return;const nid=Math.max(0,...cmpPeriods.map(p=>p.id))+1;const yr=now.getFullYear()-cmpPeriods.length;setCmpPeriods(p=>[...p,{id:nid,from:`${yr}-01`,to:`${yr}-12`}]);}
+  function rmPeriod(id){if(cmpPeriods.length<=1)return;setCmpPeriods(p=>p.filter(pp=>pp.id!==id));}
+  function updPeriod(id,f,v){setCmpPeriods(p=>p.map(pp=>pp.id===id?{...pp,[f]:v}:pp));}
 
-  // SVG Bar Chart renderer
+  // Chart components
   function BarChart({dataArr,metricKeys,height=220}){
-    const chartW=isMobileMode?320:700;
-    const barGroupW=chartW/(dataArr.length||1);
-    const barsPerGroup=metricKeys.length;
-    const barW=Math.max(2,Math.min(10,(barGroupW-6)/barsPerGroup));
-    const localMax=Math.max(1,...dataArr.flatMap(d=>metricKeys.map(k=>d[k]||0)));
+    if(!dataArr.length)return<div style={{color:C.muted,fontSize:12,padding:20,textAlign:"center"}}>ไม่มีข้อมูล</div>;
+    const cW=isMobileMode?320:700;
+    const n=dataArr.length;const gW=cW/n;
+    const bN=metricKeys.length;
+    const bW=Math.max(1,Math.min(12,(gW-4)/bN));
+    const mx=Math.max(1,...dataArr.flatMap(d=>metricKeys.map(k=>d[k]||0)));
     return(
-      <svg width="100%" viewBox={`0 0 ${chartW} ${height+30}`} style={{display:"block"}}>
-        {[0,0.25,0.5,0.75,1].map(pct=>{
-          const yp=height-(pct*height);
-          return <g key={pct}><line x1={0} y1={yp} x2={chartW} y2={yp} stroke={C.border} strokeWidth={0.5}/><text x={2} y={yp-3} fill={C.muted} fontSize={8}>{Math.round(localMax*pct)}</text></g>;
-        })}
+      <svg width="100%" viewBox={`0 0 ${cW} ${height+30}`} style={{display:"block"}}>
+        {[0,.25,.5,.75,1].map(p=>{const yp=height-(p*height);return<g key={p}><line x1={0} y1={yp} x2={cW} y2={yp} stroke={C.border} strokeWidth={.5}/><text x={2} y={yp-3} fill={C.muted} fontSize={8}>{fmtMoney(Math.round(mx*p))}</text></g>;})}
         {dataArr.map((d,i)=>{
-          const x=i*barGroupW+barGroupW/2-((barsPerGroup*barW)/2);
-          return <g key={i}>
-            {metricKeys.map((k,ki)=>{
-              const v=d[k]||0;
-              const h=(v/localMax)*height;
-              const mDef=metrics.find(m=>m.key===k);
-              return <rect key={k} x={x+ki*barW} y={height-h} width={barW-1} height={h} fill={mDef?.color||C.blue} rx={1} opacity={0.85}>
-                <title>{mDef?.label}: {v}</title>
-              </rect>;
-            })}
-            <text x={i*barGroupW+barGroupW/2} y={height+14} textAnchor="middle" fill={C.muted} fontSize={isMobileMode?7:9}>{thMonths[i+1]||d.month}</text>
+          const x=i*gW+gW/2-((bN*bW)/2);
+          return<g key={i}>
+            {metricKeys.map((k,ki)=>{const v=d[k]||0;const h=(v/mx)*height;const md=metrics.find(m=>m.key===k)||(k==="totalInbox"?{color:"#3b82f6",label:"รวม Inbox"}:{});return<rect key={k} x={x+ki*bW} y={height-h} width={bW-1} height={h} fill={md.color||C.blue} rx={1} opacity={.85}><title>{md.label||k}: {v}</title></rect>;})}
+            {(n<=31||i%(Math.ceil(n/15))===0)&&<text x={i*gW+gW/2} y={height+14} textAnchor="middle" fill={C.muted} fontSize={n>60?4:n>31?6:n>12?7:9}>{d.short||d.label}</text>}
           </g>;
         })}
       </svg>
     );
   }
+  function LineChart({dataArr,metricKeys,height=200}){
+    if(dataArr.length<2)return null;
+    const cW=isMobileMode?320:700;const n=dataArr.length;
+    const mx=Math.max(1,...dataArr.flatMap(d=>metricKeys.map(k=>d[k]||0)));
+    const gx=i=>(i/(n-1))*(cW-40)+20;const gy=v=>height-(v/mx)*height;
+    return(
+      <svg width="100%" viewBox={`0 0 ${cW} ${height+30}`} style={{display:"block"}}>
+        {[0,.25,.5,.75,1].map(p=>{const yp=height-(p*height);return<g key={p}><line x1={0} y1={yp} x2={cW} y2={yp} stroke={C.border} strokeWidth={.5} strokeDasharray="4,4"/><text x={2} y={yp-3} fill={C.muted} fontSize={8}>{fmtMoney(Math.round(mx*p))}</text></g>;})}
+        {metricKeys.map(k=>{
+          const md=metrics.find(m=>m.key===k)||(k==="totalInbox"?{color:"#3b82f6",label:"รวม Inbox"}:{});
+          const path=dataArr.map((d,i)=>`${i===0?"M":"L"}${gx(i)},${gy(d[k]||0)}`).join(" ");
+          return<g key={k}><path d={path} fill="none" stroke={md.color||C.blue} strokeWidth={2} opacity={.9}/>{n<=60&&dataArr.map((d,i)=><circle key={i} cx={gx(i)} cy={gy(d[k]||0)} r={n>31?1.5:3} fill={md.color||C.blue}><title>{md.label}: {d[k]||0}</title></circle>)}</g>;
+        })}
+        {dataArr.map((d,i)=>{const step=n>60?Math.ceil(n/15):n>31?Math.ceil(n/10):1;if(i%step!==0&&i!==n-1)return null;return<text key={i} x={gx(i)} y={height+14} textAnchor="middle" fill={C.muted} fontSize={n>60?4:n>31?6:n>12?7:9}>{d.short||d.label}</text>;})}
+      </svg>
+    );
+  }
+  function CmpBarChart({periodData,height=200}){
+    if(!periodData.length)return null;
+    const cW=isMobileMode?320:700;const n=periodData.length;
+    const bW=Math.max(10,Math.min(60,cW/(n+1)));
+    const mx=Math.max(1,...periodData.map(p=>p.val));
+    const gap=(cW-n*bW)/(n+1);
+    return(
+      <svg width="100%" viewBox={`0 0 ${cW} ${height+40}`} style={{display:"block"}}>
+        {[0,.25,.5,.75,1].map(p=>{const yp=height-(p*height);return<g key={p}><line x1={0} y1={yp} x2={cW} y2={yp} stroke={C.border} strokeWidth={.5}/><text x={2} y={yp-3} fill={C.muted} fontSize={8}>{fmtMoney(Math.round(mx*p))}</text></g>;})}
+        {periodData.map((p,i)=>{
+          const x=gap+(gap+bW)*i;const h=(p.val/mx)*height;
+          return<g key={i}><rect x={x} y={height-h} width={bW} height={h} fill={cmpColors[i%12]} rx={3} opacity={.85}><title>{p.label}: {fmtMoney(p.val)}</title></rect><text x={x+bW/2} y={height-h-6} textAnchor="middle" fill={cmpColors[i%12]} fontSize={10} fontWeight={700}>{fmtMoney(p.val)}</text><text x={x+bW/2} y={height+14} textAnchor="middle" fill={C.muted} fontSize={9}>{p.label}</text></g>;
+        })}
+      </svg>
+    );
+  }
 
-  // Export functions
-  async function exportChartPDF(){
-    setExportLoading(true);
-    const el=chartRef.current;
-    if(!el){setExportLoading(false);return;}
-    try{
-      const canvas=await html2canvas(el,{scale:2,useCORS:true,allowTaint:true,logging:false,backgroundColor:"#0d1117",windowWidth:900});
-      const imgData=canvas.toDataURL("image/jpeg",0.95);
-      const pdf=new jsPDF("l","mm","a4");
-      const pw=pdf.internal.pageSize.getWidth();
-      const ph=pdf.internal.pageSize.getHeight();
-      const iw=pw-20;
-      const ih=(canvas.height*iw)/canvas.width;
-      let posY=10;
-      pdf.addImage(imgData,"JPEG",10,posY,iw,Math.min(ih,ph-20));
-      if(ih>ph-20){let left=ih-(ph-20);while(left>0){pdf.addPage();posY=10;pdf.addImage(imgData,"JPEG",10,-(ph-20)+(ih-left),iw,ih);left-=ph-20;}}
-      dlBlob(pdf.output("blob"),`ผลลัพธ์การตลาด_${chartYear+543}.pdf`);
-    }catch(e){alert("เกิดข้อผิดพลาด: "+e.message);}
-    setExportLoading(false);
+  async function exportPDF(){
+    setExportLoading(true);const el=chartRef.current;if(!el){setExportLoading(false);return;}
+    try{const canvas=await html2canvas(el,{scale:2,useCORS:true,allowTaint:true,logging:false,backgroundColor:"#0d1117",windowWidth:900});const imgData=canvas.toDataURL("image/jpeg",.95);const pdf=new jsPDF("l","mm","a4");const pw=pdf.internal.pageSize.getWidth();const ph=pdf.internal.pageSize.getHeight();const iw=pw-20;const ih=(canvas.height*iw)/canvas.width;pdf.addImage(imgData,"JPEG",10,10,iw,Math.min(ih,ph-20));if(ih>ph-20){let left=ih-(ph-20);while(left>0){pdf.addPage();pdf.addImage(imgData,"JPEG",10,-(ih-left),iw,ih);left-=ph-20;}}dlBlob(pdf.output("blob"),"ผลลัพธ์การตลาด.pdf");}catch(e){alert("เกิดข้อผิดพลาด: "+e.message);}setExportLoading(false);
   }
-  async function exportChartImage(){
-    setExportLoading(true);
-    const el=chartRef.current;
-    if(!el){setExportLoading(false);return;}
-    try{
-      const canvas=await html2canvas(el,{scale:2,useCORS:true,allowTaint:true,logging:false,backgroundColor:"#0d1117",windowWidth:900});
-      canvas.toBlob(blob=>{if(blob)dlBlob(blob,`ผลลัพธ์การตลาด_${chartYear+543}.png`);setExportLoading(false);},"image/png");
-    }catch(e){alert("เกิดข้อผิดพลาด: "+e.message);setExportLoading(false);}
+  async function exportImage(){
+    setExportLoading(true);const el=chartRef.current;if(!el){setExportLoading(false);return;}
+    try{const canvas=await html2canvas(el,{scale:2,useCORS:true,allowTaint:true,logging:false,backgroundColor:"#0d1117",windowWidth:900});canvas.toBlob(blob=>{if(blob)dlBlob(blob,"ผลลัพธ์การตลาด.png");setExportLoading(false);},"image/png");}catch(e){alert("เกิดข้อผิดพลาด: "+e.message);setExportLoading(false);}
   }
+
+  const chartPts=genPts(chartFrom,chartTo,gran);
+  const inputSt={background:"#0d1117",border:`1px solid ${C.border}`,borderRadius:6,color:C.text,padding:"6px 10px",fontSize:13};
+  const fmtRange=(f,t)=>{const [fy2,fm2]=f.split("-").map(Number);const [ty2,tm2]=t.split("-").map(Number);return`${thMonths[fm2]} ${fy2+543} — ${thMonths[tm2]} ${ty2+543}`;};
+  const monthDays=numDays(y,mo);
+  const monthDailyData=Array.from({length:monthDays},(_,i)=>{const ds=`${y}-${String(mo).padStart(2,"0")}-${String(i+1).padStart(2,"0")}`;return getDailyData(ds);});
+  const dailyTotals=sumM(monthDailyData);
 
   return (
     <div style={{padding:isMobileMode?12:24}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}>
         <div>
           <div style={{fontSize:isMobileMode?18:22,fontWeight:700,color:C.text}}>📊 ผลลัพธ์การตลาด</div>
-          <div style={{fontSize:13,color:C.muted,marginTop:2}}>สรุปยอด Inbox, Walk-in, จอง, โอน · กราฟเปรียบเทียบย้อนหลัง 5 ปี</div>
+          <div style={{fontSize:13,color:C.muted,marginTop:2}}>เปรียบเทียบได้ถึง 12 ช่วง · เลือก วัน/สัปดาห์/เดือน/ปี · ไม่จำกัดปีย้อนหลัง</div>
         </div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-          {[["month","📅 รายเดือน"],["chart","📊 กราฟ"],["summary","📋 สรุปรวม"]].map(([v,l])=>(
+          {[["month","📅 รายเดือน"],["chart","📊 กราฟ"],["compare","🔄 เปรียบเทียบ"]].map(([v,l])=>(
             <Btn key={v} size="sm" variant={viewMode===v?"primary":"ghost"} onClick={()=>setViewMode(v)}>{l}</Btn>
           ))}
         </div>
@@ -3199,11 +3231,12 @@ function MktResultPage({data,setData,role,isMobileMode}) {
 
       {/* ── MONTHLY VIEW ── */}
       {viewMode==="month"&&<>
-        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20,flexWrap:"wrap"}}>
           <Btn size="sm" variant="ghost" onClick={()=>changeMonth(-1)}>◀</Btn>
           <span style={{fontSize:16,fontWeight:700,color:C.text}}>{thMonthsFull[mo]} {y+543}</span>
           <Btn size="sm" variant="ghost" onClick={()=>changeMonth(1)}>▶</Btn>
           <div style={{flex:1}}/>
+          <Btn size="sm" variant={showDaily?"primary":"ghost"} onClick={()=>setShowDaily(v=>!v)}>📊 รายวัน</Btn>
           {canEdit&&<Btn onClick={openEdit}>✏️ แก้ไข</Btn>}
         </div>
         <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr 1fr":"repeat(4,1fr)",gap:12,marginBottom:20}}>
@@ -3212,7 +3245,7 @@ function MktResultPage({data,setData,role,isMobileMode}) {
           <Card style={{padding:15}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>📝 ยอดจอง</div><div style={{fontSize:24,fontWeight:800,color:C.green}}>{cur.bookings||0} หลัง</div></Card>
           <Card style={{padding:15}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>✅ โอนแล้ว</div><div style={{fontSize:24,fontWeight:800,color:"#a78bfa"}}>{cur.transfers||0} หลัง</div></Card>
         </div>
-        <Card style={{padding:isMobileMode?14:20}}>
+        <Card style={{padding:isMobileMode?14:20,marginBottom:showDaily?16:0}}>
           <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:16}}>รายละเอียดแต่ละช่องทาง</div>
           <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
             {metrics.map(m=>(
@@ -3227,134 +3260,156 @@ function MktResultPage({data,setData,role,isMobileMode}) {
           </div>
           {cur.note&&<div style={{marginTop:12,padding:10,background:"#0d1117",borderRadius:8,fontSize:12,color:C.muted}}>📝 {cur.note}</div>}
         </Card>
+        {showDaily&&<Card style={{padding:isMobileMode?12:20}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.text}}>📊 ข้อมูลรายวัน — {thMonthsFull[mo]} {y+543}</div>
+            <div style={{fontSize:11,color:C.muted}}>Inbox รวม: {fmtMoney(dailyTotals.totalInbox)}</div>
+          </div>
+          <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",minWidth:500}}>
+              <thead><tr>
+                <th style={{padding:"6px 4px",textAlign:"left",fontSize:9,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>วัน</th>
+                {metrics.slice(0,4).map(m=><th key={m.key} style={{padding:"6px 4px",textAlign:"right",fontSize:9,fontWeight:700,color:m.color,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>{m.icon}</th>)}
+                <th style={{padding:"6px 4px",textAlign:"right",fontSize:9,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>🚶</th>
+                <th style={{padding:"6px 4px",textAlign:"right",fontSize:9,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>📝</th>
+                <th style={{padding:"6px 4px",textAlign:"right",fontSize:9,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>✅</th>
+                {canEdit&&<th style={{padding:"6px 4px",textAlign:"center",fontSize:9,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}/>}
+              </tr></thead>
+              <tbody>
+                {monthDailyData.map((dd,i)=>{const hasData=metrics.some(m=>(dd[m.key]||0)>0);return<tr key={i} style={{borderBottom:`1px solid ${C.border}`,opacity:hasData?1:.5}}>
+                  <td style={{padding:"4px",fontSize:12,color:C.text,fontWeight:600}}>{i+1}</td>
+                  {metrics.slice(0,4).map(m=><td key={m.key} style={{padding:"4px",textAlign:"right",fontSize:12,color:C.text}}>{dd[m.key]||0}</td>)}
+                  <td style={{padding:"4px",textAlign:"right",fontSize:12,color:C.text}}>{dd.walkIn||0}</td>
+                  <td style={{padding:"4px",textAlign:"right",fontSize:12,color:C.text}}>{dd.bookings||0}</td>
+                  <td style={{padding:"4px",textAlign:"right",fontSize:12,color:C.text}}>{dd.transfers||0}</td>
+                  {canEdit&&<td style={{padding:"4px",textAlign:"center"}}><Btn size="sm" variant="ghost" onClick={()=>openDailyEdit(dd.date)}>✏️</Btn></td>}
+                </tr>;})}
+              </tbody>
+            </table>
+          </div>
+        </Card>}
       </>}
 
       {/* ── CHART VIEW ── */}
       {viewMode==="chart"&&<>
-        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16,flexWrap:"wrap"}}>
-          <Btn size="sm" variant="ghost" onClick={()=>setChartYear(y=>y-1)}>◀</Btn>
-          <span style={{fontSize:16,fontWeight:700,color:C.text}}>ปี {chartYear+543}</span>
-          <Btn size="sm" variant="ghost" onClick={()=>setChartYear(y=>y+1)}>▶</Btn>
-          <div style={{flex:1}}/>
-          <Btn size="sm" variant="ghost" onClick={exportChartImage} disabled={exportLoading}>🖼️ ภาพ PNG</Btn>
-          <Btn size="sm" variant="ghost" onClick={exportChartPDF} disabled={exportLoading}>📄 PDF</Btn>
-        </div>
+        <Card style={{padding:12,marginBottom:16}}>
+          <div style={{display:"flex",flexWrap:"wrap",gap:12,alignItems:"flex-end"}}>
+            <div><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:4}}>จาก</div><input type="month" value={chartFrom} onChange={e=>setChartFrom(e.target.value)} style={inputSt}/></div>
+            <div><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:4}}>ถึง</div><input type="month" value={chartTo} onChange={e=>setChartTo(e.target.value)} style={inputSt}/></div>
+            <div><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:4}}>ความละเอียด</div><div style={{display:"flex",gap:4}}>{[["day","วัน"],["week","สัปดาห์"],["month","เดือน"],["year","ปี"]].map(([v,l])=><Btn key={v} size="sm" variant={gran===v?"primary":"ghost"} onClick={()=>setGran(v)}>{l}</Btn>)}</div></div>
+            <div><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:4}}>แบบกราฟ</div><div style={{display:"flex",gap:4}}>{[["bar","📊 แท่ง"],["line","📈 เส้น"]].map(([v,l])=><Btn key={v} size="sm" variant={chartType===v?"primary":"ghost"} onClick={()=>setChartType(v)}>{l}</Btn>)}</div></div>
+            <div style={{flex:1}}/>
+            <Btn size="sm" variant="ghost" onClick={exportImage} disabled={exportLoading}>🖼️ PNG</Btn>
+            <Btn size="sm" variant="ghost" onClick={exportPDF} disabled={exportLoading}>📄 PDF</Btn>
+          </div>
+        </Card>
         <div ref={chartRef} style={{padding:isMobileMode?10:20}}>
-          {/* Inbox Channels Chart */}
           <Card style={{padding:isMobileMode?12:20,marginBottom:16}}>
-            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>📨 Inbox ทุกช่องทาง — ปี {chartYear+543}</div>
-            <div style={{fontSize:11,color:C.muted,marginBottom:12}}>เปรียบเทียบ Facebook, TikTok, LINE รายเดือน</div>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>📨 Inbox ทุกช่องทาง</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:12}}>{fmtRange(chartFrom,chartTo)} · {gran==="day"?"รายวัน":gran==="week"?"รายสัปดาห์":gran==="month"?"รายเดือน":"รายปี"} · {chartPts.length} จุด</div>
             <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:12}}>
               {metrics.slice(0,4).map(m=><div key={m.key} style={{display:"flex",alignItems:"center",gap:4,fontSize:10}}><div style={{width:10,height:10,borderRadius:2,background:m.color}}/><span style={{color:C.muted}}>{m.label}</span></div>)}
             </div>
-            <BarChart dataArr={yearData} metricKeys={["fbInbox","tiktokCloudInbox","tiktokBossInbox","lineInbox"]}/>
+            {chartType==="bar"?<BarChart dataArr={chartPts} metricKeys={inboxKeys}/>:<LineChart dataArr={chartPts} metricKeys={inboxKeys}/>}
           </Card>
-          {/* Walk-in, Booking, Transfer Chart */}
           <Card style={{padding:isMobileMode?12:20,marginBottom:16}}>
-            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>🏠 Walk-in / จอง / โอน — ปี {chartYear+543}</div>
-            <div style={{fontSize:11,color:C.muted,marginBottom:12}}>เปรียบเทียบผลลัพธ์สำคัญรายเดือน</div>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>🏠 Walk-in / จอง / โอน</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:12}}>เปรียบเทียบผลลัพธ์สำคัญ</div>
             <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:12}}>
               {metrics.slice(4).map(m=><div key={m.key} style={{display:"flex",alignItems:"center",gap:4,fontSize:10}}><div style={{width:10,height:10,borderRadius:2,background:m.color}}/><span style={{color:C.muted}}>{m.label}</span></div>)}
             </div>
-            <BarChart dataArr={yearData} metricKeys={["walkIn","bookings","transfers"]} height={180}/>
+            {chartType==="bar"?<BarChart dataArr={chartPts} metricKeys={resultKeys} height={180}/>:<LineChart dataArr={chartPts} metricKeys={resultKeys} height={180}/>}
           </Card>
-          {/* Year Summary Table */}
           <Card style={{padding:isMobileMode?12:20}}>
-            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:12}}>📋 สรุปรายเดือน — ปี {chartYear+543}</div>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:12}}>📋 ตารางสรุป</div>
             <div style={{overflowX:"auto"}}>
-            <table style={{width:"100%",borderCollapse:"collapse",minWidth:600}}>
-              <thead><tr><th style={{padding:"6px 8px",textAlign:"left",fontSize:9,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>เดือน</th>{metrics.map(m=><th key={m.key} style={{padding:"6px 8px",textAlign:"right",fontSize:9,fontWeight:700,color:m.color,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>{m.icon}</th>)}<th style={{padding:"6px 8px",textAlign:"right",fontSize:9,fontWeight:700,color:C.text,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>รวม Inbox</th></tr></thead>
-              <tbody>
-                {yearData.map((d,i)=>{const ti=(d.fbInbox||0)+(d.tiktokCloudInbox||0)+(d.tiktokBossInbox||0)+(d.lineInbox||0);return(
-                  <tr key={i} style={{borderBottom:`1px solid ${C.border}`}}>
-                    <td style={{padding:"6px 8px",fontSize:12,color:C.text,fontWeight:600}}>{thMonthsFull[i+1]}</td>
-                    {metrics.map(m=><td key={m.key} style={{padding:"6px 8px",textAlign:"right",fontSize:12,color:C.text}}>{d[m.key]||0}</td>)}
-                    <td style={{padding:"6px 8px",textAlign:"right",fontSize:12,fontWeight:700,color:C.blue}}>{ti}</td>
-                  </tr>
-                );})}
-                {(()=>{const s=getYearSummary(chartYear);return(
-                  <tr style={{background:C.faint,fontWeight:700}}>
-                    <td style={{padding:"8px",fontSize:12,color:C.text}}>รวมทั้งปี</td>
-                    {metrics.map(m=><td key={m.key} style={{padding:"8px",textAlign:"right",fontSize:13,color:m.color,fontWeight:800}}>{fmtMoney(s[m.key])}</td>)}
-                    <td style={{padding:"8px",textAlign:"right",fontSize:13,color:C.blue,fontWeight:800}}>{fmtMoney(s.totalInbox)}</td>
-                  </tr>
-                );})()}
-              </tbody>
-            </table>
+              <table style={{width:"100%",borderCollapse:"collapse",minWidth:600}}>
+                <thead><tr><th style={{padding:"6px 8px",textAlign:"left",fontSize:9,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>{gran==="day"?"วัน":gran==="week"?"สัปดาห์":gran==="month"?"เดือน":"ปี"}</th>{metrics.map(m=><th key={m.key} style={{padding:"6px 8px",textAlign:"right",fontSize:9,fontWeight:700,color:m.color,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>{m.icon}</th>)}<th style={{padding:"6px 8px",textAlign:"right",fontSize:9,fontWeight:700,color:C.text,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>รวม Inbox</th></tr></thead>
+                <tbody>
+                  {chartPts.map((d,i)=>{const ti=(d.fbInbox||0)+(d.tiktokCloudInbox||0)+(d.tiktokBossInbox||0)+(d.lineInbox||0);return<tr key={i} style={{borderBottom:`1px solid ${C.border}`}}><td style={{padding:"6px 8px",fontSize:12,color:C.text,fontWeight:600}}>{d.label}</td>{metrics.map(m=><td key={m.key} style={{padding:"6px 8px",textAlign:"right",fontSize:12,color:C.text}}>{d[m.key]||0}</td>)}<td style={{padding:"6px 8px",textAlign:"right",fontSize:12,fontWeight:700,color:C.blue}}>{ti}</td></tr>;})}
+                  {chartPts.length>1&&(()=>{const s=sumM(chartPts);return<tr style={{background:C.faint,fontWeight:700}}><td style={{padding:"8px",fontSize:12,color:C.text}}>รวมทั้งหมด</td>{metrics.map(m=><td key={m.key} style={{padding:"8px",textAlign:"right",fontSize:13,color:m.color,fontWeight:800}}>{fmtMoney(s[m.key])}</td>)}<td style={{padding:"8px",textAlign:"right",fontSize:13,color:C.blue,fontWeight:800}}>{fmtMoney(s.totalInbox)}</td></tr>;})()}
+                </tbody>
+              </table>
             </div>
           </Card>
         </div>
       </>}
 
-      {/* ── SUMMARY VIEW (5-year comparison) ── */}
-      {viewMode==="summary"&&<>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,flexWrap:"wrap"}}>
-          <div style={{fontSize:14,fontWeight:700,color:C.text}}>📋 สรุปเปรียบเทียบย้อนหลัง 5 ปี</div>
-          <div style={{flex:1}}/>
-          <Btn size="sm" variant="ghost" onClick={exportChartPDF} disabled={exportLoading}>📄 PDF</Btn>
-          <Btn size="sm" variant="ghost" onClick={exportChartImage} disabled={exportLoading}>🖼️ ภาพ PNG</Btn>
-        </div>
-        <div ref={chartRef} style={{padding:isMobileMode?10:20}}>
-          {/* Year-over-year comparison */}
-          <Card style={{padding:isMobileMode?12:20,marginBottom:16}}>
-            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:12}}>📊 เปรียบเทียบรายปี</div>
-            <div style={{overflowX:"auto"}}>
-            <table style={{width:"100%",borderCollapse:"collapse",minWidth:500}}>
-              <thead><tr><th style={{padding:"8px 10px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>ตัวชี้วัด</th>{availYears.map(yr=><th key={yr} style={{padding:"8px 10px",textAlign:"right",fontSize:10,fontWeight:700,color:C.text,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>{yr+543}</th>)}</tr></thead>
-              <tbody>
-                {metrics.map(m=>{
-                  const vals=availYears.map(yr=>getYearSummary(yr)[m.key]);
-                  const maxV=Math.max(1,...vals);
-                  return(
-                    <tr key={m.key} style={{borderBottom:`1px solid ${C.border}`}}>
-                      <td style={{padding:"8px 10px",fontSize:12,color:C.text}}><span style={{display:"inline-block",width:8,height:8,borderRadius:2,background:m.color,marginRight:6,verticalAlign:"middle"}}/>{m.icon} {m.label}</td>
-                      {vals.map((v,i)=>(
-                        <td key={i} style={{padding:"8px 10px",textAlign:"right"}}>
-                          <div style={{fontSize:14,fontWeight:700,color:v===maxV&&v>0?m.color:C.text}}>{fmtMoney(v)}</div>
-                          {i<vals.length-1&&vals[i+1]>0&&<div style={{fontSize:9,color:v>vals[i+1]?C.green:v<vals[i+1]?C.red:C.muted}}>{v>vals[i+1]?`▲ ${Math.round(((v-vals[i+1])/vals[i+1])*100)}%`:v<vals[i+1]?`▼ ${Math.round(((vals[i+1]-v)/vals[i+1])*100)}%`:"="}</div>}
-                        </td>
-                      ))}
-                    </tr>
-                  );
-                })}
-                <tr style={{background:C.faint}}>
-                  <td style={{padding:"8px 10px",fontSize:12,fontWeight:700,color:C.text}}>📨 รวม Inbox ทั้งปี</td>
-                  {availYears.map(yr=>{const s=getYearSummary(yr);return<td key={yr} style={{padding:"8px 10px",textAlign:"right",fontSize:14,fontWeight:800,color:C.blue}}>{fmtMoney(s.totalInbox)}</td>;})}
-                </tr>
-              </tbody>
-            </table>
+      {/* ── COMPARE VIEW ── */}
+      {viewMode==="compare"&&<>
+        <Card style={{padding:12,marginBottom:16}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:8}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.text}}>🔄 ช่วงเปรียบเทียบ ({cmpPeriods.length}/12)</div>
+            <div style={{display:"flex",gap:6}}>
+              {cmpPeriods.length<12&&<Btn size="sm" onClick={addPeriod}>+ เพิ่มช่วง</Btn>}
+              <Btn size="sm" variant="ghost" onClick={exportImage} disabled={exportLoading}>🖼️ PNG</Btn>
+              <Btn size="sm" variant="ghost" onClick={exportPDF} disabled={exportLoading}>📄 PDF</Btn>
             </div>
-          </Card>
-          {/* Key Insights */}
-          <Card style={{padding:isMobileMode?12:20}}>
-            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:12}}>💡 สรุปภาพรวม</div>
-            {(()=>{
-              const thisYr=getYearSummary(now.getFullYear());
-              const lastYr=getYearSummary(now.getFullYear()-1);
-              const inboxGrowth=lastYr.totalInbox>0?Math.round(((thisYr.totalInbox-lastYr.totalInbox)/lastYr.totalInbox)*100):0;
-              const bestChannel=metrics.slice(0,4).reduce((best,m)=>thisYr[m.key]>thisYr[best.key]?m:best,metrics[0]);
-              return(
-                <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr 1fr",gap:12}}>
-                  <div style={{padding:14,background:"linear-gradient(135deg,#1e3a5f,#0f172a)",borderRadius:10,textAlign:"center"}}>
-                    <div style={{fontSize:10,color:C.muted,marginBottom:6}}>Inbox Growth YoY</div>
-                    <div style={{fontSize:28,fontWeight:800,color:inboxGrowth>=0?C.green:C.red}}>{inboxGrowth>=0?"+":""}{inboxGrowth}%</div>
-                    <div style={{fontSize:10,color:C.muted}}>{now.getFullYear()+543} vs {now.getFullYear()+542}</div>
+          </div>
+          {cmpPeriods.map((p,i)=>(
+            <div key={p.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+              <div style={{width:16,height:16,borderRadius:4,background:cmpColors[i%12],flexShrink:0}}/>
+              <input type="month" value={p.from} onChange={e=>updPeriod(p.id,"from",e.target.value)} style={{...inputSt,width:140}}/>
+              <span style={{color:C.muted,fontSize:12}}>→</span>
+              <input type="month" value={p.to} onChange={e=>updPeriod(p.id,"to",e.target.value)} style={{...inputSt,width:140}}/>
+              {cmpPeriods.length>1&&<Btn size="sm" variant="ghost" onClick={()=>rmPeriod(p.id)} style={{color:C.red}}>✕</Btn>}
+            </div>
+          ))}
+          <div style={{marginTop:12}}>
+            <div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:4}}>ตัวชี้วัดที่ต้องการเปรียบเทียบ</div>
+            <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{allMetricOpts.map(m=><Btn key={m.key} size="sm" variant={cmpMetric===m.key?"primary":"ghost"} onClick={()=>setCmpMetric(m.key)}>{m.label}</Btn>)}</div>
+          </div>
+        </Card>
+        {(()=>{
+          const periodSums=cmpPeriods.map((p,i)=>{const pts=genPts(p.from,p.to,"month");const s=sumM(pts);return{...p,summary:s,pts,label:fmtRange(p.from,p.to),color:cmpColors[i%12]};});
+          const selDef=allMetricOpts.find(m=>m.key===cmpMetric)||allMetricOpts[0];
+          const barData=periodSums.map(p=>({label:p.label,val:p.summary[cmpMetric]||0}));
+          return<div ref={chartRef} style={{padding:isMobileMode?10:20}}>
+            <Card style={{padding:isMobileMode?12:20,marginBottom:16}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>📊 เปรียบเทียบ: {selDef.label}</div>
+              <div style={{fontSize:11,color:C.muted,marginBottom:12}}>{cmpPeriods.length} ช่วงเวลา</div>
+              <CmpBarChart periodData={barData}/>
+            </Card>
+            {(()=>{const lens=periodSums.map(p=>p.pts.length);const allSame=lens.every(l=>l===lens[0])&&lens[0]>1&&lens[0]<=12;if(!allSame)return null;
+              return<Card style={{padding:isMobileMode?12:20,marginBottom:16}}>
+                <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>📈 แนวโน้มรายเดือน: {selDef.label}</div>
+                <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:12}}>{periodSums.map((p,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:4,fontSize:10}}><div style={{width:10,height:10,borderRadius:2,background:p.color}}/><span style={{color:C.muted}}>{p.label}</span></div>)}</div>
+                {(()=>{const cW2=isMobileMode?320:700;const h2=200;const nn=lens[0];const mx2=Math.max(1,...periodSums.flatMap(p=>p.pts.map(d=>cmpMetric==="totalInbox"?(d.fbInbox||0)+(d.tiktokCloudInbox||0)+(d.tiktokBossInbox||0)+(d.lineInbox||0):(d[cmpMetric]||0))));const gx2=i2=>(i2/(nn-1))*(cW2-40)+20;const gy2=v2=>h2-(v2/mx2)*h2;const gv=d=>cmpMetric==="totalInbox"?(d.fbInbox||0)+(d.tiktokCloudInbox||0)+(d.tiktokBossInbox||0)+(d.lineInbox||0):(d[cmpMetric]||0);
+                  return<svg width="100%" viewBox={`0 0 ${cW2} ${h2+30}`} style={{display:"block"}}>
+                    {[0,.25,.5,.75,1].map(pp=>{const yp=h2-(pp*h2);return<g key={pp}><line x1={0} y1={yp} x2={cW2} y2={yp} stroke={C.border} strokeWidth={.5} strokeDasharray="4,4"/><text x={2} y={yp-3} fill={C.muted} fontSize={8}>{fmtMoney(Math.round(mx2*pp))}</text></g>;})}
+                    {periodSums.map((p,pi)=>{const path2=p.pts.map((d,i2)=>`${i2===0?"M":"L"}${gx2(i2)},${gy2(gv(d))}`).join(" ");return<g key={pi}><path d={path2} fill="none" stroke={p.color} strokeWidth={2} opacity={.9}/>{nn<=12&&p.pts.map((d,i2)=><circle key={i2} cx={gx2(i2)} cy={gy2(gv(d))} r={3} fill={p.color}><title>{p.label} {thMonths[i2+1]}: {fmtMoney(gv(d))}</title></circle>)}</g>;})}
+                    {periodSums[0].pts.map((d,i2)=><text key={i2} x={gx2(i2)} y={h2+14} textAnchor="middle" fill={C.muted} fontSize={9}>{thMonths[i2+1]||d.label}</text>)}
+                  </svg>;})()}
+              </Card>;})()}
+            <Card style={{padding:isMobileMode?12:20}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:12}}>📋 ตารางเปรียบเทียบ</div>
+              <div style={{overflowX:"auto"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",minWidth:400}}>
+                  <thead><tr><th style={{padding:"8px 10px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>ตัวชี้วัด</th>{periodSums.map((p,i)=><th key={i} style={{padding:"8px 10px",textAlign:"right",fontSize:10,fontWeight:700,color:cmpColors[i%12],borderBottom:`1px solid ${C.border}`,background:"#0d1117"}}>{p.label}</th>)}</tr></thead>
+                  <tbody>
+                    {allMetricOpts.map(m=>{const vals=periodSums.map(p=>p.summary[m.key]||0);const maxV2=Math.max(1,...vals);return<tr key={m.key} style={{borderBottom:`1px solid ${C.border}`,background:m.key===cmpMetric?C.faint:"transparent"}}><td style={{padding:"8px 10px",fontSize:12,color:C.text}}>{m.label}</td>{vals.map((v,i)=><td key={i} style={{padding:"8px 10px",textAlign:"right"}}><div style={{fontSize:14,fontWeight:700,color:v===maxV2&&v>0?cmpColors[i%12]:C.text}}>{fmtMoney(v)}</div>{i>0&&vals[0]>0&&<div style={{fontSize:9,color:v>vals[0]?C.green:v<vals[0]?C.red:C.muted}}>{v>vals[0]?`▲ ${Math.round(((v-vals[0])/vals[0])*100)}%`:v<vals[0]?`▼ ${Math.round(((vals[0]-v)/vals[0])*100)}%`:"="}</div>}</td>)}</tr>;})}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+            <Card style={{padding:isMobileMode?12:20,marginTop:16}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:12}}>💡 สรุปภาพรวม</div>
+              <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"repeat("+Math.min(periodSums.length,3)+",1fr)",gap:12}}>
+                {periodSums.slice(0,3).map((p,i)=>(
+                  <div key={i} style={{padding:14,background:`linear-gradient(135deg,${p.color}22,#0f172a)`,borderRadius:10,textAlign:"center",border:`1px solid ${p.color}33`}}>
+                    <div style={{fontSize:10,color:C.muted,marginBottom:6}}>{p.label}</div>
+                    <div style={{fontSize:24,fontWeight:800,color:p.color}}>{fmtMoney(p.summary.totalInbox)}</div>
+                    <div style={{fontSize:10,color:C.muted}}>Inbox ทั้งหมด</div>
+                    <div style={{marginTop:8,display:"flex",justifyContent:"center",gap:12}}>
+                      <div><div style={{fontSize:16,fontWeight:700,color:C.green}}>{p.summary.bookings||0}</div><div style={{fontSize:9,color:C.muted}}>จอง</div></div>
+                      <div><div style={{fontSize:16,fontWeight:700,color:"#a78bfa"}}>{p.summary.transfers||0}</div><div style={{fontSize:9,color:C.muted}}>โอน</div></div>
+                    </div>
                   </div>
-                  <div style={{padding:14,background:"linear-gradient(135deg,#14532d,#0f172a)",borderRadius:10,textAlign:"center"}}>
-                    <div style={{fontSize:10,color:C.muted,marginBottom:6}}>ยอดจองปีนี้</div>
-                    <div style={{fontSize:28,fontWeight:800,color:C.green}}>{thisYr.bookings||0}</div>
-                    <div style={{fontSize:10,color:C.muted}}>หลัง</div>
-                  </div>
-                  <div style={{padding:14,background:"linear-gradient(135deg,#3b0764,#0f172a)",borderRadius:10,textAlign:"center"}}>
-                    <div style={{fontSize:10,color:C.muted,marginBottom:6}}>ช่องทาง Inbox สูงสุด</div>
-                    <div style={{fontSize:20,fontWeight:800,color:bestChannel.color}}>{bestChannel.icon} {fmtMoney(thisYr[bestChannel.key])}</div>
-                    <div style={{fontSize:10,color:C.muted}}>{bestChannel.label}</div>
-                  </div>
-                </div>
-              );
-            })()}
-          </Card>
-        </div>
+                ))}
+              </div>
+            </Card>
+          </div>;
+        })()}
       </>}
 
       {editMdl&&(
@@ -3365,6 +3420,16 @@ function MktResultPage({data,setData,role,isMobileMode}) {
             ))}
           </div>
           <FG label="หมายเหตุ"><FIn value={form.note||""} onChange={e=>setForm(f=>({...f,note:e.target.value}))} rows={2} placeholder="หมายเหตุประจำเดือน..."/></FG>
+        </Mdl>
+      )}
+      {dailyMdl&&(
+        <Mdl title={`📊 ข้อมูลรายวัน — ${dailyMdl}`} onClose={()=>setDailyMdl(null)} footer={<><Btn variant="ghost" onClick={()=>setDailyMdl(null)}>ยกเลิก</Btn><Btn onClick={saveDaily}>💾 บันทึก</Btn></>}>
+          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
+            {metrics.map(m=>(
+              <FG key={m.key} label={`${m.icon} ${m.label}`}><FIn type="number" value={dForm[m.key]||""} onChange={e=>setDForm(f=>({...f,[m.key]:e.target.value}))}/></FG>
+            ))}
+          </div>
+          <FG label="หมายเหตุ"><FIn value={dForm.note||""} onChange={e=>setDForm(f=>({...f,note:e.target.value}))} rows={2} placeholder="หมายเหตุ..."/></FG>
         </Mdl>
       )}
     </div>

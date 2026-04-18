@@ -12,8 +12,8 @@ const C = {
   blue:"#3b82f6",green:"#22c55e",red:"#ef4444",orange:"#f59e0b",purple:"#a78bfa",
   blueDim:"#1e3a5f",greenDim:"#14532d",redDim:"#450a0a",orangeDim:"#431407",purpleDim:"#2e1065",
 };
-const ROLE_COL={owner:"#a78bfa",engineer:"#38bdf8",foreman:"#fb923c",purchasing:"#4ade80",marketing:"#f472b6"};
-const ROLE_LBL={owner:"เจ้าของ",engineer:"วิศวกร",foreman:"โฟร์แมน",purchasing:"จัดซื้อ",marketing:"การตลาด"};
+const ROLE_COL={owner:"#a78bfa",engineer:"#38bdf8",foreman:"#fb923c",purchasing:"#4ade80",marketing:"#f472b6",sales:"#facc15"};
+const ROLE_LBL={owner:"เจ้าของ",engineer:"วิศวกร",foreman:"โฟร์แมน",purchasing:"จัดซื้อ",marketing:"การตลาด",sales:"เซลล์"};
 const ST_COL={inprogress:"#3b82f6",completed:"#22c55e",notstarted:"#64748b",delayed:"#ef4444"};
 const ST_LBL={inprogress:"กำลังก่อสร้าง",completed:"เสร็จแล้ว",notstarted:"ยังไม่เริ่ม",delayed:"ล่าช้า"};
 
@@ -115,9 +115,10 @@ const INIT={
     {id:3,role:"foreman",name:"นายวิชัย ก่อสร้าง",email:"foreman@thecrown.com",phone:"089-003-0003",status:"active",username:"foreman",password:"1234",avatar:"",location:{lat:null,lng:null,address:"",updatedAt:""}},
     {id:5,role:"purchasing",name:"นางสุรีย์พร จัดซื้อ",email:"purchasing@thecrown.com",phone:"089-004-0004",status:"active",username:"purchasing",password:"1234",avatar:"",location:{lat:null,lng:null,address:"",updatedAt:""}},
     {id:6,role:"marketing",name:"นางสิรินรา ตลาด",email:"marketing@thecrown.com",phone:"089-005-0005",status:"active",username:"marketing",password:"1234",avatar:"",location:{lat:null,lng:null,address:"",updatedAt:""}},
+    {id:7,role:"sales",name:"นายพิชัย ขายดี",email:"sales@thecrown.com",phone:"089-006-0006",status:"active",username:"sales",password:"1234",avatar:"",location:{lat:null,lng:null,address:"",updatedAt:""}},
   ],
   employeeLevels:{
-    2:3,3:2,5:2,6:1,
+    2:3,3:2,5:2,6:1,7:2,
   },
   notifications:{
     emailOnPayment:true,emailOnDelay:true,emailOnCompletion:true,pushOnOrder:true,pushOnApproval:true,smsAlert:false
@@ -143,6 +144,9 @@ const INIT={
   ],
   notificationViewed:{},
   messageViewed:{},
+  marketingBudget:[],
+  walkInCustomers:[],
+  monthlyResults:[],
 };
 
 // Global Styles
@@ -404,11 +408,12 @@ function Sidebar({page,setPage,role,data,authedUserId,isMobileMode,onLogout,onCh
   const pendingPwChanges=data.team.filter(t=>t.pendingPassword).length;
   const settingsBadge=pendingMembers+pendingPwChanges;
   const navByRole={
-    owner:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"Dashboard"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"finance",icon:"💹",label:"Finance"},{id:"analytics",icon:"📊",label:"Analytics"},{id:"team",icon:"👥",label:"Team"},{id:"marketing",icon:"📢",label:"การตลาด"},{id:"settings",icon:"⚙️",label:"ตั้งค่า",badge:settingsBadge}],
+    owner:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"Dashboard"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"finance",icon:"💹",label:"Finance"},{id:"analytics",icon:"📊",label:"Analytics"},{id:"team",icon:"👥",label:"Team"},{id:"marketing",icon:"🏠",label:"บ้านและจอง"},{id:"customerData",icon:"👤",label:"ข้อมูลลูกค้า"},{id:"mktResult",icon:"📊",label:"ผลลัพธ์"},{id:"mktBudget",icon:"💰",label:"งบการตลาด"},{id:"settings",icon:"⚙️",label:"ตั้งค่า",badge:settingsBadge}],
     engineer:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"บ้านที่ดูแล"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"analytics",icon:"📊",label:"Analytics"},{id:"team",icon:"👥",label:"ทีมงาน"},{id:"settings",icon:"⚙️",label:"ตั้งค่า"}],
     foreman:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"บ้านที่ดูแล"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"team",icon:"👥",label:"ทีมงาน"}],
     purchasing:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"dash",icon:"⊞",label:"ภาพรวม"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"team",icon:"👥",label:"ทีมงาน"}],
-    marketing:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"analytics",icon:"📊",label:"Analytics"},{id:"team",icon:"👥",label:"ทีมงาน"},{id:"marketing",icon:"📢",label:"การตลาด"}],
+    marketing:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"marketing",icon:"🏠",label:"บ้านและจอง"},{id:"customerData",icon:"👤",label:"ข้อมูลลูกค้า"},{id:"mktResult",icon:"📊",label:"ผลลัพธ์"},{id:"mktBudget",icon:"💰",label:"งบการตลาด"},{id:"team",icon:"👥",label:"ทีมงาน"}],
+    sales:[{id:"timeline",icon:"📈",label:"Timeline"},{id:"tracking",icon:"📋",label:"ติดตามงาน"},{id:"marketing",icon:"🏠",label:"บ้านและจอง"},{id:"customerData",icon:"👤",label:"ข้อมูลลูกค้า"},{id:"mktResult",icon:"📊",label:"ผลลัพธ์"},{id:"team",icon:"👥",label:"ทีมงาน"}],
   };
   const items=navByRole[role]||navByRole.owner;
   return (
@@ -1681,49 +1686,104 @@ function EditNotesMdl({item,phases,onSave,onClose}) {
 // PART 6: Marketing Page
 // ═══════════════════════════════════════════════════════════════
 
-function MarketingPage({data,setData}) {
+function MarketingPage({data,setData,role,isMobileMode}) {
   const [editMdl,setEditMdl]=useState(null);
   const [form,setForm]=useState({});
+  const canEdit=["owner","marketing","sales"].includes(role);
   const PCOL={50:C.red,75:C.orange,100:C.green};
-  function openEdit(house){const c=data.customers.find(c=>c.houseId===house.id)||{houseId:house.id,name:"",phone:"",type:"loan",bank:"",preApproved:false,prob:50,note:""};setForm({...c});setEditMdl(house);}
+  function openEdit(house){
+    const c=data.customers.find(c=>c.houseId===house.id)||{houseId:house.id,name:"",phone:"",type:"loan",bank:"",preApproved:false,prob:50,note:"",price:"",promotion:"",booked:false,isModelHouse:false};
+    setForm({...c,price:c.price||"",promotion:c.promotion||"",booked:c.booked||false,isModelHouse:c.isModelHouse||false});
+    setEditMdl(house);
+  }
   function save(){setData(d=>{const e=d.customers.find(c=>c.houseId===form.houseId);return{...d,customers:e?d.customers.map(c=>c.houseId===form.houseId?form:c):[...d.customers,form],houses:d.houses.map(h=>h.id===form.houseId?{...h,customer:form.name}:h)};});setEditMdl(null);}
+  const bookedCount=data.customers.filter(c=>c.booked).length;
+  const modelCount=data.customers.filter(c=>c.isModelHouse).length;
   return (
-    <div style={{padding:24}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
-        <div><div style={{fontSize:22,fontWeight:700,color:C.text}}>ภาพรวมการตลาด</div><div style={{fontSize:13,color:C.muted,marginTop:2}}>สถานะลูกค้าและความคืบหน้าทุกหลัง</div></div>
-        <div style={{display:"flex",gap:8}}>{[[100,C.green,"แน่นอน"],[75,C.orange,"โอกาสสูง"],[50,C.red,"ติดตาม"]].map(([p,col,l])=><Card key={p} style={{padding:"8px 13px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:800,color:col}}>{data.customers.filter(c=>c.prob===p).length}</div><div style={{fontSize:10,color:C.muted}}>{p}% {l}</div></Card>)}</div>
+    <div style={{padding:isMobileMode?12:24}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:8}}>
+        <div><div style={{fontSize:isMobileMode?18:22,fontWeight:700,color:C.text}}>🏠 รายละเอียดบ้านและการจอง</div><div style={{fontSize:13,color:C.muted,marginTop:2}}>ราคา โปรโมชั่น สถานะจอง บ้านตัวอย่าง</div></div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <Card style={{padding:"8px 13px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:800,color:C.blue}}>{data.houses.length}</div><div style={{fontSize:10,color:C.muted}}>ทั้งหมด</div></Card>
+          <Card style={{padding:"8px 13px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:800,color:C.green}}>{bookedCount}</div><div style={{fontSize:10,color:C.muted}}>ติดจอง</div></Card>
+          <Card style={{padding:"8px 13px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:800,color:C.orange}}>{modelCount}</div><div style={{fontSize:10,color:C.muted}}>บ้านตัวอย่าง</div></Card>
+        </div>
       </div>
+      {isMobileMode?(
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {data.houses.map(h=>{
+            const c=data.customers.find(cu=>cu.houseId===h.id);
+            return (
+              <Card key={h.id} style={{padding:14}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"start",marginBottom:8}}>
+                  <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+                    <Tag color="blue">{h.name}</Tag>
+                    {c?.booked&&<Tag color="green">ติดจอง</Tag>}
+                    {c?.isModelHouse&&<Tag color="orange">บ้านตัวอย่าง</Tag>}
+                  </div>
+                  {canEdit&&<Btn size="sm" variant="ghost" onClick={()=>openEdit(h)}>✏️</Btn>}
+                </div>
+                <div style={{fontSize:13,color:C.text,marginBottom:4}}>{c?.name||<span style={{color:C.muted}}>— ว่าง</span>}</div>
+                {c?.phone&&<div style={{fontSize:11,marginBottom:4}}><a href={`tel:${c.phone}`} style={{color:C.blue,textDecoration:"none"}}>📞 {c.phone}</a></div>}
+                {c?.price&&<div style={{fontSize:12,color:C.blue,fontWeight:700}}>💰 ฿{fmtMoney(Number(c.price))}</div>}
+                {c?.promotion&&<div style={{fontSize:11,color:C.orange,marginTop:2}}>🏷️ {c.promotion}</div>}
+                <div style={{display:"flex",alignItems:"center",gap:7,marginTop:6}}>
+                  <div style={{flex:1,height:5,background:C.faint,borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${h.pct}%`,background:C.blue,borderRadius:3}}/></div>
+                  <span style={{fontSize:11,fontWeight:700,color:C.blue}}>{h.pct}%</span>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      ):(
       <Card>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr>{["บ้าน","ลูกค้า","ประเภท","% โอกาส","ความคืบหน้า","ขั้นตอน","วันเสร็จ","เหลือ",""].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",borderBottom:`1px solid ${C.border}`,background:"#0d1117",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
+          <thead><tr>{["บ้าน","สถานะ","ลูกค้า","ราคา","โปรโมชั่น","ประเภท","% โอกาส","ก่อสร้าง","เหลือ",""].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",borderBottom:`1px solid ${C.border}`,background:"#0d1117",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
           <tbody>
             {data.houses.map(h=>{
               const c=data.customers.find(cu=>cu.houseId===h.id);
               const dl=daysLeft(h.start,h.days);
               return (
                 <tr key={h.id} style={{borderBottom:`1px solid ${C.border}`}} onMouseEnter={e=>e.currentTarget.style.background=C.panel} onMouseLeave={e=>e.currentTarget.style.background=""}>
-                  <td style={{padding:"9px 12px"}}><Tag color="blue">{h.name}</Tag><div style={{fontSize:10,color:C.muted,marginTop:2}}>{data.projects.find(p=>p.id===h.projectId)?.name}</div></td>
-                  <td style={{padding:"9px 12px"}}><div style={{fontSize:13,color:C.text}}>{c?.name||<span style={{color:C.muted}}>— ว่าง</span>}</div>{c?.phone&&<div style={{fontSize:11}}><a href={`tel:${c.phone}`} onClick={e=>e.stopPropagation()} style={{color:C.blue,textDecoration:"none"}}>📞 {c.phone}</a></div>}</td>
-                  <td style={{padding:"9px 12px"}}>{c?<><Tag color={c.type==="cash"?"green":"blue"}>{c.type==="cash"?"💵 ซื้อสด":`🏦 ${c.bank||"กู้ธนาคาร"}`}</Tag>{c.preApproved&&<Tag color="green" style={{marginLeft:4}}>✓ Pre-approved</Tag>}</>:"—"}</td>
+                  <td style={{padding:"9px 12px"}}><Tag color="blue">{h.name}</Tag>{c?.isModelHouse&&<Tag color="orange" style={{marginLeft:4}}>ตัวอย่าง</Tag>}<div style={{fontSize:10,color:C.muted,marginTop:2}}>{data.projects.find(p=>p.id===h.projectId)?.name}</div></td>
+                  <td style={{padding:"9px 12px"}}>{c?.booked?<Tag color="green">ติดจอง</Tag>:<Tag color="gray">ว่าง</Tag>}</td>
+                  <td style={{padding:"9px 12px"}}><div style={{fontSize:13,color:C.text}}>{c?.name||<span style={{color:C.muted}}>—</span>}</div>{c?.phone&&<div style={{fontSize:11}}><a href={`tel:${c.phone}`} onClick={e=>e.stopPropagation()} style={{color:C.blue,textDecoration:"none"}}>📞 {c.phone}</a></div>}</td>
+                  <td style={{padding:"9px 12px",fontSize:13,fontWeight:700,color:C.blue}}>{c?.price?`฿${fmtMoney(Number(c.price))}`:"—"}</td>
+                  <td style={{padding:"9px 12px",fontSize:12,color:C.orange}}>{c?.promotion||"—"}</td>
+                  <td style={{padding:"9px 12px"}}>{c?<Tag color={c.type==="cash"?"green":"blue"}>{c.type==="cash"?"💵 สด":`🏦 ${c.bank||"กู้"}`}</Tag>:"—"}</td>
                   <td style={{padding:"9px 12px"}}>{c?<span style={{fontSize:13,fontWeight:700,color:PCOL[c.prob]}}>{c.prob}%</span>:"—"}</td>
-                  <td style={{padding:"9px 12px",minWidth:110}}><div style={{display:"flex",alignItems:"center",gap:7}}><div style={{flex:1,height:5,background:C.faint,borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${h.pct}%`,background:C.blue,borderRadius:3}}/></div><span style={{fontSize:11,fontWeight:700,color:C.blue}}>{h.pct}%</span></div></td>
-                  <td style={{padding:"9px 12px",fontSize:12,color:C.muted}}>{h.phase}</td>
-                  <td style={{padding:"9px 12px",fontSize:12,color:C.text}}>{fmtDate(addDays(h.start,h.days))}</td>
-                  <td style={{padding:"9px 12px",fontSize:12,color:h.status==="completed"?C.green:dl<0?C.red:dl<30?C.orange:C.muted}}>{h.status==="completed"?"✓ เสร็จ":dl<0?`เกิน ${Math.abs(dl)} วัน`:`${dl} วัน`}</td>
-                  <td style={{padding:"9px 12px"}}><Btn size="sm" variant="ghost" onClick={()=>openEdit(h)}>✏️</Btn></td>
+                  <td style={{padding:"9px 12px",minWidth:90}}><div style={{display:"flex",alignItems:"center",gap:7}}><div style={{flex:1,height:5,background:C.faint,borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${h.pct}%`,background:C.blue,borderRadius:3}}/></div><span style={{fontSize:11,fontWeight:700,color:C.blue}}>{h.pct}%</span></div></td>
+                  <td style={{padding:"9px 12px",fontSize:12,color:dl<0?C.red:dl<30?C.orange:C.muted}}>{h.status==="completed"?"✓":dl<0?`เกิน ${Math.abs(dl)} วัน`:`${dl} วัน`}</td>
+                  <td style={{padding:"9px 12px"}}>{canEdit&&<Btn size="sm" variant="ghost" onClick={()=>openEdit(h)}>✏️</Btn>}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </Card>
+      )}
       {editMdl&&(
-        <Mdl title={`👤 ลูกค้า — บ้าน ${editMdl.name}`} onClose={()=>setEditMdl(null)} footer={<><Btn variant="ghost" onClick={()=>setEditMdl(null)}>ยกเลิก</Btn><Btn onClick={save}>💾 บันทึก</Btn></>}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <Mdl title={`🏠 บ้าน ${editMdl.name}`} onClose={()=>setEditMdl(null)} footer={<><Btn variant="ghost" onClick={()=>setEditMdl(null)}>ยกเลิก</Btn><Btn onClick={save}>💾 บันทึก</Btn></>}>
+          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
+            <FG label="ราคา (บาท)"><FIn type="number" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))} placeholder="เช่น 2500000"/></FG>
+            <FG label="โปรโมชั่น"><FIn value={form.promotion} onChange={e=>setForm(f=>({...f,promotion:e.target.value}))} placeholder="เช่น ฟรีค่าโอน+เฟอร์นิเจอร์"/></FG>
+          </div>
+          <div style={{display:"flex",gap:16,padding:"10px 0",borderTop:`1px solid ${C.border}`,marginBottom:12}}>
+            <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:C.text}}>
+              <input type="checkbox" checked={form.booked} onChange={e=>setForm(f=>({...f,booked:e.target.checked}))}/>
+              ติดจอง
+            </label>
+            <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:C.text}}>
+              <input type="checkbox" checked={form.isModelHouse} onChange={e=>setForm(f=>({...f,isModelHouse:e.target.checked}))}/>
+              บ้านตัวอย่าง
+            </label>
+          </div>
+          <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:8,paddingTop:8,borderTop:`1px solid ${C.border}`}}>👤 ข้อมูลลูกค้า</div>
+          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
             <FG label="ชื่อ-นามสกุล"><FIn value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></FG>
             <FG label="เบอร์โทร"><FIn value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))}/></FG>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
             <FG label="ประเภทการซื้อ"><FSel value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))}><option value="cash">💵 ซื้อสด</option><option value="loan">🏦 กู้ธนาคาร</option><option value="unknown">— ยังไม่ระบุ</option></FSel></FG>
             {form.type==="loan"&&<FG label="ธนาคาร"><FIn value={form.bank} onChange={e=>setForm(f=>({...f,bank:e.target.value}))} placeholder="ชื่อธนาคาร..."/></FG>}
           </div>
@@ -1737,6 +1797,308 @@ function MarketingPage({data,setData}) {
             </label>
           </div>
           <FG label="หมายเหตุ"><FIn value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} rows={2} placeholder="บันทึกการติดตาม..."/></FG>
+        </Mdl>
+      )}
+    </div>
+  );
+}
+
+// ── Marketing Budget Page ─────────────────────────────────────
+function MktBudgetPage({data,setData,role,isMobileMode}) {
+  const canEdit=["owner","marketing"].includes(role);
+  const now=new Date();
+  const [selMonth,setSelMonth]=useState(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`);
+  const [editMdl,setEditMdl]=useState(false);
+  const channels=["Facebook Ads","TikTok Ads","LINE Ads","Google Ads","จ้าง Influencer","ออฟไลน์ ป้ายโฆษณา"];
+  const budgets=data.marketingBudget||[];
+  const cur=budgets.find(b=>b.month===selMonth)||{month:selMonth,items:channels.map(ch=>({channel:ch,budget:0,actual:0}))};
+  const [form,setForm]=useState(cur);
+  function openEdit(){setForm(JSON.parse(JSON.stringify(cur)));setEditMdl(true);}
+  function save(){
+    setData(d=>{
+      const mb=d.marketingBudget||[];
+      const idx=mb.findIndex(b=>b.month===form.month);
+      const items=form.items.map(it=>({...it,budget:Number(it.budget)||0,actual:Number(it.actual)||0}));
+      const updated={...form,items};
+      return{...d,marketingBudget:idx>=0?mb.map((b,i)=>i===idx?updated:b):[...mb,updated]};
+    });
+    setEditMdl(false);
+  }
+  function changeMonth(delta){
+    const [y,m]=selMonth.split("-").map(Number);
+    const d=new Date(y,m-1+delta,1);
+    setSelMonth(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`);
+  }
+  const totalBudget=cur.items.reduce((s,it)=>s+(Number(it.budget)||0),0);
+  const totalActual=cur.items.reduce((s,it)=>s+(Number(it.actual)||0),0);
+  const thMonths=["","มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+  const [y,mo]=selMonth.split("-").map(Number);
+  return (
+    <div style={{padding:isMobileMode?12:24}}>
+      <div style={{fontSize:isMobileMode?18:22,fontWeight:700,color:C.text,marginBottom:4}}>💰 งบประมาณการตลาด</div>
+      <div style={{fontSize:13,color:C.muted,marginBottom:16}}>งบรายเดือนสำหรับค่าใช้จ่ายด้านการตลาด</div>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+        <Btn size="sm" variant="ghost" onClick={()=>changeMonth(-1)}>◀</Btn>
+        <span style={{fontSize:16,fontWeight:700,color:C.text}}>{thMonths[mo]} {y+543}</span>
+        <Btn size="sm" variant="ghost" onClick={()=>changeMonth(1)}>▶</Btn>
+        <div style={{flex:1}}/>
+        {canEdit&&<Btn onClick={openEdit}>✏️ แก้ไขงบ</Btn>}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr 1fr":"1fr 1fr 1fr",gap:12,marginBottom:20}}>
+        <Card style={{padding:15}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>งบประมาณ</div><div style={{fontSize:20,fontWeight:800,color:C.blue}}>฿{fmtMoney(totalBudget)}</div></Card>
+        <Card style={{padding:15}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>ใช้จริง</div><div style={{fontSize:20,fontWeight:800,color:totalActual>totalBudget?C.red:C.green}}>฿{fmtMoney(totalActual)}</div></Card>
+        <Card style={{padding:15}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>คงเหลือ</div><div style={{fontSize:20,fontWeight:800,color:(totalBudget-totalActual)<0?C.red:C.text}}>฿{fmtMoney(totalBudget-totalActual)}</div></Card>
+      </div>
+      <Card>
+        <div style={{display:"flex",flexDirection:"column",gap:0}}>
+          {cur.items.map((it,i)=>{
+            const pct=it.budget>0?Math.min(Math.round((it.actual||0)/it.budget*100),100):0;
+            return (
+              <div key={i} style={{padding:isMobileMode?"10px 12px":"12px 16px",borderBottom:`1px solid ${C.border}`}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                  <span style={{fontSize:13,fontWeight:600,color:C.text}}>{it.channel}</span>
+                  <span style={{fontSize:12,fontWeight:700,color:it.actual>it.budget?C.red:C.blue}}>฿{fmtMoney(it.actual||0)} / ฿{fmtMoney(it.budget||0)}</span>
+                </div>
+                <div style={{height:6,background:C.faint,borderRadius:3,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:`${pct}%`,background:it.actual>it.budget?C.red:C.blue,borderRadius:3}}/>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+      {editMdl&&(
+        <Mdl title={`💰 งบการตลาด — ${thMonths[mo]} ${y+543}`} onClose={()=>setEditMdl(false)} footer={<><Btn variant="ghost" onClick={()=>setEditMdl(false)}>ยกเลิก</Btn><Btn onClick={save}>💾 บันทึก</Btn></>}>
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            {form.items.map((it,i)=>(
+              <div key={i} style={{padding:12,background:"#0d1117",borderRadius:8,border:`1px solid ${C.border}`}}>
+                <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:8}}>{it.channel}</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                  <FG label="งบประมาณ"><FIn type="number" value={it.budget} onChange={e=>{const items=[...form.items];items[i]={...items[i],budget:e.target.value};setForm(f=>({...f,items}));}}/></FG>
+                  <FG label="ใช้จริง"><FIn type="number" value={it.actual} onChange={e=>{const items=[...form.items];items[i]={...items[i],actual:e.target.value};setForm(f=>({...f,items}));}}/></FG>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Mdl>
+      )}
+    </div>
+  );
+}
+
+// ── Customer Data (Walk-in) Page ──────────────────────────────
+function CustomerDataPage({data,setData,role,isMobileMode}) {
+  const canEdit=["owner","marketing","sales"].includes(role);
+  const [editMdl,setEditMdl]=useState(null);
+  const [form,setForm]=useState({});
+  const customers=data.walkInCustomers||[];
+  const salesMembers=data.team.filter(t=>t.role==="sales"&&t.status==="active");
+  const channelOpts=["Facebook","TikTok TheCloud","TikTok บ้านสไตล์บอส","Facebook เซลล์","เซลล์ตรง","LINE","Google","อื่นๆ"];
+  function openAdd(){setForm({id:uid(),name:"",phone:"",age:"",occupation:"",income:"",walkInDate:new Date().toISOString().slice(0,10),channel:"",channelDetail:"",salesPerson:"",bookingDate:"",bookingHouseId:"",note:""});setEditMdl("add");}
+  function openEdit(c){setForm({...c});setEditMdl("edit");}
+  function save(){
+    setData(d=>{
+      const wc=d.walkInCustomers||[];
+      const idx=wc.findIndex(c=>c.id===form.id);
+      return{...d,walkInCustomers:idx>=0?wc.map(c=>c.id===form.id?form:c):[...wc,form]};
+    });
+    setEditMdl(null);
+  }
+  function del(id){if(confirm("ลบข้อมูลลูกค้านี้?")){setData(d=>({...d,walkInCustomers:(d.walkInCustomers||[]).filter(c=>c.id!==id)}));}}
+  return (
+    <div style={{padding:isMobileMode?12:24}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:8}}>
+        <div><div style={{fontSize:isMobileMode?18:22,fontWeight:700,color:C.text}}>👤 ข้อมูลลูกค้าการตลาด</div><div style={{fontSize:13,color:C.muted,marginTop:2}}>ข้อมูลลูกค้า Walk-in และช่องทางการตลาด</div></div>
+        <div style={{display:"flex",gap:8}}>
+          <Card style={{padding:"8px 13px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:800,color:C.blue}}>{customers.length}</div><div style={{fontSize:10,color:C.muted}}>ทั้งหมด</div></Card>
+          <Card style={{padding:"8px 13px",textAlign:"center"}}><div style={{fontSize:18,fontWeight:800,color:C.green}}>{customers.filter(c=>c.bookingHouseId).length}</div><div style={{fontSize:10,color:C.muted}}>จองแล้ว</div></Card>
+          {canEdit&&<Btn onClick={openAdd}>+ เพิ่มลูกค้า</Btn>}
+        </div>
+      </div>
+      {isMobileMode?(
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {customers.length===0&&<Card style={{padding:20,textAlign:"center"}}><div style={{color:C.muted}}>ยังไม่มีข้อมูลลูกค้า</div></Card>}
+          {customers.map(c=>{
+            const house=data.houses.find(h=>h.id===Number(c.bookingHouseId));
+            return (
+              <Card key={c.id} style={{padding:14}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"start",marginBottom:6}}>
+                  <div style={{fontSize:14,fontWeight:700,color:C.text}}>{c.name||"—"}</div>
+                  <div style={{display:"flex",gap:4}}>
+                    {canEdit&&<Btn size="sm" variant="ghost" onClick={()=>openEdit(c)}>✏️</Btn>}
+                    {canEdit&&<Btn size="sm" variant="ghost" onClick={()=>del(c.id)}>🗑</Btn>}
+                  </div>
+                </div>
+                {c.phone&&<div style={{fontSize:12,marginBottom:2}}><a href={`tel:${c.phone}`} style={{color:C.blue,textDecoration:"none"}}>📞 {c.phone}</a></div>}
+                <div style={{fontSize:11,color:C.muted}}>Walk-in: {fmtDate(c.walkInDate)} | ช่องทาง: {c.channel}{c.channelDetail?` (${c.channelDetail})`:""}</div>
+                {house&&<div style={{fontSize:11,color:C.green,marginTop:4}}>🏠 จองบ้าน {house.name} · {fmtDate(c.bookingDate)}</div>}
+              </Card>
+            );
+          })}
+        </div>
+      ):(
+      <Card>
+        <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",minWidth:900}}>
+          <thead><tr>{["ชื่อ","เบอร์โทร","อายุ","อาชีพ","รายได้","วัน Walk-in","ช่องทาง","รายละเอียด","จองบ้าน","วันจอง",""].map(h=><th key={h} style={{padding:"8px 10px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
+          <tbody>
+            {customers.length===0&&<tr><td colSpan={11} style={{padding:20,textAlign:"center",color:C.muted}}>ยังไม่มีข้อมูลลูกค้า</td></tr>}
+            {customers.map(c=>{
+              const house=data.houses.find(h=>h.id===Number(c.bookingHouseId));
+              return (
+                <tr key={c.id} style={{borderBottom:`1px solid ${C.border}`}} onMouseEnter={e=>e.currentTarget.style.background=C.panel} onMouseLeave={e=>e.currentTarget.style.background=""}>
+                  <td style={{padding:"8px 10px",fontSize:13,color:C.text,fontWeight:600}}>{c.name}</td>
+                  <td style={{padding:"8px 10px",fontSize:12}}><a href={`tel:${c.phone}`} style={{color:C.blue,textDecoration:"none"}}>{c.phone}</a></td>
+                  <td style={{padding:"8px 10px",fontSize:12,color:C.muted}}>{c.age||"—"}</td>
+                  <td style={{padding:"8px 10px",fontSize:12,color:C.muted}}>{c.occupation||"—"}</td>
+                  <td style={{padding:"8px 10px",fontSize:12,color:C.muted}}>{c.income?`฿${fmtMoney(Number(c.income))}`:"—"}</td>
+                  <td style={{padding:"8px 10px",fontSize:12,color:C.text}}>{fmtDate(c.walkInDate)}</td>
+                  <td style={{padding:"8px 10px"}}><Tag color="blue">{c.channel||"—"}</Tag></td>
+                  <td style={{padding:"8px 10px",fontSize:11,color:C.muted}}>{c.channelDetail||"—"}</td>
+                  <td style={{padding:"8px 10px"}}>{house?<Tag color="green">{house.name}</Tag>:"—"}</td>
+                  <td style={{padding:"8px 10px",fontSize:12,color:C.text}}>{c.bookingDate?fmtDate(c.bookingDate):"—"}</td>
+                  <td style={{padding:"8px 10px"}}>
+                    <div style={{display:"flex",gap:4}}>
+                      {canEdit&&<Btn size="sm" variant="ghost" onClick={()=>openEdit(c)}>✏️</Btn>}
+                      {canEdit&&<Btn size="sm" variant="ghost" onClick={()=>del(c.id)}>🗑</Btn>}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        </div>
+      </Card>
+      )}
+      {editMdl&&(
+        <Mdl title={editMdl==="add"?"➕ เพิ่มลูกค้า Walk-in":"✏️ แก้ไขข้อมูลลูกค้า"} onClose={()=>setEditMdl(null)} footer={<><Btn variant="ghost" onClick={()=>setEditMdl(null)}>ยกเลิก</Btn><Btn onClick={save}>💾 บันทึก</Btn></>}>
+          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
+            <FG label="ชื่อ-นามสกุล"><FIn value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></FG>
+            <FG label="เบอร์โทร"><FIn value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))}/></FG>
+            <FG label="อายุ"><FIn type="number" value={form.age} onChange={e=>setForm(f=>({...f,age:e.target.value}))}/></FG>
+            <FG label="อาชีพ"><FIn value={form.occupation} onChange={e=>setForm(f=>({...f,occupation:e.target.value}))}/></FG>
+            <FG label="รายได้ (บาท/เดือน)"><FIn type="number" value={form.income} onChange={e=>setForm(f=>({...f,income:e.target.value}))}/></FG>
+            <FG label="วัน Walk-in"><FIn type="date" value={form.walkInDate} onChange={e=>setForm(f=>({...f,walkInDate:e.target.value}))}/></FG>
+          </div>
+          <FG label="ช่องทางสื่อที่ลูกค้ารับรู้">
+            <FSel value={form.channel} onChange={e=>setForm(f=>({...f,channel:e.target.value}))}>
+              <option value="">— เลือก —</option>
+              {channelOpts.map(ch=><option key={ch} value={ch}>{ch}</option>)}
+            </FSel>
+          </FG>
+          {form.channel==="Facebook เซลล์"&&(
+            <FG label="Facebook เซลล์คนไหน">
+              <FSel value={form.channelDetail} onChange={e=>setForm(f=>({...f,channelDetail:e.target.value}))}>
+                <option value="">— เลือกเซลล์ —</option>
+                {salesMembers.map(s=><option key={s.id} value={s.name}>{s.name}</option>)}
+                <option value="อื่นๆ">อื่นๆ</option>
+              </FSel>
+              {form.channelDetail==="อื่นๆ"&&<FIn style={{marginTop:6}} value={form.channelDetailOther||""} onChange={e=>setForm(f=>({...f,channelDetailOther:e.target.value}))} placeholder="ระบุ..."/>}
+            </FG>
+          )}
+          {form.channel&&!["Facebook เซลล์"].includes(form.channel)&&form.channel!=="เซลล์ตรง"&&(
+            <FG label="รายละเอียดเพิ่มเติม"><FIn value={form.channelDetail||""} onChange={e=>setForm(f=>({...f,channelDetail:e.target.value}))} placeholder="รายละเอียด..."/></FG>
+          )}
+          {form.channel==="เซลล์ตรง"&&(
+            <FG label="เซลล์คนไหน">
+              <FSel value={form.channelDetail} onChange={e=>setForm(f=>({...f,channelDetail:e.target.value}))}>
+                <option value="">— เลือกเซลล์ —</option>
+                {salesMembers.map(s=><option key={s.id} value={s.name}>{s.name}</option>)}
+              </FSel>
+            </FG>
+          )}
+          <div style={{fontSize:14,fontWeight:700,color:C.text,marginTop:12,marginBottom:8,paddingTop:12,borderTop:`1px solid ${C.border}`}}>🏠 การจองบ้าน</div>
+          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
+            <FG label="บ้านที่จอง">
+              <FSel value={form.bookingHouseId} onChange={e=>setForm(f=>({...f,bookingHouseId:e.target.value}))}>
+                <option value="">— ยังไม่จอง —</option>
+                {data.houses.map(h=><option key={h.id} value={h.id}>บ้าน {h.name} ({data.projects.find(p=>p.id===h.projectId)?.name})</option>)}
+              </FSel>
+            </FG>
+            <FG label="วันที่จอง"><FIn type="date" value={form.bookingDate||""} onChange={e=>setForm(f=>({...f,bookingDate:e.target.value}))}/></FG>
+          </div>
+          <FG label="หมายเหตุ"><FIn value={form.note||""} onChange={e=>setForm(f=>({...f,note:e.target.value}))} rows={2} placeholder="บันทึก..."/></FG>
+        </Mdl>
+      )}
+    </div>
+  );
+}
+
+// ── Monthly Results Page ──────────────────────────────────────
+function MktResultPage({data,setData,role,isMobileMode}) {
+  const canEdit=["owner","marketing","sales"].includes(role);
+  const now=new Date();
+  const [selMonth,setSelMonth]=useState(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`);
+  const [editMdl,setEditMdl]=useState(false);
+  const metrics=[
+    {key:"fbInbox",label:"Facebook Inbox",icon:"📘"},
+    {key:"tiktokCloudInbox",label:"TikTok TheCloud Inbox",icon:"🎵"},
+    {key:"tiktokBossInbox",label:"TikTok บ้านสไตล์บอส Inbox",icon:"🎶"},
+    {key:"lineInbox",label:"LINE Inbox",icon:"💚"},
+    {key:"walkIn",label:"Walk-in",icon:"🚶"},
+    {key:"bookings",label:"ยอดจอง (หลัง)",icon:"📝"},
+    {key:"transfers",label:"โอนแล้ว (หลัง)",icon:"✅"},
+  ];
+  const results=data.monthlyResults||[];
+  const cur=results.find(r=>r.month===selMonth)||{month:selMonth,fbInbox:0,tiktokCloudInbox:0,tiktokBossInbox:0,lineInbox:0,walkIn:0,bookings:0,transfers:0,note:""};
+  const [form,setForm]=useState(cur);
+  function openEdit(){setForm({...cur});setEditMdl(true);}
+  function save(){
+    const cleaned={...form};
+    metrics.forEach(m=>{cleaned[m.key]=Number(cleaned[m.key])||0;});
+    setData(d=>{
+      const mr=d.monthlyResults||[];
+      const idx=mr.findIndex(r=>r.month===cleaned.month);
+      return{...d,monthlyResults:idx>=0?mr.map((r,i)=>i===idx?cleaned:r):[...mr,cleaned]};
+    });
+    setEditMdl(false);
+  }
+  function changeMonth(delta){
+    const [y,m]=selMonth.split("-").map(Number);
+    const d=new Date(y,m-1+delta,1);
+    setSelMonth(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`);
+  }
+  const thMonths=["","มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+  const [y,mo]=selMonth.split("-").map(Number);
+  const totalInbox=(cur.fbInbox||0)+(cur.tiktokCloudInbox||0)+(cur.tiktokBossInbox||0)+(cur.lineInbox||0);
+  return (
+    <div style={{padding:isMobileMode?12:24}}>
+      <div style={{fontSize:isMobileMode?18:22,fontWeight:700,color:C.text,marginBottom:4}}>📊 ผลลัพธ์การตลาด</div>
+      <div style={{fontSize:13,color:C.muted,marginBottom:16}}>สรุปยอด Inbox, Walk-in, จอง, โอน รายเดือน</div>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+        <Btn size="sm" variant="ghost" onClick={()=>changeMonth(-1)}>◀</Btn>
+        <span style={{fontSize:16,fontWeight:700,color:C.text}}>{thMonths[mo]} {y+543}</span>
+        <Btn size="sm" variant="ghost" onClick={()=>changeMonth(1)}>▶</Btn>
+        <div style={{flex:1}}/>
+        {canEdit&&<Btn onClick={openEdit}>✏️ แก้ไข</Btn>}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr 1fr":"repeat(4,1fr)",gap:12,marginBottom:20}}>
+        <Card style={{padding:15}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>📨 รวม Inbox</div><div style={{fontSize:24,fontWeight:800,color:C.blue}}>{fmtMoney(totalInbox)}</div></Card>
+        <Card style={{padding:15}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>🚶 Walk-in</div><div style={{fontSize:24,fontWeight:800,color:C.orange}}>{cur.walkIn||0}</div></Card>
+        <Card style={{padding:15}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>📝 ยอดจอง</div><div style={{fontSize:24,fontWeight:800,color:C.green}}>{cur.bookings||0} หลัง</div></Card>
+        <Card style={{padding:15}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:5}}>✅ โอนแล้ว</div><div style={{fontSize:24,fontWeight:800,color:"#a78bfa"}}>{cur.transfers||0} หลัง</div></Card>
+      </div>
+      <Card style={{padding:isMobileMode?14:20}}>
+        <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:16}}>รายละเอียดแต่ละช่องทาง</div>
+        <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
+          {metrics.map(m=>(
+            <div key={m.key} style={{padding:12,background:"#0d1117",borderRadius:8,border:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontSize:13,color:C.text}}>{m.icon} {m.label}</span>
+              <span style={{fontSize:18,fontWeight:800,color:C.blue}}>{cur[m.key]||0}</span>
+            </div>
+          ))}
+        </div>
+        {cur.note&&<div style={{marginTop:12,padding:10,background:"#0d1117",borderRadius:8,fontSize:12,color:C.muted}}>📝 {cur.note}</div>}
+      </Card>
+      {editMdl&&(
+        <Mdl title={`📊 ผลลัพธ์ — ${thMonths[mo]} ${y+543}`} onClose={()=>setEditMdl(false)} footer={<><Btn variant="ghost" onClick={()=>setEditMdl(false)}>ยกเลิก</Btn><Btn onClick={save}>💾 บันทึก</Btn></>}>
+          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
+            {metrics.map(m=>(
+              <FG key={m.key} label={`${m.icon} ${m.label}`}><FIn type="number" value={form[m.key]||""} onChange={e=>setForm(f=>({...f,[m.key]:e.target.value}))}/></FG>
+            ))}
+          </div>
+          <FG label="หมายเหตุ"><FIn value={form.note||""} onChange={e=>setForm(f=>({...f,note:e.target.value}))} rows={2} placeholder="หมายเหตุประจำเดือน..."/></FG>
         </Mdl>
       )}
     </div>
@@ -3166,7 +3528,7 @@ function TrackingPage({data,setData,role,isMobileMode,authedUserId,isOwner}) {
 
   // Use authedUserId passed from App (supports owner "view as")
   const currentUserId=authedUserId||(data.team.find(m=>m.role===role&&m.status==="active")?.id);
-  const ownerView=isOwner&&role==="owner"; // true only when owner views in owner mode
+  const ownerView=(isOwner&&role==="owner")||role==="sales"; // sales sees full team view too
   const [locLoading,setLocLoading]=useState(false);
   const [locLoading2,setLocLoading2]=useState(false);
   const [manualMode,setManualMode]=useState(false);
@@ -3866,7 +4228,7 @@ export default function App() {
     setAuthedUserId(memberId);
     setRole(memberRole);
     setViewAsId(null);
-    setPage(memberRole==="marketing"?"marketing":"dash");
+    setPage(memberRole==="marketing"?"marketing":memberRole==="sales"?"marketing":"dash");
   }
   function handleLogout(){
     setLoggedIn(false);setAuthedUserId(null);setViewAsId(null);
@@ -3963,7 +4325,7 @@ export default function App() {
     </div>
   );
 
-  const topTitle=openId?`บ้าน ${data.houses.find(h=>h.id===openId)?.name||""}`:({dash:"Dashboard",finance:"💹 Financial Dashboard",purchase:role==="engineer"?"อนุมัติคำสั่งซื้อ":"รายการจัดซื้อ",payments:"💰 Payments",analytics:"📊 Analytics",team:"👥 Team",tracking:"📋 ติดตามงาน",marketing:"การตลาด",settings:"ตั้งค่า"}[page]||"");
+  const topTitle=openId?`บ้าน ${data.houses.find(h=>h.id===openId)?.name||""}`:({dash:"Dashboard",finance:"💹 Financial Dashboard",purchase:role==="engineer"?"อนุมัติคำสั่งซื้อ":"รายการจัดซื้อ",payments:"💰 Payments",analytics:"📊 Analytics",team:"👥 Team",tracking:"📋 ติดตามงาน",marketing:"🏠 รายละเอียดบ้านและการจอง",customerData:"👤 ข้อมูลลูกค้าการตลาด",mktResult:"📊 ผลลัพธ์",mktBudget:"💰 งบประมาณการตลาด",settings:"ตั้งค่า"}[page]||"");
 
   // Compute unviewed notif count for mobile sidebar badge
   const allNotifItems=[
@@ -3975,11 +4337,12 @@ export default function App() {
 
   // Bottom nav items per role (max 5 slots)
   const bottomNavByRole={
-    owner:[{id:"dash",icon:"⊞",label:"Dashboard"},{id:"tracking",icon:"📋",label:"ติดตาม"},{id:"analytics",icon:"📊",label:"วิเคราะห์"},{id:"team",icon:"👥",label:"ทีม"},{id:"settings",icon:"⚙️",label:"ตั้งค่า"}],
+    owner:[{id:"dash",icon:"⊞",label:"Dashboard"},{id:"tracking",icon:"📋",label:"ติดตาม"},{id:"marketing",icon:"🏠",label:"บ้าน"},{id:"mktResult",icon:"📊",label:"ผลลัพธ์"},{id:"settings",icon:"⚙️",label:"ตั้งค่า"}],
     engineer:[{id:"dash",icon:"⊞",label:"บ้าน"},{id:"tracking",icon:"📋",label:"ติดตาม"},{id:"team",icon:"👥",label:"ทีม"},{id:"analytics",icon:"📊",label:"วิเคราะห์"},{id:"settings",icon:"⚙️",label:"ตั้งค่า"}],
     foreman:[{id:"dash",icon:"⊞",label:"บ้าน"},{id:"tracking",icon:"📋",label:"ติดตาม"},{id:"team",icon:"👥",label:"ทีม"},{id:"timeline",icon:"📈",label:"Timeline"}],
     purchasing:[{id:"dash",icon:"⊞",label:"ภาพรวม"},{id:"tracking",icon:"📋",label:"ติดตาม"},{id:"team",icon:"👥",label:"ทีม"},{id:"timeline",icon:"📈",label:"Timeline"}],
-    marketing:[{id:"marketing",icon:"📢",label:"การตลาด"},{id:"tracking",icon:"📋",label:"ติดตาม"},{id:"analytics",icon:"📊",label:"วิเคราะห์"},{id:"team",icon:"👥",label:"ทีม"}],
+    marketing:[{id:"marketing",icon:"🏠",label:"บ้าน"},{id:"customerData",icon:"👤",label:"ลูกค้า"},{id:"mktResult",icon:"📊",label:"ผลลัพธ์"},{id:"mktBudget",icon:"💰",label:"งบ"},{id:"tracking",icon:"📋",label:"ติดตาม"}],
+    sales:[{id:"marketing",icon:"🏠",label:"บ้าน"},{id:"customerData",icon:"👤",label:"ลูกค้า"},{id:"mktResult",icon:"📊",label:"ผลลัพธ์"},{id:"tracking",icon:"📋",label:"ติดตาม"},{id:"team",icon:"👥",label:"ทีม"}],
   };
   const mobileBottomItems=bottomNavByRole[role]||bottomNavByRole.owner;
 
@@ -4065,7 +4428,10 @@ export default function App() {
             {page==="analytics"&&<AnalyticsPage data={data} isMobileMode={isMobileMode}/>}
             {page==="finance"&&role==="owner"&&<FinancePage data={data} role={role} isMobileMode={isMobileMode}/>}
             {page==="team"&&<TeamPage data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>}
-            {page==="marketing"&&<MarketingPage data={data} setData={setData} isMobileMode={isMobileMode}/>}
+            {page==="marketing"&&<MarketingPage data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>}
+            {page==="customerData"&&["owner","marketing","sales"].includes(role)&&<CustomerDataPage data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>}
+            {page==="mktResult"&&["owner","marketing","sales"].includes(role)&&<MktResultPage data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>}
+            {page==="mktBudget"&&["owner","marketing"].includes(role)&&<MktBudgetPage data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>}
             {page==="settings"&&["owner","engineer"].includes(role)&&<SettingsPage data={data} setData={setData} role={role} isMobileMode={isMobileMode}/>}
           </div>
 

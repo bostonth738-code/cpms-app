@@ -151,6 +151,7 @@ const INIT={
   infrastructureCosts:{},
   transferredHouses:[],
   weeklyPayments:{},
+  houseAttachments:{},
 };
 
 // Global Styles
@@ -170,6 +171,8 @@ input,select,textarea,button{font-family:inherit}
 // ═══════════════════════════════════════════════════════════════
 // PART 2: Micro UI Components
 // ═══════════════════════════════════════════════════════════════
+
+function resizeImg(dataUrl,maxW=800){return new Promise(resolve=>{const img=new Image();img.onload=()=>{let w=img.width,h=img.height;if(w>maxW){h=Math.round(h*(maxW/w));w=maxW;}const cv=document.createElement("canvas");cv.width=w;cv.height=h;cv.getContext("2d").drawImage(img,0,0,w,h);resolve(cv.toDataURL("image/jpeg",0.8));};img.src=dataUrl;});}
 
 function Tag({color="blue",children,style={}}) {
   const m={blue:[C.blueDim,C.blue],green:[C.greenDim,C.green],red:[C.redDim,C.red],orange:[C.orangeDim,C.orange],purple:[C.purpleDim,C.purple],gray:[C.faint,C.muted]};
@@ -2011,6 +2014,45 @@ function MarketingPage({data,setData,role,isMobileMode}) {
           ))}
           <Btn size="sm" variant="ghost" onClick={addSalesPerson} style={{color:C.blue,fontSize:12,marginBottom:12}}>+ เพิ่มเซลล์</Btn>
           <FG label="หมายเหตุ"><FIn value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} rows={2} placeholder="บันทึกการติดตาม..."/></FG>
+          {/* ── Attachments Section ── */}
+          <div style={{fontSize:14,fontWeight:700,color:C.text,marginTop:12,marginBottom:8,paddingTop:12,borderTop:`1px solid ${C.border}`}}>📎 เอกสารแนบ / รูปภาพ</div>
+          <div style={{fontSize:11,color:C.muted,marginBottom:8}}>อัปโหลดรูปหรือเอกสาร เช่น แบบติดแอร์, ใบเสนอราคา, คำขอเพิ่มเติม (ข้อมูลจะลิงก์ไปยังหน้า "บ้านที่โอนแล้ว" ด้วย)</div>
+          {(()=>{
+            const atts=(data.houseAttachments||{})[editMdl.id]||[];
+            return(<>
+              {atts.length>0&&<div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr 1fr":"1fr 1fr 1fr",gap:8,marginBottom:10}}>
+                {atts.map(a=>(
+                  <div key={a.id} style={{background:C.faint,borderRadius:8,overflow:"hidden",border:`1px solid ${C.border}`}}>
+                    {a.type?.startsWith("image/")?<img src={a.data} alt={a.name} style={{width:"100%",height:100,objectFit:"cover"}}/>:<div style={{height:60,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28}}>📄</div>}
+                    <div style={{padding:"6px 8px"}}>
+                      <div style={{fontSize:10,color:C.text,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</div>
+                      <div style={{fontSize:9,color:C.muted}}>{a.uploadedBy} — {a.date}</div>
+                      <div style={{display:"flex",gap:4,marginTop:4}}>
+                        <a href={a.data} download={a.name} style={{fontSize:10,color:C.blue,textDecoration:"none"}}>⬇️ ดาวน์โหลด</a>
+                        {canEdit&&<span style={{fontSize:10,color:C.red,cursor:"pointer"}} onClick={()=>setData(d=>({...d,houseAttachments:{...d.houseAttachments,[editMdl.id]:(d.houseAttachments?.[editMdl.id]||[]).filter(x=>x.id!==a.id)}}))}>🗑 ลบ</span>}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>}
+              {canEdit&&<label style={{display:"inline-flex",alignItems:"center",gap:6,cursor:"pointer",padding:"8px 14px",borderRadius:8,background:C.faint,border:`1px dashed ${C.border}`,color:C.blue,fontSize:12,fontWeight:600}}>
+                📎 เลือกไฟล์แนบ
+                <input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" multiple style={{display:"none"}} onChange={e=>{
+                  Array.from(e.target.files).forEach(file=>{
+                    const reader=new FileReader();
+                    reader.onload=async ev=>{
+                      let fileData=ev.target.result;
+                      if(file.type.startsWith("image/"))fileData=await resizeImg(fileData,800);
+                      const att={id:uid(),name:file.name,type:file.type,data:fileData,date:new Date().toISOString().slice(0,10),uploadedBy:ROLE_LBL[role]};
+                      setData(d=>({...d,houseAttachments:{...d.houseAttachments,[editMdl.id]:[...(d.houseAttachments?.[editMdl.id]||[]),att]}}));
+                    };
+                    reader.readAsDataURL(file);
+                  });
+                  e.target.value="";
+                }}/>
+              </label>}
+            </>);
+          })()}
         </Mdl>
       )}
       {showConfetti&&(()=>{
@@ -3918,10 +3960,104 @@ function TransferredHousesPage({data,setData,role,isMobileMode}){
   items.forEach(r=>{if(!grouped[r.projectName])grouped[r.projectName]=[];grouped[r.projectName].push(r);});
   const [editTrMdl,setEditTrMdl]=useState(null);
   const [editTrForm,setEditTrForm]=useState({});
+  const [detailMdl,setDetailMdl]=useState(null);
+  const [pdfLoading,setPdfLoading]=useState(null);
   function openEditTransfer(r){setEditTrForm({...r});setEditTrMdl(r.id);}
   function saveEditTransfer(){setData(d=>({...d,transferredHouses:(d.transferredHouses||[]).map(t=>t.id===editTrMdl?{...t,...editTrForm}:t)}));setEditTrMdl(null);}
   function delTransfer(id){if(confirm("ลบรายการโอนนี้? (ข้อมูลจะหายถาวร)")){setData(d=>({...d,transferredHouses:(d.transferredHouses||[]).filter(t=>t.id!==id)}));}}
   function undoTransfer(r){if(!confirm(`ยกเลิกการโอน "${r.houseName}"?\nข้อมูลลูกค้าจะย้ายกลับไปหน้า "บ้านและจอง"`))return;const cust={houseId:r.houseId,name:r.customerName,phone:r.customerPhone||"",price:r.price||"",type:r.type||"loan",promotionItems:r.promotionItems||[],bankLoans:r.bankLoans||[],salesPersons:r.salesPersons||[],prob:r.prob||100,note:r.note||"",booked:r.booked||"",preApproved:r.preApproved||false};setData(d=>({...d,transferredHouses:(d.transferredHouses||[]).filter(t=>t.id!==r.id),customers:[...d.customers,cust],houses:d.houses.map(h=>h.id===r.houseId?{...h,customer:r.customerName}:h)}));}
+  function uploadAttachment(houseId,files){
+    Array.from(files).forEach(file=>{
+      const reader=new FileReader();
+      reader.onload=async ev=>{
+        let fileData=ev.target.result;
+        if(file.type.startsWith("image/"))fileData=await resizeImg(fileData,800);
+        const att={id:uid(),name:file.name,type:file.type,data:fileData,date:new Date().toISOString().slice(0,10),uploadedBy:ROLE_LBL[role]};
+        setData(d=>({...d,houseAttachments:{...d.houseAttachments,[houseId]:[...(d.houseAttachments?.[houseId]||[]),att]}}));
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  function delAttachment(houseId,attId){setData(d=>({...d,houseAttachments:{...d.houseAttachments,[houseId]:(d.houseAttachments?.[houseId]||[]).filter(a=>a.id!==attId)}}));}
+  async function exportTransferPDF(r){
+    setPdfLoading(r.id);
+    try{
+      const house=data.houses.find(h=>h.id===r.houseId);
+      const reportPhotos=(house&&!Array.isArray(house.reportPhotos)&&house.reportPhotos)||{};
+      const atts=(data.houseAttachments||{})[r.houseId]||[];
+      // Build HTML
+      const el=document.createElement("div");
+      el.style.cssText="width:794px;padding:40px;background:#fff;color:#1e293b;font-family:'Noto Sans Thai',sans-serif;";
+      el.innerHTML=`
+        <div style="text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #3b82f6">
+          <div style="font-size:22px;font-weight:800;color:#1e293b">🏡 รายงานบ้านที่โอนแล้ว</div>
+          <div style="font-size:13px;color:#64748b;margin-top:4px">ระบบ CPMS — ${new Date().toLocaleDateString("th-TH",{year:"numeric",month:"long",day:"numeric"})}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+          <div style="background:#f1f5f9;padding:14px;border-radius:10px">
+            <div style="font-size:10px;color:#64748b;font-weight:700">🏠 บ้าน / โครงการ</div>
+            <div style="font-size:16px;font-weight:800">${r.houseName} — ${r.projectName}</div>
+          </div>
+          <div style="background:#f1f5f9;padding:14px;border-radius:10px">
+            <div style="font-size:10px;color:#64748b;font-weight:700">📅 วันโอน</div>
+            <div style="font-size:16px;font-weight:800">${r.transferDate||"—"}</div>
+          </div>
+        </div>
+        <div style="background:#f1f5f9;padding:16px;border-radius:10px;margin-bottom:20px">
+          <div style="font-size:14px;font-weight:700;margin-bottom:10px">👤 ข้อมูลลูกค้า</div>
+          <table style="width:100%;border-collapse:collapse">
+            <tr><td style="padding:4px 8px;font-size:12px;color:#64748b;width:120px">ชื่อ-นามสกุล</td><td style="padding:4px 8px;font-size:13px;font-weight:700">${r.customerName}</td></tr>
+            <tr><td style="padding:4px 8px;font-size:12px;color:#64748b">เบอร์โทร</td><td style="padding:4px 8px;font-size:13px">${r.customerPhone||"—"}</td></tr>
+            <tr><td style="padding:4px 8px;font-size:12px;color:#64748b">ราคา</td><td style="padding:4px 8px;font-size:13px;font-weight:700;color:#3b82f6">${r.price?`฿${fmtMoney(Number(r.price))}`:"—"}</td></tr>
+            <tr><td style="padding:4px 8px;font-size:12px;color:#64748b">ประเภทซื้อ</td><td style="padding:4px 8px;font-size:13px">${r.type==="cash"?"💵 สด":"🏦 กู้"}</td></tr>
+            ${(r.salesPersons||[]).length>0?`<tr><td style="padding:4px 8px;font-size:12px;color:#64748b">เซลล์</td><td style="padding:4px 8px;font-size:13px">${r.salesPersons.join(", ")}</td></tr>`:""}
+            ${(r.bankLoans||[]).length>0?`<tr><td style="padding:4px 8px;font-size:12px;color:#64748b">ธนาคาร</td><td style="padding:4px 8px;font-size:13px">${r.bankLoans.map(b=>b.bankName).join(", ")}</td></tr>`:""}
+            ${(r.promotionItems||[]).length>0?`<tr><td style="padding:4px 8px;font-size:12px;color:#64748b">โปรโมชั่น</td><td style="padding:4px 8px;font-size:13px;color:#f97316">${r.promotionItems.map((p,i)=>`${i+1}. ${p.text}`).join("<br/>")}</td></tr>`:""}
+            ${r.note?`<tr><td style="padding:4px 8px;font-size:12px;color:#64748b">หมายเหตุ</td><td style="padding:4px 8px;font-size:13px">${r.note}</td></tr>`:""}
+          </table>
+        </div>
+        ${Object.keys(reportPhotos).length>0?`
+          <div style="margin-bottom:20px">
+            <div style="font-size:14px;font-weight:700;margin-bottom:10px">📸 รูปก่อสร้างรายหมวด</div>
+            ${Object.entries(reportPhotos).map(([phId,photos])=>{
+              const ph=data.phases.find(p=>p.id===Number(phId));
+              return`<div style="margin-bottom:12px">
+                <div style="font-size:12px;font-weight:700;color:#3b82f6;margin-bottom:6px">${ph?.name||`หมวดที่ ${phId}`}</div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px">
+                  ${photos.slice(0,6).map(p=>`<div style="width:120px"><img src="${p.base64}" style="width:120px;height:90px;object-fit:cover;border-radius:6px"/><div style="font-size:9px;color:#64748b;margin-top:2px">${p.caption||""}</div></div>`).join("")}
+                </div>
+              </div>`;
+            }).join("")}
+          </div>
+        `:""}
+        ${atts.length>0?`
+          <div style="margin-bottom:20px">
+            <div style="font-size:14px;font-weight:700;margin-bottom:10px">📎 เอกสารแนบ</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              ${atts.filter(a=>a.type?.startsWith("image/")).map(a=>`<div style="width:150px"><img src="${a.data}" style="width:150px;height:110px;object-fit:cover;border-radius:6px"/><div style="font-size:9px;color:#64748b;margin-top:2px">${a.name} (${a.date})</div></div>`).join("")}
+            </div>
+            ${atts.filter(a=>!a.type?.startsWith("image/")).length>0?`<div style="margin-top:8px;font-size:11px;color:#64748b">${atts.filter(a=>!a.type?.startsWith("image/")).map(a=>`📄 ${a.name}`).join(" | ")}</div>`:""}
+          </div>
+        `:""}
+      `;
+      document.body.appendChild(el);
+      const canvas=await html2canvas(el,{scale:2,useCORS:true,allowTaint:true,logging:false,windowWidth:794});
+      document.body.removeChild(el);
+      const imgData=canvas.toDataURL("image/jpeg",0.95);
+      const pdf=new jsPDF("p","mm","a4");
+      const pw=pdf.internal.pageSize.getWidth()-20;
+      const iw=pw;const ih=(canvas.height*iw)/canvas.width;
+      let yOff=10;
+      const pageH=pdf.internal.pageSize.getHeight()-20;
+      while(yOff<ih+10){
+        if(yOff>10)pdf.addPage();
+        pdf.addImage(imgData,"JPEG",10,10-yOff+10,iw,ih);
+        yOff+=pageH;
+      }
+      pdf.save(`บ้านโอน_${r.houseName}_${r.customerName}.pdf`);
+    }catch(e){console.error(e);alert("เกิดข้อผิดพลาด: "+e.message);}
+    setPdfLoading(null);
+  }
   return(
     <div style={{padding:isMobileMode?12:24}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:8}}>
@@ -3934,11 +4070,15 @@ function TransferredHousesPage({data,setData,role,isMobileMode}){
             <div style={{fontSize:15,fontWeight:700,color:C.green,marginBottom:12}}>🏗️ {projName} ({records.length} หลัง)</div>
             {isMobileMode?(
               <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                {records.map(r=>(
+                {records.map(r=>{const atts=(data.houseAttachments||{})[r.houseId]||[];return(
                   <div key={r.id} style={{background:C.faint,borderRadius:10,padding:14}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"start",marginBottom:6}}>
                       <div><Tag color="green">🏠 {r.houseName}</Tag></div>
-                      {role==="owner"&&<div style={{display:"flex",gap:4}}><Btn size="sm" variant="ghost" onClick={()=>openEditTransfer(r)} style={{color:C.blue}}>✏️</Btn><Btn size="sm" variant="ghost" onClick={()=>undoTransfer(r)} style={{color:C.orange}}>↩️</Btn><Btn size="sm" variant="ghost" onClick={()=>delTransfer(r.id)} style={{color:C.red}}>🗑</Btn></div>}
+                      <div style={{display:"flex",gap:4}}>
+                        <Btn size="sm" variant="ghost" onClick={()=>setDetailMdl(r)} style={{color:C.blue}}>👁</Btn>
+                        <Btn size="sm" variant="ghost" onClick={()=>exportTransferPDF(r)} style={{color:C.green}}>{pdfLoading===r.id?"⏳":"📄"}</Btn>
+                        {role==="owner"&&<><Btn size="sm" variant="ghost" onClick={()=>openEditTransfer(r)} style={{color:C.blue}}>✏️</Btn><Btn size="sm" variant="ghost" onClick={()=>undoTransfer(r)} style={{color:C.orange}}>↩️</Btn><Btn size="sm" variant="ghost" onClick={()=>delTransfer(r.id)} style={{color:C.red}}>🗑</Btn></>}
+                      </div>
                     </div>
                     <div style={{fontSize:14,fontWeight:700,color:C.text}}>{r.customerName}</div>
                     {r.customerPhone&&<div style={{fontSize:12,color:C.blue,marginTop:2}}>📞 {r.customerPhone}</div>}
@@ -3949,39 +4089,115 @@ function TransferredHousesPage({data,setData,role,isMobileMode}){
                     {canSeeAll&&(r.bankLoans||[]).length>0&&<div style={{fontSize:11,color:C.blue,marginTop:2}}>🏦 {r.bankLoans.map(b=>b.bankName).join(", ")}</div>}
                     {canSeeAll&&(r.promotionItems||[]).length>0&&<div style={{marginTop:4}}><div style={{fontSize:10,fontWeight:700,color:C.orange}}>🏷️ โปรโมชั่น:</div>{r.promotionItems.map((p,i)=><div key={p.id||i} style={{fontSize:10,color:C.orange}}>{i+1}. {p.text}</div>)}</div>}
                     {r.note&&<div style={{fontSize:11,color:C.muted,marginTop:4}}>📝 {r.note}</div>}
+                    {atts.length>0&&<div style={{marginTop:6,paddingTop:6,borderTop:`1px solid ${C.border}`}}><div style={{fontSize:10,fontWeight:700,color:C.muted,marginBottom:4}}>📎 {atts.length} ไฟล์แนบ</div><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{atts.filter(a=>a.type?.startsWith("image/")).slice(0,3).map(a=><img key={a.id} src={a.data} style={{width:50,height:50,objectFit:"cover",borderRadius:6}}/>)}{atts.length>3&&<div style={{width:50,height:50,borderRadius:6,background:C.panel,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:C.muted}}>+{atts.length-3}</div>}</div></div>}
+                    <div style={{display:"flex",gap:6,marginTop:8}}>
+                      <label style={{display:"inline-flex",alignItems:"center",gap:4,cursor:"pointer",padding:"4px 10px",borderRadius:6,background:C.panel,fontSize:10,color:C.blue,fontWeight:600}}>📎 แนบไฟล์<input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" multiple style={{display:"none"}} onChange={e=>{uploadAttachment(r.houseId,e.target.files);e.target.value="";}}/></label>
+                    </div>
                   </div>
-                ))}
+                );})}
               </div>
             ):(
-              <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:canSeeAll?900:500}}>
-                <thead><tr>{["บ้าน","ลูกค้า","เบอร์โทร",canSeeAll?"ราคา":"",canSeeAll?"ซื้อแบบ":"",canSeeAll?"เซลล์":"",canSeeAll?"ธนาคาร":"","วันโอน",canSeeAll?"โปรโมชั่น":"","หมายเหตุ",role==="owner"?"จัดการ":""].filter(Boolean).map(h=><th key={h} style={{padding:"8px 10px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
-                <tbody>{records.map(r=><tr key={r.id} style={{borderBottom:`1px solid ${C.border}`}} onMouseEnter={e=>e.currentTarget.style.background=C.panel} onMouseLeave={e=>e.currentTarget.style.background=""}>
+              <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:canSeeAll?1000:600}}>
+                <thead><tr>{["บ้าน","ลูกค้า","เบอร์โทร",canSeeAll?"ราคา":"",canSeeAll?"ซื้อแบบ":"","วันโอน","ไฟล์แนบ","จัดการ"].filter(Boolean).map(h=><th key={h} style={{padding:"8px 10px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
+                <tbody>{records.map(r=>{const atts=(data.houseAttachments||{})[r.houseId]||[];return(
+                  <tr key={r.id} style={{borderBottom:`1px solid ${C.border}`}} onMouseEnter={e=>e.currentTarget.style.background=C.panel} onMouseLeave={e=>e.currentTarget.style.background=""}>
                   <td style={{padding:"8px 10px"}}><Tag color="green">{r.houseName}</Tag></td>
                   <td style={{padding:"8px 10px",fontSize:13,fontWeight:600,color:C.text}}>{r.customerName}</td>
                   <td style={{padding:"8px 10px",fontSize:12}}>{r.customerPhone?<a href={`tel:${r.customerPhone}`} style={{color:C.blue,textDecoration:"none"}}>{r.customerPhone}</a>:"—"}</td>
                   {canSeeAll&&<td style={{padding:"8px 10px",fontSize:13,fontWeight:700,color:C.blue}}>{r.price?`฿${fmtMoney(Number(r.price))}`:"—"}</td>}
                   {canSeeAll&&<td style={{padding:"8px 10px"}}>{r.type==="cash"?<Tag color="green">💵 สด</Tag>:<Tag color="blue">🏦 กู้</Tag>}</td>}
-                  {canSeeAll&&<td style={{padding:"8px 10px",fontSize:11,color:C.muted}}>{(r.salesPersons||[]).join(", ")||"—"}</td>}
-                  {canSeeAll&&<td style={{padding:"8px 10px",fontSize:11,color:C.blue}}>{(r.bankLoans||[]).map(b=>b.bankName).join(", ")||"—"}</td>}
                   <td style={{padding:"8px 10px",fontSize:12,color:C.text}}>{fmtDate(r.transferDate)}</td>
-                  {canSeeAll&&<td style={{padding:"8px 10px",fontSize:11,maxWidth:180,color:C.orange}}>{(r.promotionItems||[]).map((p,i)=><div key={p.id||i}>{i+1}. {p.text}</div>)||"—"}</td>}
-                  <td style={{padding:"8px 10px",fontSize:11,color:C.muted,maxWidth:120}}>{r.note||"—"}</td>
-                  {role==="owner"&&<td style={{padding:"8px 10px",whiteSpace:"nowrap"}}><Btn size="sm" variant="ghost" onClick={()=>openEditTransfer(r)} style={{color:C.blue}}>✏️</Btn><Btn size="sm" variant="ghost" onClick={()=>undoTransfer(r)} style={{color:C.orange}} title="ยกเลิกโอน">↩️</Btn><Btn size="sm" variant="ghost" onClick={()=>delTransfer(r.id)} style={{color:C.red}}>🗑</Btn></td>}
-                </tr>)}</tbody>
+                  <td style={{padding:"8px 10px"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:4}}>
+                      {atts.length>0&&<span style={{fontSize:11,color:C.muted}}>📎 {atts.length}</span>}
+                      <label style={{cursor:"pointer",fontSize:10,color:C.blue}}>+<input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" multiple style={{display:"none"}} onChange={e=>{uploadAttachment(r.houseId,e.target.files);e.target.value="";}}/></label>
+                    </div>
+                  </td>
+                  <td style={{padding:"8px 10px",whiteSpace:"nowrap"}}>
+                    <Btn size="sm" variant="ghost" onClick={()=>setDetailMdl(r)} style={{color:C.blue}} title="ดูรายละเอียด">👁</Btn>
+                    <Btn size="sm" variant="ghost" onClick={()=>exportTransferPDF(r)} style={{color:C.green}} title="PDF">{pdfLoading===r.id?"⏳":"📄"}</Btn>
+                    {role==="owner"&&<><Btn size="sm" variant="ghost" onClick={()=>openEditTransfer(r)} style={{color:C.blue}}>✏️</Btn><Btn size="sm" variant="ghost" onClick={()=>undoTransfer(r)} style={{color:C.orange}} title="ยกเลิกโอน">↩️</Btn><Btn size="sm" variant="ghost" onClick={()=>delTransfer(r.id)} style={{color:C.red}}>🗑</Btn></>}
+                  </td>
+                </tr>);})}</tbody>
               </table></div>
             )}
           </Card>
         ))
       )}
+      {/* ── Detail Modal ── */}
+      {detailMdl&&(()=>{
+        const r=detailMdl;
+        const house=data.houses.find(h=>h.id===r.houseId);
+        const reportPhotos=(house&&!Array.isArray(house.reportPhotos)&&house.reportPhotos)||{};
+        const atts=(data.houseAttachments||{})[r.houseId]||[];
+        return(
+          <Mdl title={`🏡 ${r.houseName} — ${r.customerName}`} onClose={()=>setDetailMdl(null)} size="xl" footer={<div style={{display:"flex",gap:8}}><Btn variant="ghost" onClick={()=>setDetailMdl(null)}>ปิด</Btn><Btn onClick={()=>{setDetailMdl(null);exportTransferPDF(r);}}>📄 โหลด PDF</Btn></div>}>
+            {/* Customer info */}
+            <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:10,marginBottom:16}}>
+              <div style={{background:C.faint,padding:12,borderRadius:8}}><div style={{fontSize:10,color:C.muted,fontWeight:700}}>📅 วันโอน</div><div style={{fontSize:14,fontWeight:700,color:C.text}}>{fmtDate(r.transferDate)}</div></div>
+              <div style={{background:C.faint,padding:12,borderRadius:8}}><div style={{fontSize:10,color:C.muted,fontWeight:700}}>💰 ราคา</div><div style={{fontSize:14,fontWeight:700,color:C.blue}}>{r.price?`฿${fmtMoney(Number(r.price))}`:"—"}</div></div>
+            </div>
+            <div style={{background:C.faint,padding:12,borderRadius:8,marginBottom:16}}>
+              <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:8,fontSize:12}}>
+                <div><span style={{color:C.muted}}>📞 </span><span style={{color:C.text}}>{r.customerPhone||"—"}</span></div>
+                <div><span style={{color:C.muted}}>ซื้อแบบ: </span><span style={{color:C.text}}>{r.type==="cash"?"💵 สด":"🏦 กู้"}</span></div>
+                {(r.salesPersons||[]).length>0&&<div><span style={{color:C.muted}}>👤 เซลล์: </span><span style={{color:C.text}}>{r.salesPersons.join(", ")}</span></div>}
+                {(r.bankLoans||[]).length>0&&<div><span style={{color:C.muted}}>🏦 </span><span style={{color:C.blue}}>{r.bankLoans.map(b=>b.bankName).join(", ")}</span></div>}
+              </div>
+              {(r.promotionItems||[]).length>0&&<div style={{marginTop:8,paddingTop:8,borderTop:`1px solid ${C.border}`}}><div style={{fontSize:10,fontWeight:700,color:C.orange}}>🏷️ โปรโมชั่น:</div>{r.promotionItems.map((p,i)=><div key={p.id||i} style={{fontSize:11,color:C.orange}}>{i+1}. {p.text}</div>)}</div>}
+              {r.note&&<div style={{marginTop:6,fontSize:11,color:C.muted}}>📝 {r.note}</div>}
+            </div>
+            {/* Construction photos */}
+            {Object.keys(reportPhotos).length>0&&<div style={{marginBottom:16}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:10}}>📸 รูปก่อสร้างรายหมวด</div>
+              {Object.entries(reportPhotos).map(([phId,photos])=>{const ph=data.phases.find(p=>p.id===Number(phId));return(
+                <div key={phId} style={{marginBottom:10}}>
+                  <div style={{fontSize:12,fontWeight:700,color:C.blue,marginBottom:6}}>{ph?.name||`หมวดที่ ${phId}`} ({photos.length} รูป)</div>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    {photos.map(p=><div key={p.id} style={{position:"relative"}}><img src={p.base64} style={{width:isMobileMode?80:120,height:isMobileMode?60:90,objectFit:"cover",borderRadius:6}}/>{p.caption&&<div style={{fontSize:8,color:C.muted,marginTop:2,maxWidth:isMobileMode?80:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.caption}</div>}</div>)}
+                  </div>
+                </div>
+              );})}
+            </div>}
+            {/* Attachments */}
+            <div style={{marginBottom:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                <div style={{fontSize:14,fontWeight:700,color:C.text}}>📎 เอกสารแนบ ({atts.length})</div>
+                <label style={{display:"inline-flex",alignItems:"center",gap:4,cursor:"pointer",padding:"6px 12px",borderRadius:6,background:C.faint,border:`1px dashed ${C.border}`,fontSize:11,color:C.blue,fontWeight:600}}>
+                  📎 อัปโหลด
+                  <input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" multiple style={{display:"none"}} onChange={e=>{uploadAttachment(r.houseId,e.target.files);e.target.value="";}}/>
+                </label>
+              </div>
+              {atts.length===0?<div style={{textAlign:"center",padding:20,color:C.muted,fontSize:12}}>ยังไม่มีเอกสารแนบ</div>:(
+                <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr 1fr":"1fr 1fr 1fr 1fr",gap:10}}>
+                  {atts.map(a=>(
+                    <div key={a.id} style={{background:C.faint,borderRadius:8,overflow:"hidden",border:`1px solid ${C.border}`}}>
+                      {a.type?.startsWith("image/")?<img src={a.data} alt={a.name} style={{width:"100%",height:100,objectFit:"cover"}}/>:<div style={{height:60,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28}}>📄</div>}
+                      <div style={{padding:"6px 8px"}}>
+                        <div style={{fontSize:10,color:C.text,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</div>
+                        <div style={{fontSize:9,color:C.muted}}>{a.uploadedBy} — {a.date}</div>
+                        <div style={{display:"flex",gap:6,marginTop:4}}>
+                          <a href={a.data} download={a.name} style={{fontSize:10,color:C.blue,textDecoration:"none"}}>⬇️ โหลด</a>
+                          {role==="owner"&&<span style={{fontSize:10,color:C.red,cursor:"pointer"}} onClick={()=>delAttachment(r.houseId,a.id)}>🗑 ลบ</span>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Mdl>
+        );
+      })()}
       {/* Edit Transfer Modal */}
       {editTrMdl&&<Mdl title="✏️ แก้ไขข้อมูลบ้านที่โอนแล้ว" onClose={()=>setEditTrMdl(null)} footer={<><Btn variant="ghost" onClick={()=>setEditTrMdl(null)}>ยกเลิก</Btn><Btn onClick={saveEditTransfer}>💾 บันทึก</Btn></>}>
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          <div><label style={{fontSize:11,fontWeight:700,color:C.muted}}>🏠 บ้าน</label><Input value={editTrForm.houseName||""} readOnly style={{opacity:.6}}/></div>
-          <div><label style={{fontSize:11,fontWeight:700,color:C.muted}}>👤 ชื่อลูกค้า</label><Input value={editTrForm.customerName||""} onChange={e=>setEditTrForm(f=>({...f,customerName:e.target.value}))}/></div>
-          <div><label style={{fontSize:11,fontWeight:700,color:C.muted}}>📞 เบอร์โทร</label><Input value={editTrForm.customerPhone||""} onChange={e=>setEditTrForm(f=>({...f,customerPhone:e.target.value}))}/></div>
-          <div><label style={{fontSize:11,fontWeight:700,color:C.muted}}>💰 ราคา</label><Input type="number" value={editTrForm.price||""} onChange={e=>setEditTrForm(f=>({...f,price:e.target.value}))}/></div>
+          <div><label style={{fontSize:11,fontWeight:700,color:C.muted}}>🏠 บ้าน</label><FIn value={editTrForm.houseName||""} onChange={()=>{}} style={{opacity:.6}}/></div>
+          <div><label style={{fontSize:11,fontWeight:700,color:C.muted}}>👤 ชื่อลูกค้า</label><FIn value={editTrForm.customerName||""} onChange={e=>setEditTrForm(f=>({...f,customerName:e.target.value}))}/></div>
+          <div><label style={{fontSize:11,fontWeight:700,color:C.muted}}>📞 เบอร์โทร</label><FIn value={editTrForm.customerPhone||""} onChange={e=>setEditTrForm(f=>({...f,customerPhone:e.target.value}))}/></div>
+          <div><label style={{fontSize:11,fontWeight:700,color:C.muted}}>💰 ราคา</label><FIn type="number" value={editTrForm.price||""} onChange={e=>setEditTrForm(f=>({...f,price:e.target.value}))}/></div>
           <div><label style={{fontSize:11,fontWeight:700,color:C.muted}}>ซื้อแบบ</label><select value={editTrForm.type||"loan"} onChange={e=>setEditTrForm(f=>({...f,type:e.target.value}))} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:C.panel,color:C.text,fontSize:13}}><option value="cash">💵 สด</option><option value="loan">🏦 กู้</option></select></div>
-          <div><label style={{fontSize:11,fontWeight:700,color:C.muted}}>📅 วันโอน</label><Input type="date" value={editTrForm.transferDate||""} onChange={e=>setEditTrForm(f=>({...f,transferDate:e.target.value}))}/></div>
+          <div><label style={{fontSize:11,fontWeight:700,color:C.muted}}>📅 วันโอน</label><FIn type="date" value={editTrForm.transferDate||""} onChange={e=>setEditTrForm(f=>({...f,transferDate:e.target.value}))}/></div>
           <div><label style={{fontSize:11,fontWeight:700,color:C.muted}}>📝 หมายเหตุ</label><textarea value={editTrForm.note||""} onChange={e=>setEditTrForm(f=>({...f,note:e.target.value}))} rows={3} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:C.panel,color:C.text,fontSize:13,resize:"vertical"}}/></div>
         </div>
       </Mdl>}

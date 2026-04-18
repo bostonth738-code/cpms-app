@@ -1144,12 +1144,13 @@ function PhaseCard({phase,house,data,setData,role,pp,boqItems,canEditDur,setEdit
   }
 
   return (
-    <div id={`phase-${phase.id}`} style={{marginBottom:18,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",background:C.panel}}>
+    <div id={`phase-${phase.id}`} style={{marginBottom:18,border:`1px solid ${phPP.s==="done"?"rgba(34,197,94,0.3)":phPP.s==="inprogress"?"rgba(59,130,246,0.3)":C.border}`,borderRadius:12,overflow:"hidden",background:C.panel}}>
       {/* Phase Header */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 15px",background:"#0d1117",borderBottom:`1px solid ${C.border}`}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 15px",background:phPP.s==="done"?"rgba(34,197,94,0.10)":phPP.s==="inprogress"?"rgba(249,115,22,0.08)":phPP.s==="waiting_review"?"rgba(245,158,11,0.06)":"#0d1117",borderBottom:`1px solid ${C.border}`,borderLeft:phPP.s==="done"?`4px solid #22c55e`:phPP.s==="inprogress"?`4px solid #f97316`:phPP.s==="waiting_review"?`4px solid #f59e0b`:`4px solid #334155`}}>
         <div style={{flex:1}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <span style={{fontWeight:700,color:C.text,fontSize:14}}>✓ หมวด {phase.order} — {phase.name}</span>
+            <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:24,height:24,borderRadius:6,fontSize:14,background:phPP.s==="done"?"#22c55e":phPP.s==="inprogress"?"#f97316":phPP.s==="waiting_review"?"#f59e0b":"#334155",color:"#fff",flexShrink:0}}>{phPP.s==="done"?"✓":phPP.s==="inprogress"?"▶":phPP.s==="waiting_review"?"⏳":"•"}</span>
+            <span style={{fontWeight:700,color:C.text,fontSize:14}}>หมวด {phase.order} — {phase.name}</span>
             {canEditDur&&<button onClick={()=>setEditPhaseNameMdl({id:phase.id,order:phase.order,name:phase.name})} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:12,padding:"2px 6px"}}>✏️</button>}
             <span style={{fontSize:12,color:C.green,fontWeight:600}}>({phPP.dur} วัน)</span>
             {canEditDur&&<button onClick={()=>setEditDurMdl({...phPP})} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:12,padding:"2px 6px"}}>📝</button>}
@@ -1430,67 +1431,92 @@ function HousePage({houseId,data,setData,role,onBack,onScrollToPhase,isMobileMod
       )}
 
       {tab==="gantt"&&(
-        <Card style={{padding:isMobileMode?10:16,overflowX:"auto"}}>
-          <div style={{fontSize:isMobileMode?12:14,fontWeight:700,color:C.text,marginBottom:4}}>Gantt Chart</div>
-          <div style={{fontSize:isMobileMode?10:11,color:C.muted,marginBottom:16}}>{fmtDate(house.start)} — {fmtDate(addDays(house.start,totalDays))} ({totalDays} วัน)</div>
-          <div style={{position:"relative",paddingLeft:isMobileMode?100:160,minWidth:isMobileMode?500:700,minHeight:ganttData.length*36+96}}>
-            {/* Month header */}
-            <div style={{position:"absolute",top:0,left:isMobileMode?100:160,right:0,height:36,display:"flex",borderBottom:`1px solid ${C.border}`}}>
-              {ganttMonths.months.map((m,i)=>(
-                <div key={i} style={{flex:`0 0 ${m.width}%`,position:"relative",borderLeft:`1px solid ${C.border}`,boxSizing:"border-box"}}>
-                  <div style={{textAlign:"center",fontSize:isMobileMode?8:10,color:C.text,fontWeight:600,lineHeight:"16px",paddingTop:2,whiteSpace:"nowrap"}}>{m.label}</div>
-                  <div style={{textAlign:"center",fontSize:isMobileMode?7:8,color:C.muted,lineHeight:"12px"}}>{m.yearLabel}</div>
-                </div>
-              ))}
+        <Card style={{padding:isMobileMode?10:20,overflowX:"auto"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <div>
+              <div style={{fontSize:isMobileMode?14:18,fontWeight:800,color:C.text}}>📅 แผนงานก่อสร้าง (Gantt Chart)</div>
+              <div style={{fontSize:isMobileMode?10:12,color:C.muted,marginTop:2}}>📆 {fmtDate(house.start)} — {fmtDate(addDays(house.start,totalDays))} ({totalDays} วัน)</div>
             </div>
-            {/* Bars */}
+            <div style={{display:"flex",gap:8}}>
+              <div style={{padding:"6px 12px",background:C.faint,borderRadius:8,fontSize:11,color:C.text,fontWeight:700}}>
+                เสร็จ {ganttData.filter(g=>g.s==="done").length}/{ganttData.length}
+              </div>
+            </div>
+          </div>
+          {/* Summary progress */}
+          <div style={{height:6,background:C.faint,borderRadius:3,overflow:"hidden",marginBottom:16}}>
+            <div style={{height:"100%",width:`${ganttData.length>0?(ganttData.filter(g=>g.s==="done").length/ganttData.length*100):0}%`,background:C.green,borderRadius:3,transition:"width .3s"}}/>
+          </div>
+          {/* Gantt Table */}
+          <div style={{minWidth:isMobileMode?650:900}}>
+            {/* Header row */}
+            <div style={{display:"grid",gridTemplateColumns:isMobileMode?"140px 1fr":"200px 1fr",borderBottom:`2px solid ${C.border}`,marginBottom:2}}>
+              <div style={{padding:"8px 12px",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:1}}>หมวดงาน</div>
+              <div style={{display:"flex",position:"relative",height:42}}>
+                {ganttMonths.months.map((m,i)=>(
+                  <div key={i} style={{flex:`0 0 ${m.width}%`,borderLeft:`1px solid ${C.border}`,padding:"4px 6px",boxSizing:"border-box"}}>
+                    <div style={{fontSize:isMobileMode?8:10,color:C.text,fontWeight:700,whiteSpace:"nowrap"}}>{isMobileMode?m.label.slice(0,3):m.label}</div>
+                    <div style={{fontSize:isMobileMode?7:9,color:C.muted}}>{m.yearLabel}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Phase rows */}
             {ganttData.map((g,i)=>{
-              const barColor=g.s==="done"?C.green:g.s==="inprogress"?C.blue:g.s==="waiting_review"?C.orange:"#334155";
+              const barColor=g.s==="done"?"#22c55e":g.s==="inprogress"?"#3b82f6":g.s==="waiting_review"?"#f59e0b":"#334155";
+              const barBg=g.s==="done"?"rgba(34,197,94,0.08)":g.s==="inprogress"?"rgba(59,130,246,0.06)":g.s==="waiting_review"?"rgba(245,158,11,0.06)":"transparent";
               const projectStartMs=ganttMonths.timelineStart.getTime();
               const barStartMs=new Date(g.startDate).getTime();
               const barEndMs=new Date(g.endDate).getTime();
               const leftPct=((barStartMs-projectStartMs)/86400000/ganttMonths.timelineTotal)*100;
               const widthPct=((barEndMs-barStartMs)/86400000/ganttMonths.timelineTotal)*100;
-              // Calculate variance: act vs dur (only for done/inprogress)
               const phPP=pp[g.phase.id]||{s:"waiting",dur:g.dur,act:0};
-              let varText="";
-              let varColor=C.text;
-              if(g.s!=="waiting"){
-                const variance=phPP.act-phPP.dur;
-                varText=variance===0?"0":variance<0?`+${-variance}`:`-${variance}`;
-                varColor=variance===0?C.text:variance<0?"#fff":C.red;
-              }
-              return (
-                <div key={g.phase.id} style={{position:"absolute",top:36+38+i*36,left:0,right:0,height:32,display:"flex",alignItems:"center"}}>
-                  <div style={{width:156,paddingRight:8,fontSize:10,color:C.text,fontWeight:600,textAlign:"right",flexShrink:0,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}} title={g.phase.name} >
-                    <div>{g.phase.order}. {g.phase.name}</div>
-                    <div style={{fontSize:9,color:C.muted,fontWeight:500}}>{g.dur}วัน</div>
-                  </div>
-                  <div style={{flex:1,position:"relative",height:22}}>
-                    <div style={{position:"absolute",left:`${leftPct}%`,width:`${Math.max(widthPct,0.5)}%`,height:"100%",background:barColor,borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",cursor:"default",border:g.s==="inprogress"?"2px solid #60a5fa":"none"}} title={`${g.phase.name}\n${fmtDate(g.startDate)} - ${fmtDate(g.endDate)}\n${g.dur} วัน / ใช้ ${phPP.act} วัน`}>
-                      <span style={{fontSize:10,color:varColor,fontWeight:700,textShadow:"0 1px 2px rgba(0,0,0,0.5)"}}>{varText}</span>
+              let varText="",varColor=C.text;
+              if(g.s!=="waiting"){const v=phPP.act-phPP.dur;varText=v===0?"ตรงแผน":v>0?`ช้า ${v} วัน`:`เร็ว ${-v} วัน`;varColor=v===0?C.text:v>0?C.red:C.green;}
+              const statusEmoji=g.s==="done"?"✅":g.s==="inprogress"?"🔵":g.s==="waiting_review"?"🟡":"⚪";
+              return(
+                <div key={g.phase.id} style={{display:"grid",gridTemplateColumns:isMobileMode?"140px 1fr":"200px 1fr",borderBottom:`1px solid ${C.border}`,background:barBg,transition:"background .2s"}} onMouseEnter={e=>e.currentTarget.style.background=C.faint} onMouseLeave={e=>e.currentTarget.style.background=barBg}>
+                  {/* Phase label */}
+                  <div style={{padding:"10px 12px",display:"flex",flexDirection:"column",justifyContent:"center",borderRight:`1px solid ${C.border}`}}>
+                    <div style={{display:"flex",alignItems:"center",gap:5}}>
+                      <span style={{fontSize:11}}>{statusEmoji}</span>
+                      <span style={{fontSize:isMobileMode?10:12,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{g.phase.order}. {g.phase.name}</span>
                     </div>
+                    <div style={{display:"flex",gap:8,marginTop:3}}>
+                      <span style={{fontSize:9,color:C.muted}}>แผน {g.dur}d</span>
+                      {phPP.act>0&&<span style={{fontSize:9,color:varColor,fontWeight:700}}>จริง {phPP.act}d</span>}
+                      <span style={{fontSize:9,color:C.muted}}>{fmtDate(g.startDate)} — {fmtDate(g.endDate)}</span>
+                    </div>
+                  </div>
+                  {/* Bar area */}
+                  <div style={{position:"relative",height:48,display:"flex",alignItems:"center"}}>
+                    <div style={{position:"absolute",left:`${Math.max(leftPct,0)}%`,width:`${Math.max(widthPct,0.5)}%`,height:24,borderRadius:6,background:`linear-gradient(90deg,${barColor},${barColor}dd)`,display:"flex",alignItems:"center",paddingLeft:6,paddingRight:6,cursor:"default",boxShadow:g.s==="inprogress"?`0 0 8px ${barColor}44`:"none",border:g.s==="inprogress"?`1px solid ${barColor}88`:"none"}} title={`${g.phase.name}\n${fmtDate(g.startDate)} → ${fmtDate(g.endDate)}\nแผน ${g.dur} วัน / จริง ${phPP.act} วัน`}>
+                      {widthPct>8&&<span style={{fontSize:isMobileMode?8:10,color:"#fff",fontWeight:700,whiteSpace:"nowrap",textShadow:"0 1px 3px rgba(0,0,0,0.4)"}}>{varText}</span>}
+                    </div>
+                    {widthPct<=8&&varText&&<span style={{position:"absolute",left:`${Math.max(leftPct+widthPct+1,0)}%`,top:"50%",transform:"translateY(-50%)",fontSize:9,color:varColor,fontWeight:700,whiteSpace:"nowrap"}}>{varText}</span>}
                   </div>
                 </div>
               );
             })}
-            {/* Today line */}
+            {/* Today line overlay */}
             {(()=>{
               const today=new Date();
               const daysSince=Math.round((today-ganttMonths.timelineStart)/86400000);
               if(daysSince>=0&&daysSince<=ganttMonths.timelineTotal){
                 const leftPct=(daysSince/ganttMonths.timelineTotal)*100;
-                return <div style={{position:"absolute",top:36,bottom:0,left:`calc(160px + ${leftPct}%)`,width:2,background:C.red,zIndex:5}}><div style={{position:"absolute",top:-16,left:-14,fontSize:8,color:C.red,fontWeight:700,whiteSpace:"nowrap"}}>วันนี้</div></div>;
+                return <div style={{position:"absolute",top:0,bottom:0,left:`calc(${isMobileMode?140:200}px + ${leftPct}% * (100% - ${isMobileMode?140:200}px) / 100%)`,width:0,borderLeft:`2px dashed ${C.red}`,zIndex:5,pointerEvents:"none"}}><div style={{position:"absolute",top:-2,left:-16,fontSize:8,color:C.red,fontWeight:800,background:C.bg,padding:"1px 4px",borderRadius:3,whiteSpace:"nowrap"}}>📍 วันนี้</div></div>;
               }
               return null;
             })()}
           </div>
           {/* Legend */}
-          <div style={{display:"flex",gap:16,marginTop:ganttData.length*36+110,paddingTop:12,borderTop:`1px solid ${C.border}`}}>
-            <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:12,height:12,borderRadius:3,background:C.green}}/><span style={{fontSize:10,color:C.muted}}>เสร็จแล้ว</span></div>
-            <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:12,height:12,borderRadius:3,background:C.blue,border:"2px solid #60a5fa"}}/><span style={{fontSize:10,color:C.muted}}>กำลังทำ</span></div>
-            <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:12,height:12,borderRadius:3,background:"#334155"}}/><span style={{fontSize:10,color:C.muted}}>รอเริ่ม</span></div>
-            <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:2,height:12,background:C.red}}/><span style={{fontSize:10,color:C.muted}}>วันนี้</span></div>
+          <div style={{display:"flex",gap:14,marginTop:16,paddingTop:12,borderTop:`1px solid ${C.border}`,flexWrap:"wrap"}}>
+            {[["✅","เสร็จแล้ว",C.green],["🔵","กำลังทำ",C.blue],["🟡","รอตรวจ",C.orange],["⚪","รอเริ่ม","#334155"],["📍","วันนี้",C.red]].map(([e,l,c])=>(
+              <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:11}}>
+                <div style={{width:14,height:14,borderRadius:4,background:c,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8}}>{e==="📍"?"":""}</div>
+                <span style={{color:C.muted}}>{l}</span>
+              </div>
+            ))}
           </div>
         </Card>
       )}
@@ -2102,6 +2128,10 @@ function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
   const channelOpts=["Facebook","TikTok TheCloud","TikTok บ้านสไตล์บอส","เซลล์โครงการ","LINE","Google","อื่นๆ"];
   const bankOpts=["ธอส. (GHB)","กสิกรไทย (KBank)","กรุงไทย (KTB)","ไทยพาณิชย์ (SCB)","กรุงเทพ (BBL)","ทหารไทยธนชาต (TTB)","กรุงศรี (BAY)","ออมสิน (GSB)","เกียรตินาคินภัทร (KKP)","ซีไอเอ็มบี (CIMB)","อื่นๆ"];
   const maritalOpts=["โสด","แต่งงานแล้ว","หย่า/แยกทาง"];
+  const houseStyleOpts=["ทาวน์โฮม","บ้านเดี่ยว","บ้านแฝด","คอนโดมิเนียม","อาคารพาณิชย์","ที่ดินเปล่า"];
+  const houseFloorOpts=["1 ชั้น","2 ชั้น","3 ชั้น","4 ชั้น","มากกว่า 4 ชั้น"];
+  const bedroomOpts=["1 นอน 1 น้ำ","2 นอน 1 น้ำ","2 นอน 2 น้ำ","3 นอน 2 น้ำ","3 นอน 3 น้ำ","4 นอน 2 น้ำ","4 นอน 3 น้ำ","4 นอน 4 น้ำ","5 นอน 3 น้ำ","5 นอน 4 น้ำ","5 นอน 5 น้ำ","อื่นๆ"];
+  const thaiProvinces=["กรุงเทพมหานคร","กระบี่","กาญจนบุรี","กาฬสินธุ์","กำแพงเพชร","ขอนแก่น","จันทบุรี","ฉะเชิงเทรา","ชลบุรี","ชัยนาท","ชัยภูมิ","ชุมพร","เชียงราย","เชียงใหม่","ตรัง","ตราด","ตาก","นครนายก","นครปฐม","นครพนม","นครราชสีมา","นครศรีธรรมราช","นครสวรรค์","นนทบุรี","นราธิวาส","น่าน","บึงกาฬ","บุรีรัมย์","ปทุมธานี","ประจวบคีรีขันธ์","ปราจีนบุรี","ปัตตานี","พระนครศรีอยุธยา","พะเยา","พังงา","พัทลุง","พิจิตร","พิษณุโลก","เพชรบุรี","เพชรบูรณ์","แพร่","ภูเก็ต","มหาสารคาม","มุกดาหาร","แม่ฮ่องสอน","ยโสธร","ยะลา","ร้อยเอ็ด","ระนอง","ระยอง","ราชบุรี","ลพบุรี","ลำปาง","ลำพูน","เลย","ศรีสะเกษ","สกลนคร","สงขลา","สตูล","สมุทรปราการ","สมุทรสงคราม","สมุทรสาคร","สระแก้ว","สระบุรี","สิงห์บุรี","สุโขทัย","สุพรรณบุรี","สุราษฎร์ธานี","สุรินทร์","หนองคาย","หนองบัวลำภู","อ่างทอง","อำนาจเจริญ","อุดรธานี","อุตรดิตถ์","อุทัยธานี","อุบลราชธานี"];
   function calcMonthly(principal,annualRate,years){
     if(!principal||!annualRate||!years)return 0;
     const r=annualRate/100/12;
@@ -2109,8 +2139,8 @@ function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
     if(r===0)return principal/n;
     return Math.round(principal*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1));
   }
-  function openAdd(){setForm({id:uid(),name:"",phone:"",age:"",occupation:"",income:"",walkInDate:new Date().toISOString().slice(0,10),channel:"",channels:[],channelOther:"",channelDetail:"",channelDetailOther:"",salesPerson:"",bookingDate:"",bookingHouseId:"",note:"",bankLoans:[],interestLevel:"",lookingForHouseType:"",workPlace:"",preferredArea:"",carInstallment:"",otherDebts:"",numberOfChildren:"",maritalStatus:""});setEditMdl("add");}
-  function openEdit(c){const chs=c.channels||(c.channel?[c.channel]:[]);setForm({...c,channels:chs,channelOther:c.channelOther||"",bankLoans:c.bankLoans||[],interestLevel:c.interestLevel||"",lookingForHouseType:c.lookingForHouseType||"",workPlace:c.workPlace||"",preferredArea:c.preferredArea||"",carInstallment:c.carInstallment||"",otherDebts:c.otherDebts||"",numberOfChildren:c.numberOfChildren||"",maritalStatus:c.maritalStatus||""});setEditMdl("edit");}
+  function openAdd(){setForm({id:uid(),name:"",phone:"",age:"",occupation:"",income:"",walkInDate:new Date().toISOString().slice(0,10),channel:"",channels:[],channelOther:"",channelDetail:"",channelDetailOther:"",salesPerson:"",bookingDate:"",bookingHouseId:"",note:"",bankLoans:[],interestLevel:"",lookingForHouseType:"",houseStyle:"",houseFloors:"",bedroomConfig:"",workPlace:"",preferredArea:"",province:"",district:"",subDistrict:"",carInstallment:"",otherDebts:"",numberOfChildren:"",maritalStatus:"",notBookedReason:""});setEditMdl("add");}
+  function openEdit(c){const chs=c.channels||(c.channel?[c.channel]:[]);setForm({...c,channels:chs,channelOther:c.channelOther||"",bankLoans:c.bankLoans||[],interestLevel:c.interestLevel||"",lookingForHouseType:c.lookingForHouseType||"",houseStyle:c.houseStyle||"",houseFloors:c.houseFloors||"",bedroomConfig:c.bedroomConfig||"",workPlace:c.workPlace||"",preferredArea:c.preferredArea||"",province:c.province||"",district:c.district||"",subDistrict:c.subDistrict||"",carInstallment:c.carInstallment||"",otherDebts:c.otherDebts||"",numberOfChildren:c.numberOfChildren||"",maritalStatus:c.maritalStatus||"",notBookedReason:c.notBookedReason||""});setEditMdl("edit");}
   function addBank(){setForm(f=>({...f,bankLoans:[...(f.bankLoans||[]),{id:uid(),bankName:"",promoName:"",rate1:"",rate2:"",rate3:"",loanAmount:"",loanYears:30}]}));}
   function removeBank(id){setForm(f=>({...f,bankLoans:f.bankLoans.filter(b=>b.id!==id)}));}
   function updateBank(id,key,val){setForm(f=>({...f,bankLoans:f.bankLoans.map(b=>b.id===id?{...b,[key]:val}:b)}));}
@@ -2139,12 +2169,15 @@ function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
   async function exportCustPDF(c){
     setPdfLoading2(true);
     const linked=getLinkedHouseData(c.bookingHouseId);
+    const houseTypeStr=[c.houseStyle,c.houseFloors,c.bedroomConfig].filter(Boolean).join(" / ")||(c.lookingForHouseType||"");
+    const areaStr=[c.subDistrict,c.district,c.province].filter(Boolean).join(", ")||(c.preferredArea||"");
     const el=document.createElement("div");
     el.style.cssText="position:fixed;left:-9999px;top:0;width:794px;background:#fff;padding:48px 44px;font-family:'Noto Sans Thai',sans-serif;color:#1a1a1a;line-height:1.6;";
     el.innerHTML=`
       <div style="text-align:center;margin-bottom:32px;padding-bottom:24px;border-bottom:3px solid #2563eb;">
         <div style="font-size:28px;font-weight:800;color:#2563eb;">📋 ข้อมูลลูกค้า</div>
         <div style="font-size:14px;color:#6b7280;margin-top:8px;">ระบบ CPMS — ${new Date().toLocaleDateString("th-TH",{year:"numeric",month:"long",day:"numeric"})}</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:4px;">วัน Walk-in: ${c.walkInDate||"—"}${c.bookingDate?` | วันจอง: ${c.bookingDate}`:""}</div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
         <div style="background:#f8fafc;border-radius:12px;padding:16px;border:1px solid #e2e8f0;">
@@ -2154,18 +2187,21 @@ function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
           <div style="margin-top:4px;font-size:13px;">อายุ: ${c.age||"—"} | อาชีพ: ${c.occupation||"—"}</div>
           <div style="margin-top:4px;font-size:13px;">รายได้: ${c.income?"฿"+Number(c.income).toLocaleString():"—"}/เดือน</div>
           ${c.maritalStatus?`<div style="margin-top:4px;font-size:13px;">สถานะ: ${c.maritalStatus} | บุตร: ${c.numberOfChildren||"—"} คน</div>`:""}
+          ${c.workPlace?`<div style="margin-top:4px;font-size:13px;">💼 ${c.workPlace}</div>`:""}
         </div>
         <div style="background:#f8fafc;border-radius:12px;padding:16px;border:1px solid #e2e8f0;">
           <div style="font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700;">ความสนใจ & การค้นหา</div>
           ${c.interestLevel?`<div style="margin-top:8px;font-size:14px;font-weight:600;">⭐ ${c.interestLevel}</div>`:""}
-          ${c.lookingForHouseType?`<div style="margin-top:6px;font-size:13px;">🏠 บ้านที่สนใจ: ${c.lookingForHouseType}</div>`:""}
-          ${c.preferredArea?`<div style="margin-top:4px;font-size:13px;">📍 โซนที่มองหา: ${c.preferredArea}</div>`:""}
-          ${c.workPlace?`<div style="margin-top:4px;font-size:13px;">💼 ที่ทำงาน: ${c.workPlace}</div>`:""}
+          ${houseTypeStr?`<div style="margin-top:6px;font-size:13px;">🏠 บ้านที่สนใจ: ${houseTypeStr}</div>`:""}
+          ${areaStr?`<div style="margin-top:4px;font-size:13px;">📍 พื้นที่: ${areaStr}</div>`:""}
+          ${(c.channels||[]).length>0?`<div style="margin-top:6px;font-size:13px;">📢 ช่องทาง: ${c.channels.join(", ")}${c.channelOther?` (${c.channelOther})`:""}</div>`:""}
+          ${c.channelDetail?`<div style="margin-top:4px;font-size:13px;">👤 เซลล์: ${c.channelDetail}</div>`:""}
         </div>
       </div>
+      ${c.notBookedReason?`<div style="background:#fef3c7;border-radius:12px;padding:16px;border:1px solid #fbbf24;margin-bottom:24px;"><div style="font-size:11px;color:#92400e;font-weight:700;">📝 สาเหตุที่ยังไม่จอง</div><div style="margin-top:8px;font-size:14px;font-weight:600;color:#78350f;">${c.notBookedReason}</div></div>`:""}
       ${c.carInstallment||c.otherDebts?`<div style="background:#fffbeb;border-radius:12px;padding:16px;border:1px solid #fef3c7;margin-bottom:24px;"><div style="font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700;">ภาระหนี้สิน</div>${c.carInstallment?`<div style="margin-top:8px;font-size:13px;">🚗 ค่าผ่อนรถ: ฿${Number(c.carInstallment).toLocaleString()}/เดือน</div>`:""}${c.otherDebts?`<div style="margin-top:4px;font-size:13px;">💳 หนี้อื่นๆ: ${c.otherDebts}</div>`:""}</div>`:""}
       ${linked?`<div style="background:#f0fdf4;border-radius:12px;padding:16px;border:1px solid #bbf7d0;margin-bottom:24px;"><div style="font-size:11px;color:#6b7280;font-weight:700;">ข้อมูลการจอง</div><div style="margin-top:8px;font-size:16px;font-weight:700;color:#16a34a;">🏠 บ้าน ${linked.house.name}</div>${linked.customer?.price?`<div style="font-size:14px;color:#2563eb;font-weight:700;">ราคา: ฿${Number(linked.customer.price).toLocaleString()}</div>`:""}${c.bookingDate?`<div style="font-size:13px;">📅 วันจอง: ${c.bookingDate}</div>`:""}</div>`:""}
-      ${(c.bankLoans||[]).length>0?`<div style="margin-bottom:24px;"><div style="font-size:14px;font-weight:700;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #e2e8f0;">🏦 ธนาคารที่ยื่นกู้</div>${c.bankLoans.map((b,i)=>`<div style="background:#f8fafc;border-radius:10px;padding:14px;margin-bottom:8px;border:1px solid #e2e8f0;"><div style="font-weight:700;color:#2563eb;">ธนาคารที่ ${i+1}: ${b.bankName||"—"}</div>${b.promoName?`<div style="font-size:12px;color:#6b7280;">โปรโมชั่น: ${b.promoName}</div>`:""}${b.loanAmount?`<div style="font-size:12px;">ยอดกู้: ฿${Number(b.loanAmount).toLocaleString()} / ${b.loanYears||30} ปี</div>`:""}</div>`).join("")}</div>`:""}
+      ${(c.bankLoans||[]).length>0?`<div style="margin-bottom:24px;"><div style="font-size:14px;font-weight:700;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #e2e8f0;">🏦 ธนาคารที่ยื่นกู้</div>${c.bankLoans.map((b,i)=>{const la=b.loanAmount?Number(b.loanAmount):0;const yr=b.loanYears?Number(b.loanYears):30;const r1=Number(b.rate1)||0;const r2=Number(b.rate2)||0;const r3=Number(b.rate3)||0;const cm=(p,r,y)=>{if(!p||!r||!y)return 0;const mr=r/100/12;const n=y*12;return Math.round(p*mr*Math.pow(1+mr,n)/(Math.pow(1+mr,n)-1));};return`<div style="background:#f8fafc;border-radius:10px;padding:14px;margin-bottom:8px;border:1px solid #e2e8f0;"><div style="font-weight:700;color:#2563eb;">ธนาคารที่ ${i+1}: ${b.bankName||"—"}</div>${b.promoName?`<div style="font-size:12px;color:#6b7280;">โปรโมชั่น: ${b.promoName}</div>`:""}${la?`<div style="font-size:12px;">ยอดกู้: ฿${la.toLocaleString()} / ${yr} ปี</div>`:""}${la&&(r1||r2||r3)?`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px;">${r1?`<div style="text-align:center;background:#f0fdf4;border-radius:8px;padding:8px;"><div style="font-size:10px;color:#6b7280;">ปีที่ 1 (${b.rate1}%)</div><div style="font-size:16px;font-weight:800;color:#16a34a;">฿${cm(la,r1,yr).toLocaleString()}</div></div>`:"<div></div>"}${r2?`<div style="text-align:center;background:#fffbeb;border-radius:8px;padding:8px;"><div style="font-size:10px;color:#6b7280;">ปีที่ 2 (${b.rate2}%)</div><div style="font-size:16px;font-weight:800;color:#ea580c;">฿${cm(la,r2,yr).toLocaleString()}</div></div>`:"<div></div>"}${r3?`<div style="text-align:center;background:#eff6ff;border-radius:8px;padding:8px;"><div style="font-size:10px;color:#6b7280;">ปีที่ 3+ (${b.rate3}%)</div><div style="font-size:16px;font-weight:800;color:#2563eb;">฿${cm(la,r3,yr).toLocaleString()}</div></div>`:"<div></div>"}</div>`:""}</div>`;}).join("")}</div>`:""}
       ${c.note?`<div style="background:#f8fafc;border-radius:12px;padding:16px;border:1px solid #e2e8f0;margin-bottom:24px;"><div style="font-size:11px;color:#6b7280;font-weight:700;">หมายเหตุ</div><div style="margin-top:8px;font-size:13px;">${c.note}</div></div>`:""}
       <div style="margin-top:36px;padding-top:18px;border-top:2px solid #e2e8f0;text-align:center;"><div style="color:#9ca3af;font-size:11px;">เอกสารโดยระบบ CPMS — ${new Date().toLocaleDateString("th-TH",{year:"numeric",month:"long",day:"numeric"})}</div></div>
     `;
@@ -2179,6 +2215,104 @@ function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
       let pos=0;pdf.addImage(imgData,"JPEG",0,pos,iw,ih);
       let left=ih-ph2;while(left>0){pdf.addPage();pos-=ph2;pdf.addImage(imgData,"JPEG",0,pos,iw,ih);left-=ph2;}
       dlBlob(pdf.output("blob"),`ข้อมูลลูกค้า_${c.name||"ลูกค้า"}.pdf`);
+    }catch(e){alert("เกิดข้อผิดพลาด: "+e.message);}
+    document.body.removeChild(el);setPdfLoading2(false);
+  }
+  const [custPdfPreview,setCustPdfPreview]=useState(null);
+  async function exportCustomerFacingPDF(c){
+    setPdfLoading2(true);
+    const linked=getLinkedHouseData(c.bookingHouseId);
+    const housePromos=linked?.customer?.promotionItems||(linked?.customer?.promotion?[{id:1,text:linked.customer.promotion}]:[]);
+    const houseTypeStr=[c.houseStyle,c.houseFloors,c.bedroomConfig].filter(Boolean).join(" / ")||(c.lookingForHouseType||"");
+    const areaStr=[c.subDistrict,c.district,c.province].filter(Boolean).join(", ")||(c.preferredArea||"");
+    const projectName=linked?data.projects.find(p=>p.id===linked.house.projectId)?.name||"":"";
+    const el=document.createElement("div");
+    el.style.cssText="position:fixed;left:-9999px;top:0;width:794px;background:#fff;padding:0;font-family:'Noto Sans Thai',sans-serif;color:#1a1a1a;line-height:1.6;";
+    el.innerHTML=`
+      <div style="background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);color:#fff;padding:40px 44px 32px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-30px;right:-30px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,0.06);"></div>
+        <div style="position:absolute;bottom:-40px;left:-20px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.04);"></div>
+        <div style="position:relative;z-index:1;">
+          <div style="font-size:30px;font-weight:900;letter-spacing:1px;">🏠 เอกสารข้อมูลบ้าน</div>
+          ${projectName?`<div style="font-size:16px;margin-top:6px;font-weight:600;opacity:0.9;">โครงการ ${projectName}</div>`:""}
+          <div style="font-size:12px;margin-top:10px;opacity:0.7;">วันที่ออกเอกสาร: ${new Date().toLocaleDateString("th-TH",{year:"numeric",month:"long",day:"numeric"})}</div>
+        </div>
+      </div>
+      <div style="padding:32px 44px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+          <div style="font-size:20px;font-weight:800;color:#1e3a5f;">คุณ ${c.name||"—"}</div>
+          ${houseTypeStr?`<div style="background:#dbeafe;color:#2563eb;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;">${houseTypeStr}</div>`:""}
+        </div>
+        ${linked?`
+        <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:16px;padding:24px;margin-bottom:24px;border:1px solid #86efac;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;">
+            <div>
+              <div style="font-size:11px;color:#15803d;font-weight:700;text-transform:uppercase;letter-spacing:1px;">ข้อมูลบ้าน</div>
+              <div style="font-size:24px;font-weight:900;color:#166534;margin-top:6px;">🏡 บ้าน ${linked.house.name}</div>
+              ${areaStr?`<div style="font-size:13px;color:#15803d;margin-top:4px;">📍 ${areaStr}</div>`:""}
+            </div>
+            ${linked.customer?.price?`<div style="text-align:right;"><div style="font-size:11px;color:#15803d;font-weight:700;">ราคาบ้าน</div><div style="font-size:28px;font-weight:900;color:#166534;">฿${Number(linked.customer.price).toLocaleString()}</div></div>`:""}
+          </div>
+        </div>
+        `:""}
+        ${housePromos.length>0?`
+        <div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border-radius:16px;padding:20px;margin-bottom:24px;border:1px solid #fbbf24;">
+          <div style="font-size:14px;font-weight:800;color:#92400e;margin-bottom:10px;">🏷️ โปรโมชั่นพิเศษ</div>
+          ${housePromos.map((p,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;${i>0?"border-top:1px solid #fde68a;":""}"><div style="width:24px;height:24px;border-radius:50%;background:#f59e0b;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;">${i+1}</div><div style="font-size:13px;color:#78350f;font-weight:600;">${p.text}</div></div>`).join("")}
+        </div>
+        `:""}
+        ${(c.bankLoans||[]).length>0?`
+        <div style="margin-bottom:24px;">
+          <div style="font-size:16px;font-weight:800;color:#1e3a5f;margin-bottom:16px;padding-bottom:8px;border-bottom:3px solid #2563eb;">🏦 ตัวเลือกสินเชื่อ</div>
+          ${c.bankLoans.map((b,i)=>{const la=b.loanAmount?Number(b.loanAmount):0;const yr=b.loanYears?Number(b.loanYears):30;const r1=Number(b.rate1)||0;const r2=Number(b.rate2)||0;const r3=Number(b.rate3)||0;const cm=(p,r,y)=>{if(!p||!r||!y)return 0;const mr=r/100/12;const n=y*12;return Math.round(p*mr*Math.pow(1+mr,n)/(Math.pow(1+mr,n)-1));};const p1=cm(la,r1,yr);const p2=cm(la,r2,yr);const p3=cm(la,r3,yr);return`
+          <div style="background:#f8fafc;border-radius:14px;padding:20px;margin-bottom:12px;border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <div>
+                <div style="font-size:16px;font-weight:800;color:#2563eb;">${b.bankName||"ธนาคาร"}</div>
+                ${b.promoName?`<div style="font-size:12px;color:#6b7280;margin-top:2px;">✨ ${b.promoName}</div>`:""}
+              </div>
+              ${la?`<div style="text-align:right;"><div style="font-size:10px;color:#6b7280;">ยอดกู้</div><div style="font-size:18px;font-weight:800;color:#1e3a5f;">฿${la.toLocaleString()}</div><div style="font-size:10px;color:#6b7280;">ระยะเวลา ${yr} ปี (${yr*12} งวด)</div></div>`:""}
+            </div>
+            ${la&&(r1||r2||r3)?`
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+              ${r1?`<div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:12px;padding:14px;text-align:center;border:1px solid #86efac;">
+                <div style="font-size:10px;color:#15803d;font-weight:600;">ปีที่ 1</div>
+                <div style="font-size:11px;color:#6b7280;margin-top:2px;">ดอกเบี้ย ${b.rate1}%</div>
+                <div style="font-size:22px;font-weight:900;color:#166534;margin-top:6px;">฿${p1.toLocaleString()}</div>
+                <div style="font-size:10px;color:#15803d;">บาท/เดือน</div>
+              </div>`:`<div></div>`}
+              ${r2?`<div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border-radius:12px;padding:14px;text-align:center;border:1px solid #fbbf24;">
+                <div style="font-size:10px;color:#92400e;font-weight:600;">ปีที่ 2</div>
+                <div style="font-size:11px;color:#6b7280;margin-top:2px;">ดอกเบี้ย ${b.rate2}%</div>
+                <div style="font-size:22px;font-weight:900;color:#92400e;margin-top:6px;">฿${p2.toLocaleString()}</div>
+                <div style="font-size:10px;color:#92400e;">บาท/เดือน</div>
+              </div>`:`<div></div>`}
+              ${r3?`<div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:12px;padding:14px;text-align:center;border:1px solid #93c5fd;">
+                <div style="font-size:10px;color:#1e40af;font-weight:600;">ปีที่ 3+</div>
+                <div style="font-size:11px;color:#6b7280;margin-top:2px;">ดอกเบี้ย ${b.rate3}%</div>
+                <div style="font-size:22px;font-weight:900;color:#1e40af;margin-top:6px;">฿${p3.toLocaleString()}</div>
+                <div style="font-size:10px;color:#1e40af;">บาท/เดือน</div>
+              </div>`:`<div></div>`}
+            </div>
+            `:""}</div>`;}).join("")}
+        </div>
+        `:""}
+        <div style="margin-top:32px;padding-top:20px;border-top:2px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+          <div style="color:#9ca3af;font-size:11px;">เอกสารนี้จัดทำโดยระบบ CPMS<br/>${new Date().toLocaleDateString("th-TH",{year:"numeric",month:"long",day:"numeric"})}</div>
+          <div style="text-align:right;color:#6b7280;font-size:10px;">เอกสารนี้ใช้เพื่อการพิจารณาเท่านั้น<br/>ข้อมูลอาจเปลี่ยนแปลงได้โดยไม่ต้องแจ้งล่วงหน้า</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(el);
+    try{
+      const canvas=await html2canvas(el,{scale:2,useCORS:true,allowTaint:true,logging:false,windowWidth:794});
+      const imgData=canvas.toDataURL("image/jpeg",0.95);
+      const pdf=new jsPDF("p","mm","a4");
+      const pw=pdf.internal.pageSize.getWidth();const ph2=pdf.internal.pageSize.getHeight();
+      const iw=pw;const ih=(canvas.height*iw)/canvas.width;
+      let pos=0;pdf.addImage(imgData,"JPEG",0,pos,iw,ih);
+      let left=ih-ph2;while(left>0){pdf.addPage();pos-=ph2;pdf.addImage(imgData,"JPEG",0,pos,iw,ih);left-=ph2;}
+      dlBlob(pdf.output("blob"),`เอกสารบ้าน_${c.name||"ลูกค้า"}.pdf`);
     }catch(e){alert("เกิดข้อผิดพลาด: "+e.message);}
     document.body.removeChild(el);setPdfLoading2(false);
   }
@@ -2265,7 +2399,7 @@ function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
         const linked=getLinkedHouseData(form.bookingHouseId);
         const housePromos=linked?.customer?.promotionItems||(linked?.customer?.promotion?[{id:1,text:linked.customer.promotion}]:[]);
         return(
-        <Mdl title={editMdl==="add"?"➕ เพิ่มลูกค้า Walk-in":"✏️ แก้ไขข้อมูลลูกค้า"} onClose={()=>setEditMdl(null)} footer={<><Btn variant="ghost" onClick={()=>setEditMdl(null)}>ยกเลิก</Btn><Btn variant="ghost" onClick={()=>setPdfPreview({...form})} style={{color:C.blue}}>👁 PDF</Btn><Btn onClick={save}>💾 บันทึก</Btn></>}>
+        <Mdl title={editMdl==="add"?"➕ เพิ่มลูกค้า Walk-in":"✏️ แก้ไขข้อมูลลูกค้า"} onClose={()=>setEditMdl(null)} footer={<><Btn variant="ghost" onClick={()=>setEditMdl(null)}>ยกเลิก</Btn><Btn variant="ghost" onClick={()=>setPdfPreview({...form})} style={{color:C.blue}}>👁 PDF</Btn><Btn variant="ghost" onClick={()=>setCustPdfPreview({...form})} style={{color:C.green}}>🏠 PDF ลูกค้า</Btn><Btn onClick={save}>💾 บันทึก</Btn></>}>
           <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
             <FG label="ชื่อ-นามสกุล"><FIn value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></FG>
             <FG label="เบอร์โทร"><FIn value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))}/></FG>
@@ -2345,11 +2479,41 @@ function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
           </div>
           <FG label="หนี้สินอื่นๆ (รายละเอียด + จำนวนเงิน)"><FIn value={form.otherDebts} onChange={e=>setForm(f=>({...f,otherDebts:e.target.value}))} rows={2} placeholder="เช่น บัตรเครดิต 5,000/เดือน, สินเชื่อส่วนบุคคล 3,000/เดือน"/></FG>
           <div style={{fontSize:14,fontWeight:700,color:C.text,marginTop:12,marginBottom:8,paddingTop:12,borderTop:`1px solid ${C.border}`}}>🔍 ข้อมูลการค้นหาบ้าน</div>
-          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:12}}>
-            <FG label="มองหาบ้านแบบไหน"><FIn value={form.lookingForHouseType} onChange={e=>setForm(f=>({...f,lookingForHouseType:e.target.value}))} placeholder="เช่น ทาวน์โฮม 2 ชั้น, บ้านเดี่ยว"/></FG>
-            <FG label="โซน/พื้นที่ที่สนใจ"><FIn value={form.preferredArea} onChange={e=>setForm(f=>({...f,preferredArea:e.target.value}))} placeholder="เช่น บางนา, รังสิต, เมืองทอง"/></FG>
+          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr 1fr",gap:12}}>
+            <FG label="ประเภทบ้านที่สนใจ">
+              <FSel value={form.houseStyle} onChange={e=>setForm(f=>({...f,houseStyle:e.target.value}))}>
+                <option value="">— เลือกประเภท —</option>
+                {houseStyleOpts.map(o=><option key={o} value={o}>{o}</option>)}
+              </FSel>
+            </FG>
+            <FG label="จำนวนชั้น">
+              <FSel value={form.houseFloors} onChange={e=>setForm(f=>({...f,houseFloors:e.target.value}))}>
+                <option value="">— เลือกจำนวนชั้น —</option>
+                {houseFloorOpts.map(o=><option key={o} value={o}>{o}</option>)}
+              </FSel>
+            </FG>
+            <FG label="ห้องนอน/ห้องน้ำ">
+              <FSel value={form.bedroomConfig} onChange={e=>setForm(f=>({...f,bedroomConfig:e.target.value}))}>
+                <option value="">— เลือกรูปแบบ —</option>
+                {bedroomOpts.map(o=><option key={o} value={o}>{o}</option>)}
+              </FSel>
+            </FG>
+          </div>
+          <div style={{fontSize:13,fontWeight:700,color:C.muted,marginTop:12,marginBottom:6}}>📍 โซน/พื้นที่ที่สนใจ</div>
+          <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr 1fr",gap:12}}>
+            <FG label="จังหวัด">
+              <FSel value={form.province} onChange={e=>setForm(f=>({...f,province:e.target.value,district:"",subDistrict:""}))}>
+                <option value="">— เลือกจังหวัด —</option>
+                {thaiProvinces.map(p=><option key={p} value={p}>{p}</option>)}
+              </FSel>
+            </FG>
+            <FG label="อำเภอ/เขต"><FIn value={form.district} onChange={e=>setForm(f=>({...f,district:e.target.value}))} placeholder="พิมพ์ชื่ออำเภอ/เขต"/></FG>
+            <FG label="ตำบล/แขวง"><FIn value={form.subDistrict} onChange={e=>setForm(f=>({...f,subDistrict:e.target.value}))} placeholder="พิมพ์ชื่อตำบล/แขวง"/></FG>
           </div>
           <FG label="ที่ทำงาน/สถานที่ทำงาน"><FIn value={form.workPlace} onChange={e=>setForm(f=>({...f,workPlace:e.target.value}))} placeholder="เช่น บริษัท ABC อ.เมือง จ.ชลบุรี"/></FG>
+          {form.interestLevel&&form.interestLevel!=="จอง"&&(
+            <FG label="📝 สาเหตุที่ยังไม่จอง / หมายเหตุติดตาม"><FIn value={form.notBookedReason||""} onChange={e=>setForm(f=>({...f,notBookedReason:e.target.value}))} rows={2} placeholder="เช่น ลูกค้าไปถามพ่อแม่, จะกลับมาดูอีกที, รอเปรียบเทียบโครงการอื่น..."/></FG>
+          )}
           <div style={{fontSize:14,fontWeight:700,color:C.text,marginTop:12,marginBottom:8,paddingTop:12,borderTop:`1px solid ${C.border}`}}>🏦 ธนาคารที่ยื่นกู้</div>
           {(form.bankLoans||[]).map((bank,bi)=>{
             const housePrice=linked?.customer?.price?Number(linked.customer.price):0;
@@ -2421,6 +2585,7 @@ function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
           <div style={{background:"#fff",color:"#1a1a1a",borderRadius:12,padding:20,maxHeight:"60vh",overflowY:"auto"}}>
             <div style={{textAlign:"center",marginBottom:20,paddingBottom:16,borderBottom:"3px solid #2563eb"}}>
               <div style={{fontSize:22,fontWeight:800,color:"#2563eb"}}>📋 ข้อมูลลูกค้า</div>
+              <div style={{fontSize:11,color:"#6b7280",marginTop:4}}>วัน Walk-in: {pdfPreview.walkInDate||"—"}{pdfPreview.bookingDate?` | วันจอง: ${pdfPreview.bookingDate}`:""}</div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:isMobileMode?"1fr":"1fr 1fr",gap:14,marginBottom:16}}>
               <div style={{background:"#f8fafc",borderRadius:10,padding:14}}>
@@ -2430,15 +2595,25 @@ function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
                 <div style={{fontSize:12,marginTop:2}}>อายุ: {pdfPreview.age||"—"} | อาชีพ: {pdfPreview.occupation||"—"}</div>
                 <div style={{fontSize:12,marginTop:2}}>รายได้: {pdfPreview.income?`฿${fmtMoney(Number(pdfPreview.income))}`:"—"}/เดือน</div>
                 {pdfPreview.maritalStatus&&<div style={{fontSize:12,marginTop:2}}>สถานะ: {pdfPreview.maritalStatus} | บุตร: {pdfPreview.numberOfChildren||"0"} คน</div>}
+                {pdfPreview.workPlace&&<div style={{fontSize:12,marginTop:2}}>💼 {pdfPreview.workPlace}</div>}
               </div>
               <div style={{background:"#f8fafc",borderRadius:10,padding:14}}>
                 <div style={{fontSize:10,color:"#6b7280",fontWeight:700,textTransform:"uppercase"}}>ความสนใจ & การค้นหา</div>
-                {pdfPreview.interestLevel&&<div style={{fontSize:14,fontWeight:600,marginTop:6}}>⭐ {pdfPreview.interestLevel}</div>}
-                {pdfPreview.lookingForHouseType&&<div style={{fontSize:12,marginTop:4}}>🏠 {pdfPreview.lookingForHouseType}</div>}
-                {pdfPreview.preferredArea&&<div style={{fontSize:12,marginTop:2}}>📍 {pdfPreview.preferredArea}</div>}
-                {pdfPreview.workPlace&&<div style={{fontSize:12,marginTop:2}}>💼 {pdfPreview.workPlace}</div>}
+                {pdfPreview.interestLevel&&<div style={{fontSize:14,fontWeight:600,marginTop:6,color:INTEREST_COL[pdfPreview.interestLevel]==="green"?"#16a34a":INTEREST_COL[pdfPreview.interestLevel]==="red"?"#dc2626":INTEREST_COL[pdfPreview.interestLevel]==="orange"?"#ea580c":"#2563eb"}}>⭐ {pdfPreview.interestLevel}</div>}
+                {(pdfPreview.houseStyle||pdfPreview.houseFloors||pdfPreview.bedroomConfig)&&<div style={{fontSize:12,marginTop:4}}>🏠 {[pdfPreview.houseStyle,pdfPreview.houseFloors,pdfPreview.bedroomConfig].filter(Boolean).join(" / ")}</div>}
+                {!pdfPreview.houseStyle&&pdfPreview.lookingForHouseType&&<div style={{fontSize:12,marginTop:4}}>🏠 {pdfPreview.lookingForHouseType}</div>}
+                {(pdfPreview.province||pdfPreview.district||pdfPreview.subDistrict)&&<div style={{fontSize:12,marginTop:2}}>📍 {[pdfPreview.subDistrict,pdfPreview.district,pdfPreview.province].filter(Boolean).join(", ")}</div>}
+                {!pdfPreview.province&&pdfPreview.preferredArea&&<div style={{fontSize:12,marginTop:2}}>📍 {pdfPreview.preferredArea}</div>}
+                {(pdfPreview.channels||[]).length>0&&<div style={{fontSize:12,marginTop:4}}>📢 ช่องทาง: {pdfPreview.channels.join(", ")}{pdfPreview.channelOther?` (${pdfPreview.channelOther})`:""}</div>}
+                {pdfPreview.salesPerson&&<div style={{fontSize:12,marginTop:2}}>👤 เซลล์: {pdfPreview.channelDetail||pdfPreview.salesPerson}</div>}
               </div>
             </div>
+            {pdfPreview.notBookedReason&&(
+              <div style={{background:"#fef3c7",borderRadius:10,padding:14,marginBottom:14,border:"1px solid #fbbf24"}}>
+                <div style={{fontSize:10,fontWeight:700,color:"#92400e"}}>📝 สาเหตุที่ยังไม่จอง / หมายเหตุติดตาม</div>
+                <div style={{fontSize:13,marginTop:6,color:"#78350f",fontWeight:600}}>{pdfPreview.notBookedReason}</div>
+              </div>
+            )}
             {(pdfPreview.carInstallment||pdfPreview.otherDebts)&&(
               <div style={{background:"#fffbeb",borderRadius:10,padding:14,marginBottom:14}}>
                 <div style={{fontSize:10,fontWeight:700,color:"#6b7280"}}>ภาระหนี้สิน</div>
@@ -2462,6 +2637,86 @@ function CustomerDataPage({data,setData,role,isMobileMode,setPage}) {
           </div>
         </Mdl>
       )}
+      {custPdfPreview&&(()=>{
+        const linked=getLinkedHouseData(custPdfPreview.bookingHouseId);
+        const housePromos=linked?.customer?.promotionItems||(linked?.customer?.promotion?[{id:1,text:linked.customer.promotion}]:[]);
+        const houseTypeStr=[custPdfPreview.houseStyle,custPdfPreview.houseFloors,custPdfPreview.bedroomConfig].filter(Boolean).join(" / ")||(custPdfPreview.lookingForHouseType||"");
+        const areaStr=[custPdfPreview.subDistrict,custPdfPreview.district,custPdfPreview.province].filter(Boolean).join(", ")||(custPdfPreview.preferredArea||"");
+        const projectName=linked?data.projects.find(p=>p.id===linked.house.projectId)?.name||"":"";
+        return(
+        <Mdl title="🏠 พรีวิว PDF สำหรับลูกค้า" onClose={()=>setCustPdfPreview(null)} footer={<><Btn variant="ghost" onClick={()=>setCustPdfPreview(null)}>ปิด</Btn><Btn onClick={()=>{exportCustomerFacingPDF(custPdfPreview);setCustPdfPreview(null);}} disabled={pdfLoading2} style={{background:"#16a34a",color:"#fff"}}>{pdfLoading2?"⏳ กำลังสร้าง...":"📄 ดาวน์โหลด PDF"}</Btn></>}>
+          <div style={{background:"#fff",color:"#1a1a1a",borderRadius:12,overflow:"hidden",maxHeight:"60vh",overflowY:"auto"}}>
+            {/* Header */}
+            <div style={{background:"linear-gradient(135deg,#1e3a5f,#2563eb)",color:"#fff",padding:"28px 24px 22px"}}>
+              <div style={{fontSize:22,fontWeight:900}}>🏠 เอกสารข้อมูลบ้าน</div>
+              {projectName&&<div style={{fontSize:14,marginTop:4,fontWeight:600,opacity:.9}}>โครงการ {projectName}</div>}
+              <div style={{fontSize:11,marginTop:8,opacity:.7}}>วันที่ออกเอกสาร: {new Date().toLocaleDateString("th-TH",{year:"numeric",month:"long",day:"numeric"})}</div>
+            </div>
+            <div style={{padding:"20px 24px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+                <div style={{fontSize:18,fontWeight:800,color:"#1e3a5f"}}>คุณ {custPdfPreview.name||"—"}</div>
+                {houseTypeStr&&<div style={{background:"#dbeafe",color:"#2563eb",padding:"3px 10px",borderRadius:16,fontSize:11,fontWeight:600}}>{houseTypeStr}</div>}
+              </div>
+              {/* House info */}
+              {linked&&(
+                <div style={{background:"linear-gradient(135deg,#f0fdf4,#dcfce7)",borderRadius:12,padding:18,marginBottom:16,border:"1px solid #86efac"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12}}>
+                    <div>
+                      <div style={{fontSize:10,color:"#15803d",fontWeight:700,textTransform:"uppercase"}}>ข้อมูลบ้าน</div>
+                      <div style={{fontSize:20,fontWeight:900,color:"#166534",marginTop:4}}>🏡 บ้าน {linked.house.name}</div>
+                      {areaStr&&<div style={{fontSize:12,color:"#15803d",marginTop:3}}>📍 {areaStr}</div>}
+                    </div>
+                    {linked.customer?.price&&<div style={{textAlign:"right"}}><div style={{fontSize:10,color:"#15803d",fontWeight:700}}>ราคาบ้าน</div><div style={{fontSize:22,fontWeight:900,color:"#166534"}}>฿{fmtMoney(Number(linked.customer.price))}</div></div>}
+                  </div>
+                </div>
+              )}
+              {/* Promotions */}
+              {housePromos.length>0&&(
+                <div style={{background:"linear-gradient(135deg,#fffbeb,#fef3c7)",borderRadius:12,padding:16,marginBottom:16,border:"1px solid #fbbf24"}}>
+                  <div style={{fontSize:13,fontWeight:800,color:"#92400e",marginBottom:8}}>🏷️ โปรโมชั่นพิเศษ</div>
+                  {housePromos.map((p,i)=><div key={p.id} style={{fontSize:12,color:"#78350f",fontWeight:600,padding:"4px 0",borderTop:i>0?"1px solid #fde68a":"none"}}>{i+1}. {p.text}</div>)}
+                </div>
+              )}
+              {/* Bank loans */}
+              {(custPdfPreview.bankLoans||[]).length>0&&(
+                <div style={{marginBottom:16}}>
+                  <div style={{fontSize:14,fontWeight:800,color:"#1e3a5f",marginBottom:12,paddingBottom:6,borderBottom:"2px solid #2563eb"}}>🏦 ตัวเลือกสินเชื่อ</div>
+                  {custPdfPreview.bankLoans.map((b,bi)=>{
+                    const la=b.loanAmount?Number(b.loanAmount):0;
+                    const yr=b.loanYears?Number(b.loanYears):30;
+                    const p1=calcMonthly(la,Number(b.rate1)||0,yr);
+                    const p2=calcMonthly(la,Number(b.rate2)||0,yr);
+                    const p3=calcMonthly(la,Number(b.rate3)||0,yr);
+                    return(
+                      <div key={b.id} style={{background:"#f8fafc",borderRadius:10,padding:14,marginBottom:8,border:"1px solid #e2e8f0"}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                          <div>
+                            <div style={{fontSize:14,fontWeight:800,color:"#2563eb"}}>{b.bankName||"ธนาคาร"}</div>
+                            {b.promoName&&<div style={{fontSize:11,color:"#6b7280"}}>✨ {b.promoName}</div>}
+                          </div>
+                          {la>0&&<div style={{textAlign:"right"}}><div style={{fontSize:9,color:"#6b7280"}}>ยอดกู้</div><div style={{fontSize:15,fontWeight:800,color:"#1e3a5f"}}>฿{fmtMoney(la)}</div><div style={{fontSize:9,color:"#6b7280"}}>{yr} ปี ({yr*12} งวด)</div></div>}
+                        </div>
+                        {la>0&&(Number(b.rate1)>0||Number(b.rate2)>0||Number(b.rate3)>0)&&(
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+                            {Number(b.rate1)>0&&<div style={{background:"#f0fdf4",borderRadius:8,padding:10,textAlign:"center",border:"1px solid #86efac"}}><div style={{fontSize:9,color:"#15803d"}}>ปีที่ 1 ({b.rate1}%)</div><div style={{fontSize:16,fontWeight:900,color:"#166534"}}>฿{fmtMoney(p1)}</div><div style={{fontSize:9,color:"#15803d"}}>บาท/เดือน</div></div>}
+                            {Number(b.rate2)>0&&<div style={{background:"#fffbeb",borderRadius:8,padding:10,textAlign:"center",border:"1px solid #fbbf24"}}><div style={{fontSize:9,color:"#92400e"}}>ปีที่ 2 ({b.rate2}%)</div><div style={{fontSize:16,fontWeight:900,color:"#92400e"}}>฿{fmtMoney(p2)}</div><div style={{fontSize:9,color:"#92400e"}}>บาท/เดือน</div></div>}
+                            {Number(b.rate3)>0&&<div style={{background:"#eff6ff",borderRadius:8,padding:10,textAlign:"center",border:"1px solid #93c5fd"}}><div style={{fontSize:9,color:"#1e40af"}}>ปีที่ 3+ ({b.rate3}%)</div><div style={{fontSize:16,fontWeight:900,color:"#1e40af"}}>฿{fmtMoney(p3)}</div><div style={{fontSize:9,color:"#1e40af"}}>บาท/เดือน</div></div>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div style={{paddingTop:14,borderTop:"2px solid #e2e8f0",display:"flex",justifyContent:"space-between",fontSize:10,color:"#9ca3af"}}>
+                <span>เอกสารจัดทำโดยระบบ CPMS</span>
+                <span>ข้อมูลอาจเปลี่ยนแปลงได้โดยไม่ต้องแจ้งล่วงหน้า</span>
+              </div>
+            </div>
+          </div>
+        </Mdl>
+        );
+      })()}
     </div>
   );
 }

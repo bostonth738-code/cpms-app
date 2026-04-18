@@ -3916,7 +3916,12 @@ function TransferredHousesPage({data,setData,role,isMobileMode}){
   const items=data.transferredHouses||[];
   const grouped={};
   items.forEach(r=>{if(!grouped[r.projectName])grouped[r.projectName]=[];grouped[r.projectName].push(r);});
-  function delTransfer(id){if(confirm("ลบรายการโอนนี้?")){setData(d=>({...d,transferredHouses:(d.transferredHouses||[]).filter(t=>t.id!==id)}));}}
+  const [editTrMdl,setEditTrMdl]=useState(null);
+  const [editTrForm,setEditTrForm]=useState({});
+  function openEditTransfer(r){setEditTrForm({...r});setEditTrMdl(r.id);}
+  function saveEditTransfer(){setData(d=>({...d,transferredHouses:(d.transferredHouses||[]).map(t=>t.id===editTrMdl?{...t,...editTrForm}:t)}));setEditTrMdl(null);}
+  function delTransfer(id){if(confirm("ลบรายการโอนนี้? (ข้อมูลจะหายถาวร)")){setData(d=>({...d,transferredHouses:(d.transferredHouses||[]).filter(t=>t.id!==id)}));}}
+  function undoTransfer(r){if(!confirm(`ยกเลิกการโอน "${r.houseName}"?\nข้อมูลลูกค้าจะย้ายกลับไปหน้า "บ้านและจอง"`))return;const cust={houseId:r.houseId,name:r.customerName,phone:r.customerPhone||"",price:r.price||"",type:r.type||"loan",promotionItems:r.promotionItems||[],bankLoans:r.bankLoans||[],salesPersons:r.salesPersons||[],prob:r.prob||100,note:r.note||"",booked:r.booked||"",preApproved:r.preApproved||false};setData(d=>({...d,transferredHouses:(d.transferredHouses||[]).filter(t=>t.id!==r.id),customers:[...d.customers,cust],houses:d.houses.map(h=>h.id===r.houseId?{...h,customer:r.customerName}:h)}));}
   return(
     <div style={{padding:isMobileMode?12:24}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:8}}>
@@ -3933,7 +3938,7 @@ function TransferredHousesPage({data,setData,role,isMobileMode}){
                   <div key={r.id} style={{background:C.faint,borderRadius:10,padding:14}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"start",marginBottom:6}}>
                       <div><Tag color="green">🏠 {r.houseName}</Tag></div>
-                      {role==="owner"&&<Btn size="sm" variant="ghost" onClick={()=>delTransfer(r.id)} style={{color:C.red}}>🗑</Btn>}
+                      {role==="owner"&&<div style={{display:"flex",gap:4}}><Btn size="sm" variant="ghost" onClick={()=>openEditTransfer(r)} style={{color:C.blue}}>✏️</Btn><Btn size="sm" variant="ghost" onClick={()=>undoTransfer(r)} style={{color:C.orange}}>↩️</Btn><Btn size="sm" variant="ghost" onClick={()=>delTransfer(r.id)} style={{color:C.red}}>🗑</Btn></div>}
                     </div>
                     <div style={{fontSize:14,fontWeight:700,color:C.text}}>{r.customerName}</div>
                     {r.customerPhone&&<div style={{fontSize:12,color:C.blue,marginTop:2}}>📞 {r.customerPhone}</div>}
@@ -3949,7 +3954,7 @@ function TransferredHousesPage({data,setData,role,isMobileMode}){
               </div>
             ):(
               <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:canSeeAll?900:500}}>
-                <thead><tr>{["บ้าน","ลูกค้า","เบอร์โทร",canSeeAll?"ราคา":"",canSeeAll?"ซื้อแบบ":"",canSeeAll?"เซลล์":"",canSeeAll?"ธนาคาร":"","วันโอน",canSeeAll?"โปรโมชั่น":"","หมายเหตุ",role==="owner"?"":""].filter(Boolean).map(h=><th key={h} style={{padding:"8px 10px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
+                <thead><tr>{["บ้าน","ลูกค้า","เบอร์โทร",canSeeAll?"ราคา":"",canSeeAll?"ซื้อแบบ":"",canSeeAll?"เซลล์":"",canSeeAll?"ธนาคาร":"","วันโอน",canSeeAll?"โปรโมชั่น":"","หมายเหตุ",role==="owner"?"จัดการ":""].filter(Boolean).map(h=><th key={h} style={{padding:"8px 10px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,borderBottom:`1px solid ${C.border}`,background:"#0d1117",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
                 <tbody>{records.map(r=><tr key={r.id} style={{borderBottom:`1px solid ${C.border}`}} onMouseEnter={e=>e.currentTarget.style.background=C.panel} onMouseLeave={e=>e.currentTarget.style.background=""}>
                   <td style={{padding:"8px 10px"}}><Tag color="green">{r.houseName}</Tag></td>
                   <td style={{padding:"8px 10px",fontSize:13,fontWeight:600,color:C.text}}>{r.customerName}</td>
@@ -3961,13 +3966,25 @@ function TransferredHousesPage({data,setData,role,isMobileMode}){
                   <td style={{padding:"8px 10px",fontSize:12,color:C.text}}>{fmtDate(r.transferDate)}</td>
                   {canSeeAll&&<td style={{padding:"8px 10px",fontSize:11,maxWidth:180,color:C.orange}}>{(r.promotionItems||[]).map((p,i)=><div key={p.id||i}>{i+1}. {p.text}</div>)||"—"}</td>}
                   <td style={{padding:"8px 10px",fontSize:11,color:C.muted,maxWidth:120}}>{r.note||"—"}</td>
-                  {role==="owner"&&<td style={{padding:"8px 10px"}}><Btn size="sm" variant="ghost" onClick={()=>delTransfer(r.id)} style={{color:C.red}}>🗑</Btn></td>}
+                  {role==="owner"&&<td style={{padding:"8px 10px",whiteSpace:"nowrap"}}><Btn size="sm" variant="ghost" onClick={()=>openEditTransfer(r)} style={{color:C.blue}}>✏️</Btn><Btn size="sm" variant="ghost" onClick={()=>undoTransfer(r)} style={{color:C.orange}} title="ยกเลิกโอน">↩️</Btn><Btn size="sm" variant="ghost" onClick={()=>delTransfer(r.id)} style={{color:C.red}}>🗑</Btn></td>}
                 </tr>)}</tbody>
               </table></div>
             )}
           </Card>
         ))
       )}
+      {/* Edit Transfer Modal */}
+      {editTrMdl&&<Mdl title="✏️ แก้ไขข้อมูลบ้านที่โอนแล้ว" onClose={()=>setEditTrMdl(null)} footer={<><Btn variant="ghost" onClick={()=>setEditTrMdl(null)}>ยกเลิก</Btn><Btn onClick={saveEditTransfer}>💾 บันทึก</Btn></>}>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div><label style={{fontSize:11,fontWeight:700,color:C.muted}}>🏠 บ้าน</label><Input value={editTrForm.houseName||""} readOnly style={{opacity:.6}}/></div>
+          <div><label style={{fontSize:11,fontWeight:700,color:C.muted}}>👤 ชื่อลูกค้า</label><Input value={editTrForm.customerName||""} onChange={e=>setEditTrForm(f=>({...f,customerName:e.target.value}))}/></div>
+          <div><label style={{fontSize:11,fontWeight:700,color:C.muted}}>📞 เบอร์โทร</label><Input value={editTrForm.customerPhone||""} onChange={e=>setEditTrForm(f=>({...f,customerPhone:e.target.value}))}/></div>
+          <div><label style={{fontSize:11,fontWeight:700,color:C.muted}}>💰 ราคา</label><Input type="number" value={editTrForm.price||""} onChange={e=>setEditTrForm(f=>({...f,price:e.target.value}))}/></div>
+          <div><label style={{fontSize:11,fontWeight:700,color:C.muted}}>ซื้อแบบ</label><select value={editTrForm.type||"loan"} onChange={e=>setEditTrForm(f=>({...f,type:e.target.value}))} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:C.panel,color:C.text,fontSize:13}}><option value="cash">💵 สด</option><option value="loan">🏦 กู้</option></select></div>
+          <div><label style={{fontSize:11,fontWeight:700,color:C.muted}}>📅 วันโอน</label><Input type="date" value={editTrForm.transferDate||""} onChange={e=>setEditTrForm(f=>({...f,transferDate:e.target.value}))}/></div>
+          <div><label style={{fontSize:11,fontWeight:700,color:C.muted}}>📝 หมายเหตุ</label><textarea value={editTrForm.note||""} onChange={e=>setEditTrForm(f=>({...f,note:e.target.value}))} rows={3} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:C.panel,color:C.text,fontSize:13,resize:"vertical"}}/></div>
+        </div>
+      </Mdl>}
     </div>
   );
 }
